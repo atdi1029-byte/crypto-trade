@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a1628">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>Crypto Trade Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-deep: #0a1628;
+            --bg-dark: #0f1d30;
+            --bg-card: #142236;
+            --bg-card-hover: #1a2d45;
+            --border: #1e3a5f;
+            --border-light: #2a4a70;
+            --text: #c8d8e8;
+            --text-dim: #6a8aaa;
+            --text-bright: #e8f0f8;
+            --accent: #4a9eff;
+            --accent-glow: #6ab4ff;
+            --accent-deep: #2a7edf;
+            --green-candle: #26a69a;
+            --green-bright: #4dd0c4;
+            --green-dim: #1a3a36;
+            --red-candle: #ef5350;
+            --red-bright: #ff6b6b;
+            --red-dim: #3a1a1a;
+        }
+
+        body {
+            font-family: 'Space Mono', 'Noto Serif JP', monospace;
+            background: var(--bg-deep);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* ============ MAIN CONTENT ============ */
+        .content {
+            position: relative;
+            z-index: 1;
+            padding: 1.5rem 2rem 4rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* ============ HEADER ============ */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border);
+            border-image: linear-gradient(90deg, transparent, var(--accent-deep), var(--border), transparent) 1;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .header-logo {
+            width: 120px;
+            height: 120px;
+            border-radius: 18px;
+            border: 2px solid var(--accent-deep);
+            box-shadow: 0 0 25px #4a9eff44;
+        }
+        .header h1 {
+            font-family: 'Noto Serif JP', serif;
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--text-bright);
+            letter-spacing: 3px;
+            line-height: 1;
+        }
+        .header h1 span {
+            font-family: 'Space Mono', monospace;
+            font-size: 2.8rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-shadow: 0 0 25px #4a9eff44, 0 3px 6px #00000066;
+            letter-spacing: 4px;
+            display: block;
+            margin-top: 4px;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+        .refresh-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--accent-glow);
+            padding: 6px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+        .refresh-btn:hover {
+            background: var(--border);
+            border-color: var(--accent-deep);
+            box-shadow: 0 0 10px #4a9eff22;
+        }
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--green-candle);
+            display: inline-block;
+            margin-right: 4px;
+            box-shadow: 0 0 6px #26a69a66;
+        }
+        .status-dot.error { background: var(--red-candle); box-shadow: 0 0 6px #ef535066; }
+        .status-dot.loading { background: var(--accent); animation: pulse 1s infinite; box-shadow: 0 0 6px #4a9eff66; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        /* ============ SECTION HEADERS ============ */
+        .section-header {
+            font-family: 'Noto Serif JP', serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-bright);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding-left: 12px;
+            border-left: 3px solid var(--accent);
+        }
+        .section-header .count {
+            background: var(--accent-deep);
+            color: var(--text-bright);
+            font-family: 'Space Mono', monospace;
+            font-size: 0.6rem;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-weight: 700;
+        }
+
+        /* ============ QUOTE BANNER ============ */
+        .quote-banner {
+            text-align: center;
+            padding: 0.8rem 2rem;
+            margin-bottom: 1.25rem;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            border-image: linear-gradient(90deg, transparent, var(--border-light), transparent) 1;
+            animation: fadeIn 1s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .quote-text {
+            font-family: 'Noto Serif JP', serif;
+            font-size: 0.85rem;
+            font-style: italic;
+            color: var(--text-bright);
+            opacity: 0.7;
+            line-height: 1.5;
+        }
+        .quote-author {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.6rem;
+            color: var(--accent);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-top: 0.3rem;
+            opacity: 0.6;
+        }
+
+        /* ============ QUICK STATS BAR ============ */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-deep), transparent);
+        }
+        .stat-value {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-bright);
+            line-height: 1.2;
+        }
+        .stat-value.green { color: var(--green-bright); text-shadow: 0 0 10px #26a69a33; }
+        .stat-value.red { color: var(--red-bright); text-shadow: 0 0 10px #ef535033; }
+        .stat-label {
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-top: 6px;
+        }
+
+        /* ============ TOP PICKS ============ */
+        .top-picks-section { margin-bottom: 1.5rem; }
+        .top-picks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 0.75rem;
+        }
+        .top-pick-card {
+            background: var(--bg-card);
+            border: 1px solid var(--accent-deep);
+            border-radius: 6px;
+            padding: 1rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.25s;
+        }
+        .top-pick-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-deep), var(--accent-glow), var(--accent-deep));
+        }
+        .top-pick-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 4px 20px #0008, 0 0 20px #4a9eff15;
+            transform: translateY(-2px);
+        }
+        .top-pick-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.6rem;
+        }
+        .top-pick-symbol {
+            font-family: 'Noto Serif JP', serif;
+            font-size: 1.3rem;
+            font-weight: 900;
+            color: var(--text-bright);
+            letter-spacing: 1px;
+        }
+        .top-pick-score {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 3px;
+            background: var(--accent-deep);
+            color: var(--accent-glow);
+            border: 1px solid var(--accent);
+        }
+        .top-pick-direction {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 2px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .top-pick-direction.long { background: var(--green-dim); color: var(--green-bright); }
+        .top-pick-direction.short { background: var(--red-dim); color: var(--red-bright); }
+        .top-pick-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.3rem 1rem;
+            font-size: 0.7rem;
+            margin-top: 0.5rem;
+        }
+        .top-pick-details dt { color: var(--text-dim); font-size: 0.6rem; }
+        .top-pick-details dd { color: var(--text); font-weight: 700; text-align: right; }
+        .top-pick-actions {
+            display: flex;
+            gap: 0.4rem;
+            margin-top: 0.6rem;
+            padding-top: 0.6rem;
+            border-top: 1px solid var(--border);
+        }
+        .no-picks {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1.5rem;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            font-style: italic;
+        }
+
+        /* ============ ACTION NEEDED ============ */
+        .action-section { margin-bottom: 1.5rem; }
+        .action-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .action-item {
+            background: var(--bg-card);
+            border: 1px solid var(--accent-deep);
+            border-left: 4px solid var(--accent);
+            border-radius: 4px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .action-item .ticker-badge {
+            background: var(--accent);
+            color: var(--bg-deep);
+            font-weight: 700;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 3px;
+            margin-right: 0.75rem;
+            letter-spacing: 1px;
+        }
+        .action-item .message { font-size: 0.8rem; color: var(--text-bright); }
+        .action-item .meta { font-size: 0.7rem; color: var(--text-dim); }
+        .action-buttons {
+            display: flex;
+            gap: 0.4rem;
+            margin-top: 0.5rem;
+        }
+        .action-btn {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 3px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+        .action-btn:hover { transform: translateY(-1px); }
+        .action-btn.entered {
+            background: var(--green-dim);
+            color: var(--green-bright);
+            border-color: var(--green-candle);
+        }
+        .action-btn.entered:hover { background: var(--green-candle); color: var(--text-bright); }
+        .action-btn.skipped {
+            background: var(--bg-dark);
+            color: var(--text-dim);
+            border-color: var(--border);
+        }
+        .action-btn.skipped:hover { background: var(--border); color: var(--text); }
+        .action-btn.won {
+            background: var(--green-dim);
+            color: var(--green-bright);
+            border-color: var(--green-candle);
+        }
+        .action-btn.won:hover { background: var(--green-candle); color: var(--text-bright); }
+        .action-btn.lost {
+            background: var(--red-dim);
+            color: var(--red-bright);
+            border-color: var(--red-candle);
+        }
+        .action-btn.lost:hover { background: var(--red-candle); color: var(--text-bright); }
+        .action-btn.open-pos {
+            background: #4a9eff22;
+            color: var(--accent-glow);
+            border-color: #4a9eff44;
+        }
+        .action-btn.open-pos:hover { background: #4a9eff44; color: var(--text-bright); }
+        .action-btn:disabled {
+            opacity: 0.4;
+            cursor: default;
+            transform: none;
+        }
+        .entry-input {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.6rem;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text-bright);
+            padding: 4px 8px;
+            border-radius: 3px;
+            width: 60px;
+            text-align: center;
+        }
+        .entry-input::placeholder { color: var(--text-dim); }
+        .entry-input:focus { outline: none; border-color: var(--accent); }
+        .no-actions {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1.5rem;
+            text-align: center;
+            color: var(--green-candle);
+            font-size: 0.8rem;
+        }
+
+        /* ============ TICKER GRID ============ */
+        .ticker-search-bar {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            align-items: center;
+        }
+        .ticker-search-bar input {
+            flex: 1;
+            max-width: 300px;
+            padding: 0.4rem 0.75rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-bright);
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+        }
+        .ticker-search-bar input::placeholder { color: var(--text-dim); }
+        .ticker-search-bar input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        .ticker-search-bar button {
+            padding: 0.4rem 0.75rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-dim);
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .ticker-search-bar button:hover { border-color: var(--accent); color: var(--text-bright); }
+        .ticker-search-bar button.active {
+            background: var(--accent-deep);
+            border-color: var(--accent);
+            color: var(--text-bright);
+        }
+        .ticker-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+        .ticker-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            transition: all 0.25s;
+            position: relative;
+            overflow: hidden;
+        }
+        .ticker-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 40px;
+            background: linear-gradient(transparent, #0a162808);
+            pointer-events: none;
+        }
+        .ticker-card:hover {
+            border-color: var(--accent-deep);
+            box-shadow: 0 4px 20px #0008, 0 0 15px #4a9eff11;
+            transform: translateY(-2px);
+        }
+        .ticker-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        .ticker-name {
+            font-family: 'Noto Serif JP', serif;
+            font-size: 1.2rem;
+            font-weight: 900;
+            color: var(--text-bright);
+            letter-spacing: 1px;
+        }
+        .ticker-direction {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.55rem;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .ticker-direction.long { background: var(--green-dim); color: var(--green-bright); border: 1px solid var(--green-candle); }
+        .ticker-direction.short { background: var(--red-dim); color: var(--red-bright); border: 1px solid var(--red-candle); }
+        .ticker-direction.idle { background: var(--bg-dark); color: var(--text-dim); border: 1px solid var(--border); }
+
+        .ticker-detail {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.35rem 1rem;
+            font-size: 0.75rem;
+        }
+        .ticker-detail dt { color: var(--text-dim); font-size: 0.65rem; letter-spacing: 0.5px; }
+        .ticker-detail dd { color: var(--text); font-weight: 700; text-align: right; }
+        .ticker-detail dd.green { color: var(--green-bright); }
+        .ticker-detail dd.red { color: var(--red-bright); }
+        .ticker-last-signal {
+            margin-top: 0.6rem;
+            padding-top: 0.6rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            font-style: italic;
+        }
+        .ticker-links {
+            display: flex;
+            gap: 0.4rem;
+            margin-top: 0.6rem;
+            padding-top: 0.6rem;
+            border-top: 1px solid var(--border);
+        }
+        .ticker-link {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.5rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 3px;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+            border: 1px solid var(--border);
+            background: var(--bg-dark);
+            color: var(--text-dim);
+        }
+        .ticker-link:hover {
+            border-color: var(--accent-deep);
+            color: var(--text-bright);
+            background: var(--border);
+        }
+        .ticker-link.tv { color: #2196F3; border-color: #2196F322; }
+        .ticker-link.tv:hover { background: #2196F322; border-color: #2196F3; color: #64B5F6; }
+        .ticker-link.bx { color: var(--accent-glow); border-color: #4a9eff22; }
+        .ticker-link.bx:hover { background: #4a9eff22; border-color: var(--accent); color: var(--accent-glow); }
+
+        /* ============ ALL SIGNALS TABLE ============ */
+        .signals-section { margin-bottom: 1.5rem; }
+        .section-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+        }
+        .signals-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+        .signals-table th {
+            text-align: left;
+            padding: 0.5rem 0.5rem;
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+        .signals-table td {
+            padding: 0.45rem 0.5rem;
+            border-bottom: 1px solid #14223644;
+            white-space: nowrap;
+        }
+        .signals-table tr:hover td { background: #1a2d4544; }
+        .signal-badge {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.55rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 2px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .signal-badge.long { background: var(--green-dim); color: var(--green-bright); }
+        .signal-badge.short { background: var(--red-dim); color: var(--red-bright); }
+        .score-badge {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        .score-badge.high { background: #26a69a33; color: var(--green-bright); border: 1px solid var(--green-candle); }
+        .score-badge.mid { background: #f9a82533; color: #f9c846; border: 1px solid #f9a825; }
+        .score-badge.low { background: #ef535033; color: var(--red-bright); border: 1px solid var(--red-candle); }
+
+        /* ============ PERFORMANCE GRID ============ */
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .perf-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.6rem;
+        }
+        .perf-item {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 0.75rem;
+            text-align: center;
+        }
+        .perf-item .perf-val {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-bright);
+        }
+        .perf-item .perf-label {
+            font-size: 0.55rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-top: 3px;
+        }
+
+        /* ============ LOADING / ERROR ============ */
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #0a1628ee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .loading-overlay.hidden { display: none; }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 1rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error-banner {
+            background: #ef535018;
+            border: 1px solid var(--red-candle);
+            border-radius: 4px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            color: var(--red-bright);
+            font-size: 0.8rem;
+            display: none;
+        }
+        .error-banner.show { display: block; }
+
+        /* ============ FOOTER ============ */
+        .footer {
+            text-align: center;
+            padding: 2rem 0 1rem;
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* ============ RESPONSIVE ============ */
+        @media (max-width: 768px) {
+            .content { padding: 1rem 1rem 3rem; }
+            .header { flex-direction: column; gap: 1rem; text-align: center; }
+            .header-left { flex-direction: column; }
+            .header-logo { width: 80px; height: 80px; }
+            .header h1 { font-size: 2rem; }
+            .header h1 span { font-size: 1.8rem; }
+            .ticker-grid { grid-template-columns: 1fr; }
+            .top-picks-grid { grid-template-columns: 1fr; }
+            .stats-bar { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ============ LOADING ============ -->
+<div class="loading-overlay" id="loading">
+    <div class="spinner"></div>
+    <div style="color: var(--text-dim); font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase;">Loading dashboard...</div>
+</div>
+
+<!-- ============ MAIN CONTENT ============ -->
+<div class="content">
+    <div class="error-banner" id="errorBanner"></div>
+
+    <div class="header">
+        <div class="header-left">
+            <img src="logo.png" alt="Crypto" class="header-logo">
+            <div>
+                <h1>トレード<span>TRADE!</span></h1>
+            </div>
+        </div>
+        <div class="header-right">
+            <span><span class="status-dot loading" id="statusDot"></span><span id="statusText">Connecting...</span></span>
+            <span id="lastUpdate"></span>
+            <button class="refresh-btn" onclick="fetchData()">Refresh</button>
+        </div>
+    </div>
+
+    <!-- Quote Banner -->
+    <div class="quote-banner" id="quoteBanner">
+        <div class="quote-text" id="quoteText"></div>
+        <div class="quote-author" id="quoteAuthor"></div>
+    </div>
+
+    <!-- Quick Stats Bar -->
+    <div class="stats-bar" id="statsBar">
+        <div class="stat-card">
+            <div class="stat-value" id="statOpen">-</div>
+            <div class="stat-label">Open Positions</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statWinRate">-</div>
+            <div class="stat-label">Win Rate</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statTotal">-</div>
+            <div class="stat-label">Total Trades</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statToday">-</div>
+            <div class="stat-label">Today's Signals</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statStreak">-</div>
+            <div class="stat-label">Current Streak</div>
+        </div>
+    </div>
+
+    <!-- Top Picks -->
+    <div class="top-picks-section" id="topPicksSection">
+        <div class="section-header">Top Picks <span class="count" id="topPicksCount">0</span></div>
+        <div class="top-picks-grid" id="topPicksGrid"></div>
+    </div>
+
+    <!-- Action Needed -->
+    <div class="action-section" id="actionSection">
+        <div class="section-header">Action Needed <span class="count" id="actionCount">0</span></div>
+        <div class="action-list" id="actionList"></div>
+    </div>
+
+    <!-- Ticker Grid -->
+    <div class="section-header">Tickers <span class="count" id="tickerCount">0</span></div>
+    <div class="ticker-search-bar">
+        <input type="text" id="tickerSearch" placeholder="Search tickers..." oninput="filterTickers()">
+        <button id="tickerShowAll" onclick="toggleShowAll()">Show All</button>
+    </div>
+    <div class="ticker-grid" id="tickerGrid"></div>
+
+    <!-- All Signals Table -->
+    <div class="signals-section">
+        <div class="section-header">All Signals <span class="count" id="signalCount">0</span></div>
+        <div class="section-box">
+            <table class="signals-table" id="signalsTable">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Symbol</th>
+                        <th>Direction</th>
+                        <th>Entry</th>
+                        <th>SL</th>
+                        <th>TP1</th>
+                        <th>Score</th>
+                        <th>MACD</th>
+                        <th>Volume</th>
+                        <th>RSI</th>
+                    </tr>
+                </thead>
+                <tbody id="signalsBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Performance Summary -->
+    <div class="bottom-grid">
+        <div>
+            <div class="section-header">Performance Summary</div>
+            <div class="section-box">
+                <div class="perf-grid" id="perfGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">Crypto Trade Dashboard</div>
+</div>
+
+<script>
+    // ====== CONFIG ======
+    const API_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec?action=dashboard';
+    const POST_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec';
+    const REFRESH_INTERVAL = 60000;
+
+    let refreshTimer = null;
+    let allTickers = [];
+    let allSignals = [];
+    let showAllTickers = false;
+    const TICKER_LIMIT = 8;
+
+    // ====== SCORING LOGIC ======
+    function scoreSignal(s) {
+        let score = 0;
+        if (s.macd === 'rising' || s.macd === 'falling') score += 2;
+        if (Number(s.cross) >= 0 && Number(s.cross) <= 5) score += 2;
+        if (s.in_zone === true || s.in_zone === 'true') score += 1;
+        if (s.volume === 'above') score += 1;
+        return score;
+    }
+
+    function getScoreClass(score) {
+        if (score >= 5) return 'high';
+        if (score >= 3) return 'mid';
+        return 'low';
+    }
+
+    // ====== FETCH DATA ======
+    async function fetchData() {
+        const dot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        dot.className = 'status-dot loading';
+        statusText.textContent = 'Fetching...';
+
+        try {
+            const resp = await fetch(API_URL);
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const data = await resp.json();
+
+            if (data.status !== 'ok') throw new Error(data.message || 'Bad response');
+
+            renderDashboard(data);
+
+            dot.className = 'status-dot';
+            statusText.textContent = 'Live';
+            document.getElementById('lastUpdate').textContent = 'Updated ' + new Date().toLocaleTimeString();
+            document.getElementById('errorBanner').className = 'error-banner';
+            document.getElementById('loading').className = 'loading-overlay hidden';
+        } catch (err) {
+            renderDashboard(EMPTY_DATA);
+            dot.className = 'status-dot';
+            statusText.textContent = 'Preview';
+            document.getElementById('lastUpdate').textContent = 'No data';
+            document.getElementById('errorBanner').className = 'error-banner';
+            document.getElementById('loading').className = 'loading-overlay hidden';
+        }
+
+        if (refreshTimer) clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(fetchData, REFRESH_INTERVAL);
+    }
+
+    // ====== RENDER ======
+    function renderDashboard(data) {
+        const { tickers, recentSignals, actionNeeded, stats } = data;
+
+        // Score all signals
+        const scoredSignals = (recentSignals || []).map(s => {
+            s._score = scoreSignal(s);
+            return s;
+        });
+        allSignals = scoredSignals;
+
+        // --- Quick Stats ---
+        document.getElementById('statOpen').textContent = stats.openPositions || 0;
+
+        const wrEl = document.getElementById('statWinRate');
+        wrEl.textContent = stats.winRate || '0%';
+        wrEl.className = 'stat-value' + (parseFloat(stats.winRate) >= 50 ? ' green' : parseFloat(stats.winRate) > 0 ? ' red' : '');
+
+        document.getElementById('statTotal').textContent = stats.totalTrades || 0;
+        document.getElementById('statToday').textContent = stats.todaySignals || 0;
+
+        const streakEl = document.getElementById('statStreak');
+        const streakStr = stats.currentStreak || '-';
+        streakEl.textContent = streakStr;
+        streakEl.className = 'stat-value' + (streakStr.includes('W') ? ' green' : streakStr.includes('L') ? ' red' : '');
+
+        // --- Top Picks (score >= 5) ---
+        renderTopPicks(scoredSignals);
+
+        // --- Action Needed ---
+        renderActions(actionNeeded || []);
+
+        // --- Ticker Grid ---
+        allTickers = tickers || [];
+        document.getElementById('tickerCount').textContent = allTickers.length;
+        renderTickerGrid();
+
+        // --- All Signals Table ---
+        renderSignalsTable(scoredSignals);
+
+        // --- Performance Summary ---
+        renderPerformance(stats);
+    }
+
+    // ====== TOP PICKS ======
+    function renderTopPicks(signals) {
+        const grid = document.getElementById('topPicksGrid');
+        const countEl = document.getElementById('topPicksCount');
+        const topPicks = signals.filter(s => s._score >= 5);
+        countEl.textContent = topPicks.length;
+
+        if (topPicks.length === 0) {
+            grid.innerHTML = '<div class="no-picks">No high-conviction signals right now</div>';
+            return;
+        }
+
+        grid.innerHTML = topPicks.map((s, i) => {
+            const dir = (s.direction || s.signal || '').toLowerCase();
+            const dirClass = dir === 'short' ? 'short' : 'long';
+            const entry = Number(s.entry || s.price || 0);
+            const sl = Number(s.sl || 0);
+            const tp1 = Number(s.tp1 || 0);
+            const rr = sl > 0 && entry > 0 ? Math.abs((tp1 - entry) / (entry - sl)).toFixed(2) : '-';
+            const pickId = 'pick-' + i;
+
+            return `
+                <div class="top-pick-card" id="${pickId}">
+                    <div class="top-pick-header">
+                        <div style="display:flex;align-items:center;gap:0.5rem">
+                            <span class="top-pick-symbol">${esc(s.symbol || s.ticker || '-')}</span>
+                            <span class="top-pick-direction ${dirClass}">${dirClass.toUpperCase()}</span>
+                        </div>
+                        <span class="top-pick-score">${s._score}/7</span>
+                    </div>
+                    <dl class="top-pick-details">
+                        <dt>Entry</dt><dd>${entry ? '$' + entry.toFixed(2) : '-'}</dd>
+                        <dt>Stop Loss</dt><dd class="red">${sl ? '$' + sl.toFixed(2) : '-'}</dd>
+                        <dt>TP1</dt><dd class="green">${tp1 ? '$' + tp1.toFixed(2) : '-'}</dd>
+                        <dt>R:R</dt><dd>${rr}</dd>
+                    </dl>
+                    <div class="top-pick-actions">
+                        <button class="action-btn entered" onclick="markPickAction('${esc(s.symbol || s.ticker)}','${esc(s.direction || s.signal)}',${entry},'Entered','${pickId}')">Entered</button>
+                        <button class="action-btn skipped" onclick="markPickAction('${esc(s.symbol || s.ticker)}','${esc(s.direction || s.signal)}',${entry},'Skipped','${pickId}')">Skipped</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // ====== ACTION NEEDED ======
+    function renderActions(actionNeeded) {
+        const actionList = document.getElementById('actionList');
+        const actionCount = document.getElementById('actionCount');
+        actionCount.textContent = actionNeeded.length;
+
+        if (actionNeeded.length === 0) {
+            actionList.innerHTML = '<div class="no-actions">All caught up - no actions needed</div>';
+            return;
+        }
+
+        actionList.innerHTML = actionNeeded.map((a, i) => {
+            const id = 'action-' + i;
+            if (a.type === 'mark_action') {
+                return `
+                    <div class="action-item" id="${id}">
+                        <div>
+                            <div><span class="ticker-badge">${esc(a.ticker)}</span><span class="message">${esc(a.message)}</span></div>
+                            <div class="action-buttons">
+                                <input type="text" class="entry-input" placeholder="Size $" id="${id}-size">
+                                <button class="action-btn entered" onclick="markAction('${esc(a.ticker)}','${esc(a.signal)}',${a.price},'Entered','${id}')">Entered</button>
+                                <button class="action-btn skipped" onclick="markAction('${esc(a.ticker)}','${esc(a.signal)}',${a.price},'Skipped','${id}')">Skipped</button>
+                            </div>
+                        </div>
+                        <div class="meta">${esc((a.signal || '').toUpperCase())} @ $${a.price}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
+                    </div>`;
+            } else {
+                return `
+                    <div class="action-item" id="${id}">
+                        <div>
+                            <div><span class="ticker-badge">${esc(a.ticker)}</span><span class="message">${esc(a.message)}</span></div>
+                            <div class="action-buttons">
+                                <input type="text" class="entry-input" placeholder="Profit $" id="${id}-profit">
+                                <button class="action-btn won" onclick="markOutcome('${esc(a.ticker)}','${esc(a.signal)}',${a.price},'Won','${id}')">Won</button>
+                                <button class="action-btn lost" onclick="markOutcome('${esc(a.ticker)}','${esc(a.signal)}',${a.price},'Lost','${id}')">Lost</button>
+                                <button class="action-btn open-pos" onclick="markOutcome('${esc(a.ticker)}','${esc(a.signal)}',${a.price},'Open','${id}')">Open</button>
+                            </div>
+                        </div>
+                        <div class="meta">${esc((a.signal || '').toUpperCase())} @ $${a.price}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
+                    </div>`;
+            }
+        }).join('');
+    }
+
+    // ====== SIGNALS TABLE ======
+    function renderSignalsTable(signals) {
+        document.getElementById('signalCount').textContent = signals.length;
+        const tbody = document.getElementById('signalsBody');
+
+        tbody.innerHTML = signals.map(s => {
+            const dir = (s.direction || s.signal || '').toLowerCase();
+            const dirClass = dir === 'short' ? 'short' : 'long';
+            const scoreClass = getScoreClass(s._score);
+            const entry = Number(s.entry || s.price || 0);
+            const sl = Number(s.sl || 0);
+            const tp1 = Number(s.tp1 || 0);
+
+            return `
+                <tr>
+                    <td>${esc(s.timestamp || '-')}</td>
+                    <td style="font-weight:700;color:var(--text-bright)">${esc(s.symbol || s.ticker || '-')}</td>
+                    <td><span class="signal-badge ${dirClass}">${dirClass.toUpperCase()}</span></td>
+                    <td>${entry ? '$' + entry.toFixed(2) : '-'}</td>
+                    <td>${sl ? '$' + sl.toFixed(2) : '-'}</td>
+                    <td>${tp1 ? '$' + tp1.toFixed(2) : '-'}</td>
+                    <td><span class="score-badge ${scoreClass}">${s._score}/7</span></td>
+                    <td>${esc(s.macd || '-')}</td>
+                    <td>${esc(s.volume || '-')}</td>
+                    <td>${s.rsi != null ? Number(s.rsi).toFixed(1) : '-'}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // ====== PERFORMANCE ======
+    function renderPerformance(stats) {
+        const perfGrid = document.getElementById('perfGrid');
+
+        // Calculate win rate by score range from available data
+        const wrByScore = stats.winRateByScore || {};
+
+        perfGrid.innerHTML = `
+            <div class="perf-item">
+                <div class="perf-val">${stats.totalTrades || 0}</div>
+                <div class="perf-label">Total Trades</div>
+            </div>
+            <div class="perf-item">
+                <div class="perf-val" style="color:${parseFloat(stats.winRate) >= 50 ? 'var(--green-bright)' : 'var(--red-bright)'}">${stats.winRate || '0%'}</div>
+                <div class="perf-label">Win Rate</div>
+            </div>
+            <div class="perf-item">
+                <div class="perf-val" style="color:var(--green-bright)">${stats.bestTicker || '-'}</div>
+                <div class="perf-label">Best Ticker</div>
+            </div>
+            <div class="perf-item">
+                <div class="perf-val" style="color:var(--red-bright)">${stats.worstTicker || '-'}</div>
+                <div class="perf-label">Worst Ticker</div>
+            </div>
+            <div class="perf-item">
+                <div class="perf-val" style="color:var(--green-bright)">${wrByScore.high || '-'}</div>
+                <div class="perf-label">WR Score 5-7</div>
+            </div>
+            <div class="perf-item">
+                <div class="perf-val" style="color:#f9c846">${wrByScore.mid || '-'}</div>
+                <div class="perf-label">WR Score 3-4</div>
+            </div>
+            <div class="perf-item">
+                <div class="perf-val" style="color:var(--red-bright)">${wrByScore.low || '-'}</div>
+                <div class="perf-label">WR Score 0-2</div>
+            </div>
+            <div class="perf-item">
+                <div class="perf-val">${stats.bestWinStreak || 0}W</div>
+                <div class="perf-label">Best Win Streak</div>
+            </div>
+        `;
+    }
+
+    // ====== TICKER GRID ======
+    function renderTickerCard(t, i) {
+        const dir = (t.lastDirection || t.lastSignal || 'idle').toLowerCase();
+        const dirClass = dir === 'short' ? 'short' : dir === 'long' ? 'long' : 'idle';
+        const wrClass = (parseFloat(t.winRate) || 0) >= 50 ? 'green' : (parseFloat(t.winRate) || 0) > 0 ? 'red' : '';
+        const tid = 'ticker-' + i;
+
+        return `
+            <div class="ticker-card" id="${tid}">
+                <div class="ticker-card-header">
+                    <div style="display:flex;align-items:center;gap:0.5rem">
+                        <span class="ticker-name">${esc(t.ticker)}</span>
+                        <span class="ticker-direction ${dirClass}">${dirClass.toUpperCase()}</span>
+                    </div>
+                </div>
+                <dl class="ticker-detail">
+                    <dt>Win Rate</dt><dd class="${wrClass}">${t.winRate || '0%'}</dd>
+                    <dt>Total Trades</dt><dd>${t.totalTrades || 0}</dd>
+                    <dt>Last Signal</dt><dd>${esc((t.lastSignal || '-').toUpperCase())}</dd>
+                    <dt>Direction</dt><dd>${esc((t.lastDirection || '-').toUpperCase())}</dd>
+                    <dt>Avg R:R</dt><dd>${t.avgRR ? Number(t.avgRR).toFixed(2) : '-'}</dd>
+                </dl>
+                <div class="ticker-last-signal">${t.lastTimestamp ? 'Last: ' + esc(t.lastTimestamp) : 'No signals yet'}</div>
+                <div class="ticker-links">
+                    <a class="ticker-link tv" href="${getTickerLink(t.ticker, 'tv')}" target="_blank">TradingView</a>
+                    <a class="ticker-link bx" href="${getTickerLink(t.ticker, 'bx')}" target="_blank">Bitunix</a>
+                    <button class="ticker-link" onclick="editLinks('${esc(t.ticker)}')" title="Edit links">&#9998;</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderTickerGrid(filtered) {
+        const grid = document.getElementById('tickerGrid');
+        const btn = document.getElementById('tickerShowAll');
+        const search = document.getElementById('tickerSearch').value.trim().toUpperCase();
+        let tickers = filtered || allTickers;
+
+        if (search) {
+            tickers = allTickers.filter(t => t.ticker.toUpperCase().includes(search));
+            btn.textContent = `${tickers.length} match${tickers.length !== 1 ? 'es' : ''}`;
+            btn.classList.remove('active');
+        } else if (!showAllTickers && tickers.length > TICKER_LIMIT) {
+            tickers = tickers.slice(0, TICKER_LIMIT);
+            btn.textContent = `Show All (${allTickers.length})`;
+            btn.classList.remove('active');
+        } else {
+            btn.textContent = 'Show Recent';
+            btn.classList.add('active');
+        }
+
+        grid.innerHTML = tickers.map((t, i) => renderTickerCard(t, i)).join('');
+    }
+
+    function filterTickers() {
+        showAllTickers = false;
+        renderTickerGrid();
+    }
+
+    function toggleShowAll() {
+        const search = document.getElementById('tickerSearch');
+        if (search.value.trim()) {
+            search.value = '';
+        }
+        showAllTickers = !showAllTickers;
+        renderTickerGrid();
+    }
+
+    // ====== HELPERS ======
+    function esc(str) {
+        const d = document.createElement('div');
+        d.textContent = str || '';
+        return d.innerHTML;
+    }
+
+    // ====== TICKER LINKS ======
+    const DEFAULT_TV = ticker => `https://www.tradingview.com/chart/xF34dN3g/?symbol=BINANCE:${encodeURIComponent(ticker.toUpperCase())}`;
+    const DEFAULT_BX = ticker => `https://www.bitunix.com/futures/USDT-${encodeURIComponent(ticker.toUpperCase())}`;
+
+    function getTickerLinks() {
+        try { return JSON.parse(localStorage.getItem('crypto_ticker_links') || '{}'); }
+        catch { return {}; }
+    }
+
+    function saveTickerLinks(links) {
+        localStorage.setItem('crypto_ticker_links', JSON.stringify(links));
+    }
+
+    function getTickerLink(ticker, platform) {
+        const links = getTickerLinks();
+        const key = ticker.toUpperCase();
+        if (links[key] && links[key][platform]) return links[key][platform];
+        return platform === 'tv' ? DEFAULT_TV(ticker) : DEFAULT_BX(ticker);
+    }
+
+    function editLinks(ticker) {
+        const key = ticker.toUpperCase();
+        const links = getTickerLinks();
+        const current = links[key] || {};
+
+        const tvUrl = prompt(
+            `TradingView URL for ${key}:\n(Leave empty for default)`,
+            current.tv || DEFAULT_TV(ticker)
+        );
+        if (tvUrl === null) return;
+
+        const bxUrl = prompt(
+            `Bitunix URL for ${key}:\n(Leave empty for default)`,
+            current.bx || DEFAULT_BX(ticker)
+        );
+        if (bxUrl === null) return;
+
+        if (!links[key]) links[key] = {};
+        links[key].tv = tvUrl || '';
+        links[key].bx = bxUrl || '';
+
+        if (!links[key].tv) delete links[key].tv;
+        if (!links[key].bx) delete links[key].bx;
+        if (Object.keys(links[key]).length === 0) delete links[key];
+
+        saveTickerLinks(links);
+        renderTickerGrid();
+    }
+
+    // ====== API WRITE FUNCTIONS ======
+    async function markAction(ticker, signal, price, value, elemId) {
+        const sizeInput = document.getElementById(elemId + '-size');
+        const entrySize = sizeInput ? sizeInput.value : '';
+        const el = document.getElementById(elemId);
+
+        el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
+
+        try {
+            await fetch(POST_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'update_position',
+                    ticker: ticker,
+                    signal: signal,
+                    price: price,
+                    field: 'action',
+                    value: value,
+                    entrySize: entrySize
+                })
+            });
+            el.style.borderColor = value === 'Entered' ? 'var(--green-candle)' : 'var(--text-dim)';
+            el.style.opacity = '0.5';
+            el.innerHTML = '<div><span class="ticker-badge">' + esc(ticker) + '</span><span class="message">' + value.toUpperCase() + (entrySize ? ' ($' + entrySize + ')' : '') + '</span></div>';
+            setTimeout(fetchData, 2000);
+        } catch (err) {
+            el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
+            alert('Failed to update: ' + err.message);
+        }
+    }
+
+    async function markOutcome(ticker, signal, price, value, elemId) {
+        const profitInput = document.getElementById(elemId + '-profit');
+        const profitLocked = profitInput ? profitInput.value : '';
+        const el = document.getElementById(elemId);
+
+        el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
+
+        try {
+            await fetch(POST_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'update_position',
+                    ticker: ticker,
+                    signal: signal,
+                    price: price,
+                    field: 'outcome',
+                    value: value,
+                    profitLocked: profitLocked
+                })
+            });
+            const color = value === 'Won' ? 'var(--green-candle)' : value === 'Lost' ? 'var(--red-candle)' : 'var(--accent)';
+            el.style.borderColor = color;
+            el.style.opacity = '0.5';
+            el.innerHTML = '<div><span class="ticker-badge">' + esc(ticker) + '</span><span class="message">' + value.toUpperCase() + (profitLocked ? ' ($' + profitLocked + ')' : '') + '</span></div>';
+            setTimeout(fetchData, 2000);
+        } catch (err) {
+            el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
+            alert('Failed to update: ' + err.message);
+        }
+    }
+
+    async function markPickAction(ticker, signal, price, value, elemId) {
+        const el = document.getElementById(elemId);
+        el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
+
+        try {
+            await fetch(POST_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'update_position',
+                    ticker: ticker,
+                    signal: signal,
+                    price: price,
+                    field: 'action',
+                    value: value
+                })
+            });
+            const btns = el.querySelector('.top-pick-actions');
+            btns.innerHTML = '<span style="font-size:0.7rem;color:' + (value === 'Entered' ? 'var(--green-bright)' : 'var(--text-dim)') + ';font-weight:700;letter-spacing:1px;text-transform:uppercase">' + value + '</span>';
+            setTimeout(fetchData, 2000);
+        } catch (err) {
+            el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
+            alert('Failed to update: ' + err.message);
+        }
+    }
+
+    // ====== EMPTY FALLBACK ======
+    const EMPTY_DATA = {
+        status: 'ok',
+        tickers: [],
+        recentSignals: [],
+        actionNeeded: [],
+        stats: {
+            totalTrades: 0, wins: 0, losses: 0, winRate: '0%',
+            openPositions: 0, todaySignals: 0, bestWinStreak: 0,
+            worstLossStreak: 0, currentStreak: '-',
+            bestTicker: '-', worstTicker: '-',
+            winRateByScore: { high: '-', mid: '-', low: '-' }
+        }
+    };
+
+    // ====== QUOTES ======
+    const QUOTES = [
+        { text: "The trend is your friend until the end when it bends.", author: "Ed Seykota" },
+        { text: "In crypto, the impossible happens about twice a week.", author: "Crypto Wisdom" },
+        { text: "Not your keys, not your coins. Not your plan, not your profits.", author: "Crypto Proverb" },
+        { text: "The market is never wrong -- opinions often are.", author: "Jesse Livermore" },
+        { text: "Cut your losses short and let your profits run.", author: "Jesse Livermore" },
+        { text: "Plan your trade and trade your plan.", author: "Richard Dennis" },
+        { text: "Risk comes from not knowing what you are doing.", author: "Warren Buffett" },
+        { text: "The goal of a successful trader is to make the best trades. Money is secondary.", author: "Alexander Elder" },
+        { text: "Markets can remain irrational longer than you can remain solvent.", author: "John Maynard Keynes" },
+        { text: "Amateurs think about how much money they can make. Professionals think about how much money they could lose.", author: "Jack Schwager" },
+        { text: "You don't need to know what is going to happen next in order to make money.", author: "Mark Douglas" },
+        { text: "Every battle is won before it is fought.", author: "Sun Tzu" },
+        { text: "There is a time to go long, a time to go short, and a time to go fishing.", author: "Jesse Livermore" },
+        { text: "Discipline is the bridge between goals and accomplishment.", author: "Jim Rohn" },
+        { text: "The elements of good trading are: cutting losses, cutting losses, and cutting losses.", author: "Ed Seykota" },
+        { text: "Do not anticipate and move without market confirmation.", author: "Jesse Livermore" },
+        { text: "The best time to buy crypto was yesterday. The second best time is after your signal fires.", author: "Crypto Wisdom" },
+        { text: "A 100x means nothing if you can't manage a 2x.", author: "Crypto Proverb" },
+        { text: "Patience is not the ability to wait, but the ability to keep a good attitude while waiting.", author: "Joyce Meyer" },
+        { text: "The hard work in trading comes in the preparation. The actual process of trading should be effortless.", author: "Jack Schwager" }
+    ];
+
+    function showQuote() {
+        const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+        const textEl = document.getElementById('quoteText');
+        const authEl = document.getElementById('quoteAuthor');
+        textEl.style.opacity = '0';
+        authEl.style.opacity = '0';
+        setTimeout(() => {
+            textEl.textContent = '"' + q.text + '"';
+            authEl.textContent = '-- ' + q.author;
+            textEl.style.opacity = '0.7';
+            authEl.style.opacity = '0.6';
+        }, 300);
+    }
+    showQuote();
+
+    // ====== INIT ======
+    fetchData();
+
+    // ====== SERVICE WORKER ======
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./service-worker.js');
+    }
+</script>
+
+</body>
+</html>

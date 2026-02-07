@@ -1,0 +1,49 @@
+Crypto Trade Dashboard — Google Sheet Setup
+============================================
+
+1. CREATE A NEW GOOGLE SHEET
+   Name it: "Crypto Trade Tracker" (or whatever you want)
+
+2. CREATE THESE TABS (exact names):
+   - Signal Log
+   - Positions
+   - Dashboard
+   - Config
+   - Performance
+
+3. TAB HEADERS:
+
+   Signal Log (Row 1):
+   Timestamp | Symbol | Signal | Entry | SL | TP1 | TP2 | MACD | Volume | Cross | In Zone | RSI | Timeframe | Score | Raw JSON
+
+   Positions (Row 1):
+   Timestamp | Symbol | Signal | Entry | SL | TP1 | TP2 | Score | Action | Outcome | Realized PnL
+
+   Dashboard (Row 1):
+   Symbol | Total Trades | Wins | Losses | Win Rate | Last Signal | Last Price | Avg RR | Open Positions
+
+   Config (Row 1 + values in Row 2):
+   A1: max_positions    A2: 3
+
+   Performance (leave empty — rebuilt on demand)
+
+4. DEPLOY APPS SCRIPT:
+   - Extensions → Apps Script
+   - Delete default code, paste contents of apps_script.gs
+   - Deploy → New deployment → Web app
+   - Execute as: Me
+   - Who has access: Anyone
+   - Copy the deployment URL
+
+5. UPDATE DASHBOARD:
+   - Open Crypto/index.html
+   - Replace 'YOUR_APPS_SCRIPT_URL' with your deployment URL (two places: API_URL and POST_URL)
+
+6. UPDATE TRADINGVIEW:
+   - Set your crypto indicator webhook URL to the deployment URL
+   - Alerts should send JSON with: signal, symbol, entry, sl, tp1, tp2, macd, volume, cross, in_zone, rsi, timeframe
+
+7. TEST:
+   - Visit deployment URL with ?action=dashboard → should return JSON
+   - Open index.html → should show empty dashboard
+   - Fire a test alert → signal should appear
