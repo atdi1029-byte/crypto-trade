@@ -1028,6 +1028,7 @@
             .header-logo { width: 80px; height: 80px; }
             .header h1 { font-size: 2rem; }
             .header h1 span { font-size: 1.8rem; }
+            .picks-actions-row { grid-template-columns: 1fr; }
             .ticker-grid { grid-template-columns: 1fr; }
             .top-picks-grid { grid-template-columns: 1fr; }
             .stats-bar { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
@@ -1401,8 +1402,9 @@
             const signalClass = signalType.includes('sell') || signalType.includes('short') ? 'sell' : 'buy';
             const score = a.score || a._score || '-';
 
-            // Find matching signal for extra details
-            const matched = (allSignals || []).find(s => (s.symbol || s.ticker || '').toUpperCase() === tkr.toUpperCase() && Math.abs(Number(s.entry || s.price || 0) - prc) < 0.001);
+            // Find matching signal for extra details (match by symbol, prefer exact price, fall back to any)
+            const matched = (allSignals || []).find(s => (s.symbol || s.ticker || '').toUpperCase() === tkr.toUpperCase() && Math.abs(Number(s.entry || s.price || 0) - prc) < 0.001)
+                || (allSignals || []).find(s => (s.symbol || s.ticker || '').toUpperCase() === tkr.toUpperCase());
             const rsi = matched ? matched.rsi : '';
             const macd = matched ? matched.macd : '';
             const vol = matched ? matched.volume : '';
