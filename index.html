@@ -1024,8 +1024,8 @@
         /* ============ RESPONSIVE ============ */
         @media (max-width: 768px) {
             .content { padding: 1rem 1rem 3rem; }
-            .header { flex-direction: column; gap: 1rem; text-align: center; }
-            .header-left { flex-direction: column; }
+            .header { flex-direction: column; gap: 0.5rem; text-align: center; }
+            .header-left { flex-direction: row; align-items: center; justify-content: center; gap: 1rem; }
             .header-logo { width: 80px; height: 80px; }
             .header h1 { font-size: 2rem; }
             .header h1 span { font-size: 1.8rem; }
@@ -1060,39 +1060,32 @@
             <div>
                 <h1>トレード<span>TRADE!</span></h1>
             </div>
+            <div class="mobile-capybara-top" style="display:none">
+                <svg viewBox="150 380 550 580" width="70" height="70">
+                    <g fill="none" stroke="var(--accent-glow)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M180 750 Q150 650 200 580 Q220 550 250 540 Q280 530 320 540 L340 545"/>
+                        <path d="M340 545 Q380 500 420 480 Q480 450 540 460 Q600 470 640 510 Q680 550 690 600 Q695 640 680 680 Q660 720 620 740 Q560 770 480 760 Q400 750 340 720 Q300 700 280 680"/>
+                        <path d="M380 480 Q370 440 390 410 Q410 385 440 390 Q460 400 455 430 Q450 455 430 470"/>
+                        <path d="M540 455 Q550 420 580 400 Q610 385 635 400 Q655 420 645 455 Q635 480 610 490"/>
+                        <circle cx="480" cy="540" r="18" fill="var(--accent-deep)"/>
+                        <circle cx="485" cy="535" r="6" fill="var(--accent-glow)"/>
+                        <ellipse cx="580" cy="580" rx="25" ry="18" fill="var(--accent-deep)"/>
+                        <circle cx="570" cy="575" r="4" fill="var(--accent-glow)"/>
+                        <circle cx="590" cy="575" r="4" fill="var(--accent-glow)"/>
+                        <path d="M560 610 Q580 625 600 610"/>
+                        <path d="M620 570 L680 550"/><path d="M625 590 L690 590"/><path d="M620 610 L680 630"/>
+                        <path d="M320 700 Q310 750 320 800 Q325 830 350 840 Q380 845 390 820 Q400 790 395 750"/>
+                        <path d="M450 750 Q445 800 455 840 Q465 870 495 870 Q525 865 530 835 Q535 800 520 760"/>
+                        <path d="M280 680 Q240 720 220 780 Q200 850 230 900 Q260 940 320 940 Q370 935 380 890 Q390 840 370 800"/>
+                    </g>
+                </svg>
+            </div>
         </div>
         <div class="header-right">
             <span><span class="status-dot loading" id="statusDot"></span><span id="statusText">Connecting...</span></span>
             <span id="lastUpdate"></span>
             <button class="refresh-btn" onclick="fetchData()">Refresh</button>
         </div>
-    </div>
-
-    <!-- Mobile Capybara (hidden on desktop, shown on mobile) -->
-    <div class="mobile-capybara-top" style="display:none;text-align:center;margin:0.5rem 0 1rem">
-        <svg viewBox="150 380 550 580" width="100" height="100">
-            <g fill="none" stroke="var(--accent-glow)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M180 750 Q150 650 200 580 Q220 550 250 540 Q280 530 320 540 L340 545"/>
-                <path d="M340 545 Q380 500 420 480 Q480 450 540 460 Q600 470 640 510 Q680 550 690 600 Q695 640 680 680 Q660 720 620 740 Q560 770 480 760 Q400 750 340 720 Q300 700 280 680"/>
-                <path d="M380 480 Q370 440 390 410 Q410 385 440 390 Q460 400 455 430 Q450 455 430 470"/>
-                <path d="M540 455 Q550 420 580 400 Q610 385 635 400 Q655 420 645 455 Q635 480 610 490"/>
-                <circle cx="480" cy="540" r="18" fill="var(--accent-deep)"/>
-                <circle cx="485" cy="535" r="6" fill="var(--accent-glow)"/>
-                <ellipse cx="580" cy="580" rx="25" ry="18" fill="var(--accent-deep)"/>
-                <circle cx="570" cy="575" r="4" fill="var(--accent-glow)"/>
-                <circle cx="590" cy="575" r="4" fill="var(--accent-glow)"/>
-                <path d="M560 610 Q580 625 600 610"/>
-                <path d="M620 570 L680 550"/>
-                <path d="M625 590 L690 590"/>
-                <path d="M620 610 L680 630"/>
-                <path d="M320 700 Q310 750 320 800 Q325 830 350 840 Q380 845 390 820 Q400 790 395 750"/>
-                <path d="M450 750 Q445 800 455 840 Q465 870 495 870 Q525 865 530 835 Q535 800 520 760"/>
-                <path d="M280 680 Q240 720 220 780 Q200 850 230 900 Q260 940 320 940 Q370 935 380 890 Q390 840 370 800"/>
-                <path d="M350 680 Q360 700 350 720"/>
-                <path d="M380 690 Q390 710 380 730"/>
-                <path d="M410 695 Q420 715 410 735"/>
-            </g>
-        </svg>
     </div>
 
     <!-- Quote Banner -->
