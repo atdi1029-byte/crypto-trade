@@ -1279,7 +1279,7 @@
     };
 
     const DEFAULT_TV = ticker => {
-        const sym = ticker.toUpperCase();
+        const sym = ticker.toUpperCase().replace(/USDT$|USD$|USDC$/,'');
         const exchange = TV_EXCHANGE_MAP[sym] || 'BINANCE';
         return `https://www.tradingview.com/chart/xF34dN3g/?symbol=${exchange}:${encodeURIComponent(sym)}USDT`;
     };
