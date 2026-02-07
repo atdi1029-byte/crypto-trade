@@ -1283,11 +1283,11 @@
         const exchange = TV_EXCHANGE_MAP[sym] || 'BINANCE';
         return `https://www.tradingview.com/chart/xF34dN3g/?symbol=${exchange}:${encodeURIComponent(sym)}USDT`;
     };
-    const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+    const isAndroid = /Android/i.test(navigator.userAgent);
     const DEFAULT_BX = ticker => {
         const pair = ticker.toUpperCase().replace(/USDT$|USD$|USDC$/,'') + 'USDT';
-        if (isMobile && /Android/i.test(navigator.userAgent)) {
-            return `intent://www.bitunix.com/contract-trade/${pair}#Intent;scheme=https;package=bu.app.android;S.browser_fallback_url=https://www.bitunix.com/contract-trade/${pair};end`;
+        if (isAndroid) {
+            return `https://www.unixcrypto.net/contract-trade/${pair}`;
         }
         return `https://www.bitunix.com/contract-trade/${pair}`;
     };
