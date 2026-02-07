@@ -1295,22 +1295,22 @@
         renderOpenTrades(openTrades);
 
         // --- Ticker Grid (sorted by most recent signal first) ---
-        // Build a map of latest signal timestamp per ticker from signals data
+        // Sort tickers by most recent signal (use lastSignalTime from API, fall back to signals data)
         const latestByTicker = {};
         (scoredSignals || []).forEach((s, i) => {
             const sym = (s.symbol || s.ticker || '').toUpperCase();
             if (!sym) return;
             const t = s.timestamp ? new Date(s.timestamp).getTime() : 0;
-            // Use index as tiebreaker (later in array = more recent)
-            if (!latestByTicker[sym] || t > latestByTicker[sym] || (t === latestByTicker[sym] && i > (latestByTicker[sym + '_i'] || 0))) {
-                latestByTicker[sym] = t || i;
-                latestByTicker[sym + '_i'] = i;
+            if (!latestByTicker[sym] || t > latestByTicker[sym]) {
+                latestByTicker[sym] = t || (i + 1);
             }
         });
         allTickers = (tickers || []).slice().sort((a, b) => {
-            const ta = latestByTicker[(a.ticker || '').toUpperCase()] || 0;
-            const tb = latestByTicker[(b.ticker || '').toUpperCase()] || 0;
-            return tb - ta;
+            const aKey = (a.ticker || '').toUpperCase();
+            const bKey = (b.ticker || '').toUpperCase();
+            const aTime = (a.lastSignalTime ? new Date(a.lastSignalTime).getTime() : 0) || latestByTicker[aKey] || 0;
+            const bTime = (b.lastSignalTime ? new Date(b.lastSignalTime).getTime() : 0) || latestByTicker[bKey] || 0;
+            return bTime - aTime;
         });
         renderTickerGrid();
 
@@ -1680,7 +1680,7 @@
                     <dt>Direction</dt><dd>${esc((t.lastDirection || '-').toUpperCase())}</dd>
                     <dt>Avg R:R</dt><dd>${t.avgRR ? Number(t.avgRR).toFixed(2) : '-'}</dd>
                 </dl>
-                <div class="ticker-last-signal">${t.lastTimestamp ? 'Last: ' + esc(t.lastTimestamp) : 'No signals yet'}</div>
+                <div class="ticker-last-signal">${(t.lastTimestamp || t.lastSignalTime) ? 'Last: ' + esc(t.lastTimestamp || t.lastSignalTime) : 'No signals yet'}</div>
                 <div class="ticker-links">
                     <a class="ticker-link tv" href="${getTickerLink(t.ticker, 'tv')}" target="_blank">TradingView</a>
                     <button class="ticker-link bx" onclick="openBitunix('${esc(t.ticker)}')">Bitunix</button>
