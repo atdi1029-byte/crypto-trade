@@ -39,19 +39,19 @@
 
         body {
             font-family: 'Space Mono', 'Noto Serif JP', monospace;
-            background: #0c1119 url('wave-bg.jpg') center top/cover no-repeat fixed;
+            background: #000;
             color: var(--text);
             min-height: 100vh;
             overflow-x: hidden;
             position: relative;
         }
 
-        /* Wave background overlay for brightness/opacity */
+        /* Wave background — stretched beyond viewport edges */
         body::before {
             content: '';
             position: fixed;
-            top: -50px; left: 0; right: 0; bottom: -50px;
-            background: url('wave-bg.jpg') center top/cover no-repeat;
+            top: -100px; left: -20px; right: -20px; bottom: -100px;
+            background: url('wave-bg.jpg') center center/cover no-repeat;
             filter: brightness(0.85);
             z-index: 0;
             opacity: 0.85;
