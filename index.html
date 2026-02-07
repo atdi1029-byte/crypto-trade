@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#0c1119">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,7 +14,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html { background: #0c1119; }
+        html, body { background: #0c1119; }
 
         :root {
             --bg-deep: #0c1119;
@@ -39,19 +39,19 @@
 
         body {
             font-family: 'Space Mono', 'Noto Serif JP', monospace;
-            background: var(--bg-deep);
+            background: #0c1119 url('wave-bg.jpg') center top/cover no-repeat fixed;
             color: var(--text);
             min-height: 100vh;
             overflow-x: hidden;
             position: relative;
         }
 
-        /* Wave background */
+        /* Wave background overlay for brightness/opacity */
         body::before {
             content: '';
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: url('wave-bg.jpg') center/cover no-repeat;
+            top: -50px; left: 0; right: 0; bottom: -50px;
+            background: url('wave-bg.jpg') center top/cover no-repeat;
             filter: brightness(0.85);
             z-index: 0;
             opacity: 0.85;
