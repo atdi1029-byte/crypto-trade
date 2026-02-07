@@ -1463,59 +1463,16 @@
     // ====== EMPTY FALLBACK ======
     const EMPTY_DATA = {
         status: 'ok',
-        tickers: [
-            { ticker:'BTCUSDT', totalTrades:12, wins:8, losses:4, winRate:'66.7%', lastSignal:'buy', lastPrice:'97500', avgRR:'2.1', openPositions:1 },
-            { ticker:'ETHUSDT', totalTrades:9, wins:5, losses:4, winRate:'55.6%', lastSignal:'buy', lastPrice:'3400', avgRR:'1.8', openPositions:1 },
-            { ticker:'SOLUSDT', totalTrades:15, wins:10, losses:5, winRate:'66.7%', lastSignal:'sell', lastPrice:'195', avgRR:'2.3', openPositions:0 },
-            { ticker:'BNBUSDT', totalTrades:7, wins:4, losses:3, winRate:'57.1%', lastSignal:'buy', lastPrice:'650', avgRR:'1.6', openPositions:0 },
-            { ticker:'XRPUSDT', totalTrades:11, wins:7, losses:4, winRate:'63.6%', lastSignal:'buy', lastPrice:'2.45', avgRR:'2.0', openPositions:1 },
-            { ticker:'ADAUSDT', totalTrades:6, wins:3, losses:3, winRate:'50.0%', lastSignal:'buy', lastPrice:'0.72', avgRR:'1.5', openPositions:0 },
-            { ticker:'DOGEUSDT', totalTrades:8, wins:5, losses:3, winRate:'62.5%', lastSignal:'sell', lastPrice:'0.32', avgRR:'1.9', openPositions:0 },
-            { ticker:'AVAXUSDT', totalTrades:10, wins:6, losses:4, winRate:'60.0%', lastSignal:'buy', lastPrice:'38', avgRR:'1.7', openPositions:0 },
-            { ticker:'DOTUSDT', totalTrades:5, wins:2, losses:3, winRate:'40.0%', lastSignal:'buy', lastPrice:'7.20', avgRR:'1.4', openPositions:0 },
-            { ticker:'LINKUSDT', totalTrades:8, wins:6, losses:2, winRate:'75.0%', lastSignal:'buy', lastPrice:'18.50', avgRR:'2.2', openPositions:1 },
-            { ticker:'SUIUSDT', totalTrades:14, wins:10, losses:4, winRate:'71.4%', lastSignal:'buy', lastPrice:'4.20', avgRR:'2.5', openPositions:1 },
-            { ticker:'PEPEUSDT', totalTrades:6, wins:4, losses:2, winRate:'66.7%', lastSignal:'buy', lastPrice:'0.0000125', avgRR:'2.8', openPositions:0 },
-            { ticker:'ARBUSDT', totalTrades:9, wins:5, losses:4, winRate:'55.6%', lastSignal:'sell', lastPrice:'1.05', avgRR:'1.9', openPositions:0 },
-            { ticker:'OPUSDT', totalTrades:11, wins:8, losses:3, winRate:'72.7%', lastSignal:'buy', lastPrice:'1.85', avgRR:'2.1', openPositions:0 },
-            { ticker:'NEARUSDT', totalTrades:7, wins:5, losses:2, winRate:'71.4%', lastSignal:'buy', lastPrice:'5.50', avgRR:'2.4', openPositions:0 }
-        ],
-        recentSignals: [
-            { timestamp:'2026-02-06 20:30', symbol:'SUIUSDT', signal:'buy', entry:'4.20', sl:'3.80', tp1:'5.00', tp2:'5.80', macd:'rising', volume:'above', cross:'2', in_zone:'true', rsi:'58', timeframe:'4h', score:6 },
-            { timestamp:'2026-02-06 20:15', symbol:'PEPEUSDT', signal:'buy', entry:'0.0000125', sl:'0.0000110', tp1:'0.0000150', tp2:'0.0000180', macd:'rising', volume:'above', cross:'1', in_zone:'true', rsi:'62', timeframe:'1h', score:6 },
-            { timestamp:'2026-02-06 20:00', symbol:'ARBUSDT', signal:'sell', entry:'1.05', sl:'1.15', tp1:'0.88', tp2:'0.75', macd:'falling', volume:'above', cross:'3', in_zone:'true', rsi:'35', timeframe:'4h', score:6 },
-            { timestamp:'2026-02-06 19:45', symbol:'OPUSDT', signal:'buy', entry:'1.85', sl:'1.65', tp1:'2.20', tp2:'2.60', macd:'rising', volume:'above', cross:'4', in_zone:'true', rsi:'55', timeframe:'4h', score:6 },
-            { timestamp:'2026-02-06 19:30', symbol:'NEARUSDT', signal:'buy', entry:'5.50', sl:'4.90', tp1:'6.50', tp2:'7.50', macd:'rising', volume:'above', cross:'2', in_zone:'true', rsi:'60', timeframe:'1h', score:6 },
-            { timestamp:'2026-02-06 19:00', symbol:'BTCUSDT', signal:'buy', entry:'97500', sl:'95000', tp1:'102000', tp2:'108000', macd:'rising', volume:'below', cross:'12', in_zone:'false', rsi:'55', timeframe:'4h', score:2 },
-            { timestamp:'2026-02-06 18:45', symbol:'ETHUSDT', signal:'buy', entry:'3400', sl:'3200', tp1:'3700', tp2:'4000', macd:'flat', volume:'above', cross:'8', in_zone:'false', rsi:'48', timeframe:'4h', score:1 },
-            { timestamp:'2026-02-06 18:30', symbol:'SOLUSDT', signal:'sell', entry:'195', sl:'210', tp1:'175', tp2:'160', macd:'falling', volume:'below', cross:'15', in_zone:'false', rsi:'62', timeframe:'1h', score:2 },
-            { timestamp:'2026-02-06 18:15', symbol:'BNBUSDT', signal:'buy', entry:'650', sl:'620', tp1:'700', tp2:'750', macd:'flat', volume:'below', cross:'20', in_zone:'false', rsi:'50', timeframe:'4h', score:0 },
-            { timestamp:'2026-02-06 18:00', symbol:'XRPUSDT', signal:'buy', entry:'2.45', sl:'2.20', tp1:'2.80', tp2:'3.10', macd:'rising', volume:'below', cross:'9', in_zone:'false', rsi:'52', timeframe:'1h', score:2 },
-            { timestamp:'2026-02-06 17:45', symbol:'ADAUSDT', signal:'buy', entry:'0.72', sl:'0.65', tp1:'0.85', tp2:'0.95', macd:'flat', volume:'below', cross:'18', in_zone:'false', rsi:'45', timeframe:'4h', score:0 },
-            { timestamp:'2026-02-06 17:30', symbol:'DOGEUSDT', signal:'sell', entry:'0.32', sl:'0.36', tp1:'0.26', tp2:'0.22', macd:'falling', volume:'below', cross:'14', in_zone:'false', rsi:'58', timeframe:'1h', score:2 },
-            { timestamp:'2026-02-06 17:00', symbol:'AVAXUSDT', signal:'buy', entry:'38', sl:'34', tp1:'44', tp2:'50', macd:'rising', volume:'below', cross:'11', in_zone:'false', rsi:'47', timeframe:'4h', score:2 },
-            { timestamp:'2026-02-06 16:45', symbol:'DOTUSDT', signal:'buy', entry:'7.20', sl:'6.50', tp1:'8.50', tp2:'9.50', macd:'flat', volume:'below', cross:'16', in_zone:'false', rsi:'43', timeframe:'4h', score:0 },
-            { timestamp:'2026-02-06 16:30', symbol:'LINKUSDT', signal:'buy', entry:'18.50', sl:'16.80', tp1:'21.00', tp2:'24.00', macd:'rising', volume:'below', cross:'10', in_zone:'false', rsi:'51', timeframe:'1h', score:2 }
-        ],
-        claudePicks: [
-            { timestamp:'2026-02-06 20:30', symbol:'SUIUSDT', signal:'buy', entry:'4.20', sl:'3.80', tp1:'5.00', tp2:'5.80', score:6, rr:'2.00', analysis:'MACD rising with volume confirmation. RSI bouncing off 50 level support. Cross within 2 bars — strong momentum. SUI showing relative strength vs BTC.', recommendation:'TAKE — Strong setup, good R:R' },
-            { timestamp:'2026-02-06 20:15', symbol:'PEPEUSDT', signal:'buy', entry:'0.0000125', sl:'0.0000110', tp1:'0.0000150', tp2:'0.0000180', score:6, rr:'1.67', analysis:'Volume spike above average. MACD crossover confirmed. Meme coins leading the bounce. In accumulation zone.', recommendation:'TAKE — Volume + momentum aligned' },
-            { timestamp:'2026-02-06 20:00', symbol:'ARBUSDT', signal:'sell', entry:'1.05', sl:'1.15', tp1:'0.88', tp2:'0.75', score:6, rr:'1.70', analysis:'Falling MACD, recent cross. Breaking below key support at 1.05. Volume confirming the move. L2 tokens weak across the board.', recommendation:'TAKE — Clean breakdown setup' },
-            { timestamp:'2026-02-06 19:45', symbol:'NEARUSDT', signal:'buy', entry:'5.50', sl:'4.90', tp1:'6.50', tp2:'7.50', score:6, rr:'1.67', analysis:'RSI trendline breakout with MACD rising. Volume above average. AI narrative still strong. Good support at 4.90.', recommendation:'TAKE — AI sector momentum' }
-        ],
-        actionNeeded: [
-            { type:'mark_action', timestamp:'2026-02-06 20:30', symbol:'SUIUSDT', signal:'buy', entry:'4.20', sl:'3.80', tp1:'5.00', score:6, row:2 },
-            { type:'mark_action', timestamp:'2026-02-06 20:15', symbol:'PEPEUSDT', signal:'buy', entry:'0.0000125', sl:'0.0000110', tp1:'0.0000150', score:6, row:3 },
-            { type:'mark_action', timestamp:'2026-02-06 20:00', symbol:'ARBUSDT', signal:'sell', entry:'1.05', sl:'1.15', tp1:'0.88', score:6, row:4 },
-            { type:'mark_action', timestamp:'2026-02-06 19:45', symbol:'OPUSDT', signal:'buy', entry:'1.85', sl:'1.65', tp1:'2.20', score:6, row:5 },
-            { type:'mark_action', timestamp:'2026-02-06 19:30', symbol:'NEARUSDT', signal:'buy', entry:'5.50', sl:'4.90', tp1:'6.50', score:6, row:6 }
-        ],
+        tickers: [],
+        recentSignals: [],
+        claudePicks: [],
+        actionNeeded: [],
         stats: {
-            totalTrades: 136, wins: 85, losses: 51, winRate: '62.5%',
-            openPositions: 4, todaySignals: 15, bestWinStreak: 7,
-            worstLossStreak: 3, currentStreak: 'W3',
-            bestTicker: 'LINKUSDT', worstTicker: 'DOTUSDT',
-            winRateByScore: { high: '78%', mid: '55%', low: '42%' }
+            totalTrades: 0, wins: 0, losses: 0, winRate: '0%',
+            openPositions: 0, todaySignals: 0, bestWinStreak: 0,
+            worstLossStreak: 0, currentStreak: '0',
+            bestTicker: 'N/A', worstTicker: 'N/A',
+            winRateByScore: {}
         }
     };
 
