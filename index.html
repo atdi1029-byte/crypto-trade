@@ -16,7 +16,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --bg-deep: #0a1628;
+            --bg-deep: #080c12;
             --bg-dark: #0f1d30;
             --bg-card: #142236;
             --bg-card-hover: #1a2d45;
@@ -45,6 +45,18 @@
             position: relative;
         }
 
+        /* Wave background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: url('wave-bg.jpg') center/cover no-repeat;
+            filter: brightness(0.85);
+            z-index: 0;
+            opacity: 0.85;
+            pointer-events: none;
+        }
+
         /* ============ MAIN CONTENT ============ */
         .content {
             position: relative;
@@ -70,27 +82,27 @@
             gap: 1rem;
         }
         .header-logo {
-            width: 120px;
-            height: 120px;
+            width: 180px;
+            height: 180px;
             border-radius: 18px;
             border: 2px solid var(--accent-deep);
             box-shadow: 0 0 25px #4a9eff44;
         }
         .header h1 {
             font-family: 'Noto Serif JP', serif;
-            font-size: 3rem;
+            font-size: 5rem;
             font-weight: 900;
             color: var(--text-bright);
-            letter-spacing: 3px;
+            letter-spacing: 8px;
             line-height: 1;
         }
         .header h1 span {
             font-family: 'Space Mono', monospace;
-            font-size: 2.8rem;
+            font-size: 4.5rem;
             font-weight: 700;
             color: var(--accent);
             text-shadow: 0 0 25px #4a9eff44, 0 3px 6px #00000066;
-            letter-spacing: 4px;
+            letter-spacing: 12px;
             display: block;
             margin-top: 4px;
         }
@@ -163,6 +175,8 @@
             border-bottom: 1px solid var(--border);
             border-image: linear-gradient(90deg, transparent, var(--border-light), transparent) 1;
             animation: fadeIn 1s ease;
+            background: rgba(10, 15, 25, 0.7);
+            border-radius: 8px;
         }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .quote-text {
@@ -170,7 +184,7 @@
             font-size: 0.85rem;
             font-style: italic;
             color: var(--text-bright);
-            opacity: 0.7;
+            opacity: 0.9;
             line-height: 1.5;
         }
         .quote-author {
@@ -182,6 +196,38 @@
             margin-top: 0.3rem;
             opacity: 0.6;
         }
+
+        /* ============ COMMAND BAR ============ */
+        .command-bar {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.25rem;
+            position: relative;
+        }
+        .command-input {
+            flex: 1;
+            background: rgba(10, 15, 25, 0.7);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text-bright);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .command-input::placeholder { color: var(--text-dim); }
+        .command-input:focus { border-color: var(--accent); }
+        .command-result {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            margin-top: 0.4rem;
+            display: none;
+        }
+        .command-result.success { display: block; background: var(--green-dim); color: var(--green-bright); }
+        .command-result.error { display: block; background: var(--red-dim); color: var(--red-bright); }
 
         /* ============ QUICK STATS BAR ============ */
         .stats-bar {
@@ -224,6 +270,103 @@
         }
 
         /* ============ TOP PICKS ============ */
+        .picks-actions-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .picks-col, .actions-col { min-width: 0; }
+        .open-trades-section { margin-bottom: 1.5rem; }
+        .open-trades-filter {
+            display: flex;
+            gap: 0.4rem;
+            margin-bottom: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .open-trades-filter input {
+            flex: 1;
+            min-width: 120px;
+            max-width: 200px;
+            padding: 0.35rem 0.6rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-bright);
+            font-family: 'Space Mono', monospace;
+            font-size: 0.65rem;
+        }
+        .open-trades-filter input::placeholder { color: var(--text-dim); }
+        .open-trades-filter input:focus { outline: none; border-color: var(--accent); }
+        .ot-filter-btn {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.55rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 3px;
+            border: 1px solid var(--border);
+            background: var(--bg-dark);
+            color: var(--text-dim);
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+        }
+        .ot-filter-btn:hover { border-color: var(--accent); color: var(--text-bright); }
+        .ot-filter-btn.active {
+            background: var(--accent-deep);
+            border-color: var(--accent);
+            color: var(--text-bright);
+        }
+        .open-trades-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .open-trade-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--green-candle);
+            border-radius: 4px;
+            padding: 0.75rem 1rem;
+        }
+        .open-trade-item.needs-attention {
+            border-left-color: var(--red-candle);
+            box-shadow: 0 0 8px rgba(239, 83, 80, 0.15);
+        }
+        .open-trade-item .ticker-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.3rem;
+        }
+        .open-trade-item .ticker-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .open-trade-item .ticker-icon-fallback {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            background: var(--accent-deep);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: var(--text-bright);
+        }
+        .open-trade-item .ticker-badge {
+            font-family: 'Noto Serif JP', serif;
+            font-weight: 900;
+            font-size: 1rem;
+            color: var(--text-bright);
+            letter-spacing: 1px;
+        }
         .top-picks-section { margin-bottom: 1.5rem; }
         .top-picks-grid {
             display: grid;
@@ -232,12 +375,18 @@
         }
         .top-pick-card {
             background: var(--bg-card);
-            border: 1px solid var(--accent-deep);
+            border: 1px solid var(--accent-glow);
             border-radius: 6px;
             padding: 1rem;
             position: relative;
             overflow: hidden;
             transition: all 0.25s;
+            box-shadow: 0 0 12px rgba(74, 158, 255, 0.25), 0 0 30px rgba(74, 158, 255, 0.1);
+            animation: pickGlow 2s ease-in-out infinite alternate;
+        }
+        @keyframes pickGlow {
+            from { box-shadow: 0 0 12px rgba(74, 158, 255, 0.2), 0 0 30px rgba(74, 158, 255, 0.08); }
+            to { box-shadow: 0 0 18px rgba(74, 158, 255, 0.35), 0 0 40px rgba(74, 158, 255, 0.15); }
         }
         .top-pick-card::before {
             content: '';
@@ -345,18 +494,120 @@
             justify-content: space-between;
             align-items: center;
         }
-        .action-item .ticker-badge {
-            background: var(--accent);
-            color: var(--bg-deep);
+        .action-item .ticker-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.3rem;
+        }
+        .action-item .ticker-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .action-item .ticker-icon-fallback {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            background: var(--accent-deep);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
             font-weight: 700;
-            font-size: 0.7rem;
-            padding: 2px 8px;
-            border-radius: 3px;
-            margin-right: 0.75rem;
+            color: var(--text-bright);
+        }
+        .action-item .ticker-badge {
+            font-family: 'Noto Serif JP', serif;
+            font-weight: 900;
+            font-size: 1.1rem;
+            color: var(--text-bright);
             letter-spacing: 1px;
         }
-        .action-item .message { font-size: 0.8rem; color: var(--text-bright); }
-        .action-item .meta { font-size: 0.7rem; color: var(--text-dim); }
+        .action-item .signal-tag {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 3px;
+            letter-spacing: 1px;
+        }
+        .action-item .signal-tag.buy { background: var(--green-dim); color: var(--green-bright); }
+        .action-item .signal-tag.sell { background: var(--red-dim); color: var(--red-bright); }
+        .action-item .score-tag {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 3px;
+            background: rgba(74,158,255,0.15);
+            color: var(--accent);
+            margin-left: auto;
+        }
+        .action-item.pick-glow,
+        .action-item.pick-glow.action-item {
+            border-top: 3px solid var(--accent-glow);
+            border-right: 3px solid var(--accent-glow);
+            border-bottom: 3px solid var(--accent-glow);
+            border-left: 3px solid var(--accent-glow);
+            animation: pickGlowLive 2.5s ease-in-out infinite;
+            position: relative;
+            overflow: hidden;
+        }
+        .action-item.pick-glow:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 35px rgba(74, 158, 255, 0.7), 0 0 80px rgba(74, 158, 255, 0.3);
+        }
+        .action-item.pick-glow::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: linear-gradient(45deg, transparent 40%, rgba(74, 158, 255, 0.08) 50%, transparent 60%);
+            animation: pickShimmer 3s ease-in-out infinite;
+            pointer-events: none;
+        }
+        @keyframes pickGlowLive {
+            0%, 100% { box-shadow: 0 0 12px rgba(74, 158, 255, 0.3), 0 0 30px rgba(74, 158, 255, 0.12), inset 0 0 10px rgba(74, 158, 255, 0.03); border-color: var(--accent-glow); }
+            50% { box-shadow: 0 0 25px rgba(74, 158, 255, 0.5), 0 0 60px rgba(74, 158, 255, 0.2), inset 0 0 20px rgba(74, 158, 255, 0.06); border-color: #8cc8ff; }
+        }
+        @keyframes pickShimmer {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) rotate(45deg); }
+        }
+        .action-item.pick-demo,
+        .action-item.pick-demo.action-item {
+            border-top: 3px solid var(--accent-glow);
+            border-right: 3px solid var(--accent-glow);
+            border-bottom: 3px solid var(--accent-glow);
+            border-left: 3px solid var(--accent-glow);
+            background: var(--bg-card);
+            animation: demoPulse 2s ease-in-out infinite alternate;
+        }
+        .action-item.pick-demo:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 35px rgba(74, 158, 255, 0.7), 0 0 80px rgba(74, 158, 255, 0.3);
+        }
+        @keyframes demoPulse {
+            0% {
+                border-top-color: var(--border);
+                border-right-color: var(--border);
+                border-bottom-color: var(--border);
+                border-left-color: var(--border);
+                box-shadow: 0 0 5px rgba(74, 158, 255, 0.05);
+            }
+            100% {
+                border-top-color: #ffffff;
+                border-right-color: #ffffff;
+                border-bottom-color: #ffffff;
+                border-left-color: #ffffff;
+                box-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 0 0 50px rgba(74, 158, 255, 0.6), 0 0 100px rgba(74, 158, 255, 0.3);
+            }
+        }
+        .action-item .message { display: none; }
+        .action-item .meta { font-size: 0.7rem; color: var(--text-dim); margin-top: 0.25rem; }
         .action-buttons {
             display: flex;
             gap: 0.4rem;
@@ -506,6 +757,25 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 0.75rem;
+        }
+        .ticker-coin-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .ticker-coin-fallback {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            background: var(--accent-deep);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-bright);
         }
         .ticker-name {
             font-family: 'Noto Serif JP', serif;
@@ -695,14 +965,59 @@
         }
         .error-banner.show { display: block; }
 
-        /* ============ FOOTER ============ */
-        .footer {
+        /* ============ ZEN FOOTER ============ */
+        .zen-footer {
             text-align: center;
             padding: 2rem 0 1rem;
-            font-size: 0.6rem;
+            position: relative;
+        }
+        .zen-scene {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 2rem;
+            margin-bottom: 1rem;
+        }
+        .zen-capybara {
+            font-size: 5rem;
+            line-height: 1;
+            animation: capyFloat 4s ease-in-out infinite;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            filter: drop-shadow(0 0 20px rgba(74, 158, 255, 0.6)) drop-shadow(0 0 50px rgba(74, 158, 255, 0.3)) drop-shadow(0 0 80px rgba(74, 158, 255, 0.15));
+            transition: filter 0.3s;
+        }
+        .zen-capybara:hover {
+            filter: drop-shadow(0 0 25px rgba(74, 158, 255, 0.8)) drop-shadow(0 0 60px rgba(74, 158, 255, 0.5)) drop-shadow(0 0 100px rgba(74, 158, 255, 0.25));
+        }
+        .zen-capybara::before {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 140px; height: 140px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(74, 158, 255, 0.15) 0%, rgba(74, 158, 255, 0.05) 40%, transparent 70%);
+            animation: auraGlow 3s ease-in-out infinite alternate;
+            pointer-events: none;
+            z-index: -1;
+        }
+        @keyframes capyFloat {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-10px) scale(1.03); }
+        }
+        @keyframes auraGlow {
+            0% { width: 140px; height: 140px; opacity: 0.6; }
+            100% { width: 180px; height: 180px; opacity: 1; }
+        }
+        .zen-credit {
+            font-size: 0.55rem;
             color: var(--text-dim);
             letter-spacing: 2px;
             text-transform: uppercase;
+            margin-top: 1rem;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.7);
         }
 
         /* ============ RESPONSIVE ============ */
@@ -751,6 +1066,12 @@
         <div class="quote-author" id="quoteAuthor"></div>
     </div>
 
+    <!-- Command Bar -->
+    <div class="command-bar">
+        <input type="text" class="command-input" id="commandInput" placeholder="e.g. &quot;$5 ZRO&quot; or &quot;chart BTC&quot;" autocomplete="off">
+    </div>
+    <div class="command-result" id="commandResult"></div>
+
     <!-- Quick Stats Bar -->
     <div class="stats-bar" id="statsBar">
         <div class="stat-card">
@@ -770,25 +1091,37 @@
             <div class="stat-label">Today's Signals</div>
         </div>
         <div class="stat-card">
-            <div class="stat-value" id="statStreak">-</div>
-            <div class="stat-label">Current Streak</div>
+            <div class="stat-value" id="statPnL">-</div>
+            <div class="stat-label">Total P&L</div>
         </div>
     </div>
 
-    <!-- Top Picks -->
-    <div class="top-picks-section" id="topPicksSection">
-        <div class="section-header">Top Picks <span class="count" id="topPicksCount">0</span></div>
-        <div class="top-picks-grid" id="topPicksGrid"></div>
+    <!-- Top Picks + Action Needed (two columns) -->
+    <div class="picks-actions-row">
+        <div class="picks-col">
+            <div class="section-header">Top Picks <span class="count" id="topPicksCount">0</span></div>
+            <div class="top-picks-grid" id="topPicksGrid" style="max-height: 480px; overflow-y: auto;"></div>
+        </div>
+        <div class="actions-col">
+            <div class="section-header">Action Needed <span class="count" id="actionCount">0</span></div>
+            <div class="action-list" id="actionList" style="max-height: 480px; overflow-y: auto;"></div>
+        </div>
     </div>
 
-    <!-- Action Needed -->
-    <div class="action-section" id="actionSection">
-        <div class="section-header">Action Needed <span class="count" id="actionCount">0</span></div>
-        <div class="action-list" id="actionList"></div>
+    <!-- Open Trades -->
+    <div class="open-trades-section" id="openTradesSection">
+        <div class="section-header">Open Trades <span class="count" id="openTradesCount">0</span></div>
+        <div class="open-trades-filter">
+            <input type="text" id="otSearch" placeholder="Search ticker..." oninput="filterOpenTrades()">
+            <button class="ot-filter-btn active" data-filter="all" onclick="setOTFilter(this,'all')">All</button>
+            <button class="ot-filter-btn" data-filter="no-0x0" onclick="setOTFilter(this,'no-0x0')">No 0x0</button>
+            <button class="ot-filter-btn" data-filter="no-tp" onclick="setOTFilter(this,'no-tp')">No TP</button>
+        </div>
+        <div class="open-trades-list" id="openTradesList" style="max-height: 480px; overflow-y: auto;"></div>
     </div>
 
     <!-- Ticker Grid -->
-    <div class="section-header">Tickers <span class="count" id="tickerCount">0</span></div>
+    <div class="section-header">Tickers</div>
     <div class="ticker-search-bar">
         <input type="text" id="tickerSearch" placeholder="Search tickers..." oninput="filterTickers()">
         <button id="tickerShowAll" onclick="toggleShowAll()">Show All</button>
@@ -797,8 +1130,8 @@
 
     <!-- All Signals Table -->
     <div class="signals-section">
-        <div class="section-header">All Signals <span class="count" id="signalCount">0</span></div>
-        <div class="section-box">
+        <div class="section-header">All Signals</div>
+        <div class="section-box" style="max-height: 250px; overflow-y: auto;">
             <table class="signals-table" id="signalsTable">
                 <thead>
                     <tr>
@@ -829,7 +1162,38 @@
         </div>
     </div>
 
-    <div class="footer">Crypto Trade Dashboard</div>
+    <!-- Zen Footer -->
+    <div class="zen-footer">
+        <div class="zen-scene">
+            <div class="zen-capybara" id="zenCapybara" title="Click me!">
+                <svg viewBox="150 380 550 580" width="140" height="140">
+                    <g fill="none" stroke="var(--accent-glow)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M180 750 Q150 650 200 580 Q220 550 250 540 Q280 530 320 540 L340 545"/>
+                        <path d="M340 545 Q380 500 420 480 Q480 450 540 460 Q600 470 640 510 Q680 550 690 600 Q695 640 680 680 Q660 720 620 740 Q560 770 480 760 Q400 750 340 720 Q300 700 280 680"/>
+                        <path d="M380 480 Q370 440 390 410 Q410 385 440 390 Q460 400 455 430 Q450 455 430 470"/>
+                        <path d="M540 455 Q550 420 580 400 Q610 385 635 400 Q655 420 645 455 Q635 480 610 490"/>
+                        <circle cx="480" cy="540" r="18" fill="var(--accent-deep)"/>
+                        <circle cx="485" cy="535" r="6" fill="var(--accent-glow)"/>
+                        <ellipse cx="580" cy="580" rx="25" ry="18" fill="var(--accent-deep)"/>
+                        <circle cx="570" cy="575" r="4" fill="var(--accent-glow)"/>
+                        <circle cx="590" cy="575" r="4" fill="var(--accent-glow)"/>
+                        <path d="M560 610 Q580 625 600 610"/>
+                        <path d="M620 570 L680 550"/>
+                        <path d="M625 590 L690 590"/>
+                        <path d="M620 610 L680 630"/>
+                        <path d="M320 700 Q310 750 320 800 Q325 830 350 840 Q380 845 390 820 Q400 790 395 750"/>
+                        <path d="M450 750 Q445 800 455 840 Q465 870 495 870 Q525 865 530 835 Q535 800 520 760"/>
+                        <path d="M280 680 Q240 720 220 780 Q200 850 230 900 Q260 940 320 940 Q370 935 380 890 Q390 840 370 800"/>
+                        <path d="M350 680 Q360 700 350 720"/>
+                        <path d="M380 690 Q390 710 380 730"/>
+                        <path d="M410 695 Q420 715 410 735"/>
+                    </g>
+                </svg>
+            </div>
+        </div>
+        <div id="zenWisdomText" style="font-family:'Noto Serif JP',serif;font-size:0.85rem;font-style:italic;color:white;margin-top:0.5rem;cursor:pointer;max-width:520px;margin-left:auto;margin-right:auto;line-height:1.6;background:rgba(8,12,18,0.92);padding:0.8rem 1.4rem;border-radius:8px;border:1px solid var(--accent-deep);box-shadow:0 0 15px rgba(0,0,0,0.5);transition:opacity 0.3s;text-shadow:0 1px 3px rgba(0,0,0,0.5)" onclick="showZenWisdom()">click the capybara</div>
+        <div class="zen-credit">Crypto Trade Dashboard</div>
+    </div>
 </div>
 
 <script>
@@ -915,20 +1279,27 @@
         document.getElementById('statTotal').textContent = stats.totalTrades || 0;
         document.getElementById('statToday').textContent = stats.todaySignals || 0;
 
-        const streakEl = document.getElementById('statStreak');
-        const streakStr = stats.currentStreak || '-';
-        streakEl.textContent = streakStr;
-        streakEl.className = 'stat-value' + (streakStr.includes('W') ? ' green' : streakStr.includes('L') ? ' red' : '');
+        const pnlEl = document.getElementById('statPnL');
+        const pnl = stats.totalPnL || '-';
+        pnlEl.textContent = typeof pnl === 'number' ? (pnl >= 0 ? '+$' + pnl : '-$' + Math.abs(pnl)) : pnl;
+        pnlEl.className = 'stat-value' + (typeof pnl === 'number' && pnl > 0 ? ' green' : typeof pnl === 'number' && pnl < 0 ? ' red' : '');
 
         // --- Top Picks (Claude's recommendations) ---
         renderTopPicks(claudePicks || [], scoredSignals);
 
-        // --- Action Needed ---
-        renderActions(actionNeeded || []);
+        // --- Split actions: new signals vs open trades ---
+        const allActions = actionNeeded || [];
+        const newSignals = allActions.filter(a => a.type === 'mark_action');
+        const openTrades = allActions.filter(a => a.type === 'mark_outcome');
+        renderActions(newSignals, scoredSignals);
+        renderOpenTrades(openTrades);
 
-        // --- Ticker Grid ---
-        allTickers = tickers || [];
-        document.getElementById('tickerCount').textContent = allTickers.length;
+        // --- Ticker Grid (sorted by most recent signal first) ---
+        allTickers = (tickers || []).slice().sort((a, b) => {
+            const ta = a.lastTimestamp ? new Date(a.lastTimestamp).getTime() : 0;
+            const tb = b.lastTimestamp ? new Date(b.lastTimestamp).getTime() : 0;
+            return tb - ta;
+        });
         renderTickerGrid();
 
         // --- All Signals Table ---
@@ -949,54 +1320,51 @@
         countEl.textContent = picks.length;
 
         if (picks.length === 0) {
-            grid.innerHTML = '<div class="no-picks">No picks yet — waiting for Claude to analyze signals</div>';
+            grid.innerHTML = '<div class="no-picks">No top picks right now — waiting for high-score signals</div>';
             return;
         }
 
-        grid.innerHTML = picks.map((s, i) => {
+        grid.innerHTML = picks.map((s, i) => renderPickCard(s, i, false)).join('');
+    }
+
+    function renderPickCard(s, i, isDemo) {
+            const tkr = s.symbol || s.ticker || '';
+            const prc = s.entry || s.price || 0;
+            const sym = getCoinSymbol(tkr);
+            const iconUrl = sym ? `https://assets.coincap.io/assets/icons/${sym}@2x.png` : '';
+            const fallbackText = sym ? sym.slice(0,2).toUpperCase() : '?';
+            const geckoFallback = sym ? `fetchCoinGeckoIcon('${esc(tkr)}',this,this.nextElementSibling)` : '';
+            const onerrorAttr = `this.style.display='none';this.nextElementSibling.style.display='flex';${geckoFallback}`;
             const dir = (s.signal || s.direction || '').toLowerCase();
-            const dirClass = dir === 'short' || dir === 'sell' ? 'short' : 'long';
-            const entry = Number(s.entry || 0);
-            const sl = Number(s.sl || 0);
-            const tp1 = Number(s.tp1 || 0);
-            const rr = s.rr || (sl > 0 && entry > 0 ? Math.abs((tp1 - entry) / (entry - sl)).toFixed(2) : '-');
-            const pickId = 'pick-' + i;
-            const analysis = s.analysis || '';
-            const rec = s.recommendation || '';
+            const signalClass = dir === 'short' || dir === 'sell' ? 'sell' : 'buy';
             const score = s.score || s._score || 0;
+            const analysis = s.analysis || '';
+            const pickId = 'pick-' + i;
 
             return `
-                <div class="top-pick-card" id="${pickId}">
-                    <div class="top-pick-header">
-                        <div style="display:flex;align-items:center;gap:0.5rem">
-                            <span class="top-pick-symbol">${esc(s.symbol || s.ticker || '-')}</span>
-                            <span class="top-pick-direction ${dirClass}">${dirClass.toUpperCase()}</span>
+                <div class="action-item ${isDemo ? 'pick-demo' : 'pick-glow'}" id="${pickId}">
+                    <div>
+                        <div class="ticker-header">
+                            <img class="ticker-icon" src="${iconUrl}" alt="" onerror="${onerrorAttr}">
+                            <div class="ticker-icon-fallback">${fallbackText}</div>
+                            <span class="ticker-badge">${esc(tkr)}</span>
+                            <span class="signal-tag ${signalClass}">${dir.toUpperCase() || 'BUY'}</span>
+                            <span class="score-tag">Score: ${score}/7</span>
                         </div>
-                        <span class="top-pick-score">${score}/7</span>
-                    </div>
-                    ${analysis ? `<div class="claude-analysis">${esc(analysis)}</div>` : ''}
-                    ${rec ? `<div class="claude-rec">${esc(rec)}</div>` : ''}
-                    <dl class="top-pick-details">
-                        <dt>Entry</dt><dd>${entry || '-'}</dd>
-                        <dt>Stop Loss</dt><dd class="red">${sl || '-'}</dd>
-                        <dt>TP1</dt><dd class="green">${tp1 || '-'}</dd>
-                        <dt>R:R</dt><dd>${rr}</dd>
-                    </dl>
-                    <div class="top-pick-actions">
-                        <button class="action-btn entered" onclick="markPickAction('${esc(s.symbol || s.ticker)}','${esc(s.signal || s.direction)}',${entry},'Entered','${pickId}')">Entered</button>
-                        <button class="action-btn skipped" onclick="markPickAction('${esc(s.symbol || s.ticker)}','${esc(s.signal || s.direction)}',${entry},'Skipped','${pickId}')">Skipped</button>
-                    </div>
-                    <div class="ticker-links" style="margin-top:0.5rem">
-                        <a class="ticker-link tv" href="${getTickerLink(s.symbol || s.ticker, 'tv')}" target="_blank">TradingView</a>
-                        <button class="ticker-link bx" onclick="openBitunix('${esc(s.symbol || s.ticker)}')">Bitunix</button>
+                        ${analysis ? `<div class="meta" style="margin-top:0.3rem;color:var(--text)">${esc(analysis)}</div>` : ''}
+                        <div class="meta">@ $${prc}${s.sl ? ' &middot; SL: $' + s.sl : ''}${s.tp1 ? ' &middot; TP: $' + s.tp1 : ''}</div>
+                        <div class="action-buttons">
+                            <input type="text" class="entry-input" placeholder="Size $" id="${pickId}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
+                            <button class="action-btn entered" onclick="markPickAction('${esc(tkr)}','${esc(s.signal || s.direction)}',${prc},'Entered','${pickId}')">Entered</button>
+                            <button class="action-btn skipped" onclick="markPickAction('${esc(tkr)}','${esc(s.signal || s.direction)}',${prc},'Skipped','${pickId}')">Skipped</button>
+                        </div>
                     </div>
                 </div>
             `;
-        }).join('');
     }
 
     // ====== ACTION NEEDED ======
-    function renderActions(actionNeeded) {
+    function renderActions(actionNeeded, allSignals) {
         const actionList = document.getElementById('actionList');
         const actionCount = document.getElementById('actionCount');
         actionCount.textContent = actionNeeded.length;
@@ -1008,40 +1376,163 @@
 
         actionList.innerHTML = actionNeeded.map((a, i) => {
             const id = 'action-' + i;
+            const tkr = a.ticker || a.symbol || '';
+            const prc = a.price || a.entry || 0;
+            const sym = getCoinSymbol(tkr);
+            const iconUrl = sym ? `https://assets.coincap.io/assets/icons/${sym}@2x.png` : '';
+            const fallbackText = sym ? sym.slice(0,2).toUpperCase() : '?';
+
+            const geckoFallback = sym ? `fetchCoinGeckoIcon('${esc(tkr)}',this,this.nextElementSibling)` : '';
+            const onerrorAttr = `this.style.display='none';this.nextElementSibling.style.display='flex';${geckoFallback}`;
+
+            const signalType = (a.signal || 'buy').toLowerCase();
+            const signalClass = signalType.includes('sell') || signalType.includes('short') ? 'sell' : 'buy';
+            const score = a.score || a._score || '-';
+
+            // Find matching signal for extra details
+            const matched = (allSignals || []).find(s => (s.symbol || s.ticker || '').toUpperCase() === tkr.toUpperCase() && Math.abs(Number(s.entry || s.price || 0) - prc) < 0.001);
+            const rsi = matched ? matched.rsi : '';
+            const macd = matched ? matched.macd : '';
+            const vol = matched ? matched.volume : '';
+            const sl = matched ? matched.sl : '';
+            const tp1 = matched ? matched.tp1 : '';
+
+            const detailParts = [];
+            if (rsi) detailParts.push('RSI: ' + Number(rsi).toFixed(1));
+            if (macd) detailParts.push('MACD: ' + macd);
+            if (vol) detailParts.push('Vol: ' + vol);
+            const detailStr = detailParts.join(' · ');
+            const levelsStr = (sl ? 'SL: $' + sl : '') + (tp1 ? ' · TP: $' + tp1 : '');
+
             if (a.type === 'mark_action') {
                 return `
                     <div class="action-item" id="${id}">
-                        <div>
-                            <div><span class="ticker-badge">${esc(a.ticker)}</span><span class="message">${esc(a.message)}</span></div>
-                            <div class="action-buttons">
-                                <input type="text" class="entry-input" placeholder="Size $" id="${id}-size">
-                                <button class="action-btn entered" onclick="markAction('${esc(a.ticker)}','${esc(a.signal)}',${a.price},'Entered','${id}')">Entered</button>
-                                <button class="action-btn skipped" onclick="markAction('${esc(a.ticker)}','${esc(a.signal)}',${a.price},'Skipped','${id}')">Skipped</button>
+                        <div style="display:flex;justify-content:space-between;gap:1rem;width:100%">
+                            <div style="flex:1">
+                                <div class="ticker-header">
+                                    <img class="ticker-icon" src="${iconUrl}" alt="" onerror="${onerrorAttr}">
+                                    <div class="ticker-icon-fallback">${fallbackText}</div>
+                                    <span class="ticker-badge">${esc(tkr)}</span>
+                                    <span class="signal-tag ${signalClass}">${signalType.toUpperCase()}</span>
+                                    <span class="score-tag">Score: ${score}</span>
+                                </div>
+                                <div class="meta">@ $${prc}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
+                                <div class="action-buttons">
+                                    <input type="text" class="entry-input" placeholder="Size $" id="${id}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
+                                    <button class="action-btn entered" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Entered','${id}')">Entered</button>
+                                    <button class="action-btn skipped" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Skipped','${id}')">Skipped</button>
+                                </div>
+                            </div>
+                            <div style="text-align:right;font-size:0.75rem;color:var(--text-dim);display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:0.3rem">
+                                ${rsi ? '<div>RSI: <span style="color:' + (rsi < 30 ? 'var(--green-bright)' : rsi > 70 ? 'var(--red-bright)' : 'var(--text)') + '">' + Number(rsi).toFixed(1) + '</span></div>' : ''}
+                                ${macd ? '<div>MACD: <span style="color:' + (macd === 'rising' ? 'var(--green-bright)' : 'var(--red-bright)') + '">' + macd + '</span></div>' : ''}
+                                ${vol ? '<div>Vol: <span style="color:' + (vol === 'above' ? 'var(--green-bright)' : 'var(--text-dim)') + '">' + vol + '</span></div>' : ''}
+                                <canvas class="sparkline" data-ticker="${esc(tkr)}" width="100" height="30" style="margin-top:0.2rem"></canvas>
                             </div>
                         </div>
-                        <div class="meta">${esc((a.signal || '').toUpperCase())} @ $${a.price}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
                     </div>`;
             } else {
                 return `
                     <div class="action-item" id="${id}">
                         <div>
-                            <div><span class="ticker-badge">${esc(a.ticker)}</span><span class="message">${esc(a.message)}</span></div>
+                            <div class="ticker-header">
+                                <img class="ticker-icon" src="${iconUrl}" alt="" onerror="${onerrorAttr}">
+                                <div class="ticker-icon-fallback">${fallbackText}</div>
+                                <span class="ticker-badge">${esc(tkr)}</span>
+                                <span class="signal-tag ${signalClass}">${signalType.toUpperCase()}</span>
+                                <span class="score-tag">Score: ${score}</span>
+                            </div>
+                            <div class="meta">@ $${prc}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
                             <div class="action-buttons">
                                 <input type="text" class="entry-input" placeholder="Profit $" id="${id}-profit">
-                                <button class="action-btn won" onclick="markOutcome('${esc(a.ticker)}','${esc(a.signal)}',${a.price},'Won','${id}')">Won</button>
-                                <button class="action-btn lost" onclick="markOutcome('${esc(a.ticker)}','${esc(a.signal)}',${a.price},'Lost','${id}')">Lost</button>
-                                <button class="action-btn open-pos" onclick="markOutcome('${esc(a.ticker)}','${esc(a.signal)}',${a.price},'Open','${id}')">Open</button>
+                                <button class="action-btn won" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Won','${id}')">Won</button>
+                                <button class="action-btn lost" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Lost','${id}')">Lost</button>
+                                <button class="action-btn open-pos" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Open','${id}')">Open</button>
                             </div>
                         </div>
-                        <div class="meta">${esc((a.signal || '').toUpperCase())} @ $${a.price}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
                     </div>`;
             }
         }).join('');
     }
 
+    // ====== OPEN TRADES ======
+    function renderOpenTrades(trades) {
+        const list = document.getElementById('openTradesList');
+        const countEl = document.getElementById('openTradesCount');
+        countEl.textContent = trades.length;
+
+        if (trades.length === 0) {
+            list.innerHTML = '<div class="no-actions">No open trades</div>';
+            return;
+        }
+
+        list.innerHTML = trades.map((a, i) => renderOpenTradeCard(a, i)).join('');
+    }
+
+    function renderOpenTradeCard(a, i) {
+            const id = 'open-' + i;
+            const tkr = a.ticker || a.symbol || '';
+            const prc = a.price || a.entry || 0;
+            const sym = getCoinSymbol(tkr);
+            const iconUrl = sym ? `https://assets.coincap.io/assets/icons/${sym}@2x.png` : '';
+            const fallbackText = sym ? sym.slice(0,2).toUpperCase() : '?';
+            const geckoFallback = sym ? `fetchCoinGeckoIcon('${esc(tkr)}',this,this.nextElementSibling)` : '';
+            const onerrorAttr = `this.style.display='none';this.nextElementSibling.style.display='flex';${geckoFallback}`;
+            const signalType = (a.signal || 'buy').toLowerCase();
+            const signalClass = signalType.includes('sell') || signalType.includes('short') ? 'sell' : 'buy';
+
+            return `
+                <div class="open-trade-item needs-attention" id="${id}" data-status="active" data-ticker="${esc(tkr).toUpperCase()}" data-pnl="0">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem">
+                        <div style="flex:1">
+                            <div class="ticker-header">
+                                <img class="ticker-icon" src="${iconUrl}" alt="" onerror="${onerrorAttr}">
+                                <div class="ticker-icon-fallback">${fallbackText}</div>
+                                <span class="ticker-badge">${esc(tkr)}</span>
+                                <span class="signal-tag ${signalClass}">${signalType.toUpperCase()}</span>
+                            </div>
+                            <div class="meta" style="font-size:0.6rem">@ $${prc}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
+                            <div class="action-buttons">
+                                <input type="text" class="entry-input" placeholder="P&L $" id="${id}-profit" style="width:55px">
+                                <button class="action-btn entered" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'0x0','${id}')">0x0</button>
+                                <button class="action-btn won" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Won','${id}')">Hit TP</button>
+                                <button class="action-btn lost" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Lost','${id}')">Stopped Out</button>
+                                <button class="action-btn skipped" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Closed','${id}')">Closed</button>
+                            </div>
+                        </div>
+                        <div class="pnl-display" id="${id}-pnl-display" style="text-align:center;min-width:70px">
+                            <div style="font-size:0.5rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px">P&L</div>
+                            <div class="pnl-amount" style="font-family:'Space Mono',monospace;font-size:1.2rem;font-weight:700;color:var(--text-dim)">$0</div>
+                        </div>
+                    </div>
+                </div>`;
+    }
+
+    // ====== OPEN TRADES FILTER ======
+    let otFilterMode = 'all';
+    function setOTFilter(btn, mode) {
+        otFilterMode = mode;
+        document.querySelectorAll('.ot-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        filterOpenTrades();
+    }
+    function filterOpenTrades() {
+        const search = (document.getElementById('otSearch').value || '').toUpperCase().trim();
+        document.querySelectorAll('.open-trade-item').forEach(card => {
+            const ticker = (card.dataset.ticker || '').toUpperCase();
+            const status = card.dataset.status || 'active';
+            const matchSearch = !search || ticker.includes(search);
+            let matchFilter = true;
+            if (otFilterMode === 'no-0x0') matchFilter = status !== '0x0';
+            else if (otFilterMode === 'no-tp') matchFilter = status !== 'tp';
+            else if (otFilterMode === 'done') matchFilter = status === '0x0' || status === 'tp';
+            card.style.display = (matchSearch && matchFilter) ? '' : 'none';
+        });
+    }
+
     // ====== SIGNALS TABLE ======
     function renderSignalsTable(signals) {
-        document.getElementById('signalCount').textContent = signals.length;
+        // signalCount removed from UI
         const tbody = document.getElementById('signalsBody');
 
         tbody.innerHTML = signals.map(s => {
@@ -1113,6 +1604,47 @@
     }
 
     // ====== TICKER GRID ======
+    function getCoinSymbol(ticker) {
+        if (!ticker) return '';
+        let t = ticker.toUpperCase();
+        // Strip .P suffix (Bitunix perpetual contracts)
+        if (t.endsWith('.P')) t = t.slice(0, -2);
+        if (t.endsWith('USDT')) return t.slice(0, -4).toLowerCase();
+        if (t.endsWith('USDC')) return t.slice(0, -4).toLowerCase();
+        if (t.endsWith('USD')) return t.slice(0, -3).toLowerCase();
+        if (t.endsWith('BTC')) return t.slice(0, -3).toLowerCase();
+        return t.toLowerCase();
+    }
+
+    const coinIconCache = {};
+
+    function getCoinIconUrl(ticker) {
+        const sym = getCoinSymbol(ticker);
+        if (coinIconCache[sym]) return coinIconCache[sym];
+        return `https://assets.coincap.io/assets/icons/${sym}@2x.png`;
+    }
+
+    async function fetchCoinGeckoIcon(ticker, imgEl, fallbackEl) {
+        const sym = getCoinSymbol(ticker);
+        if (coinIconCache[sym]) {
+            imgEl.src = coinIconCache[sym];
+            imgEl.style.display = '';
+            fallbackEl.style.display = 'none';
+            return;
+        }
+        try {
+            const res = await fetch(`https://api.coingecko.com/api/v3/search?query=${sym}`);
+            const data = await res.json();
+            const match = data.coins?.find(c => c.symbol.toLowerCase() === sym);
+            if (match && match.large) {
+                coinIconCache[sym] = match.large;
+                imgEl.src = match.large;
+                imgEl.style.display = '';
+                fallbackEl.style.display = 'none';
+            }
+        } catch(e) {}
+    }
+
     function renderTickerCard(t, i) {
         const dir = (t.lastDirection || t.lastSignal || 'idle').toLowerCase();
         const dirClass = dir === 'short' ? 'short' : dir === 'long' ? 'long' : 'idle';
@@ -1123,6 +1655,8 @@
             <div class="ticker-card" id="${tid}">
                 <div class="ticker-card-header">
                     <div style="display:flex;align-items:center;gap:0.5rem">
+                        <img class="ticker-coin-icon" src="${getCoinIconUrl(t.ticker)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';fetchCoinGeckoIcon('${esc(t.ticker)}',this,this.nextElementSibling)">
+                        <div class="ticker-coin-fallback">${getCoinSymbol(t.ticker).slice(0,2).toUpperCase()}</div>
                         <span class="ticker-name">${esc(t.ticker)}</span>
                         <span class="ticker-direction ${dirClass}">${dirClass.toUpperCase()}</span>
                     </div>
@@ -1156,7 +1690,7 @@
             btn.classList.remove('active');
         } else if (!showAllTickers && tickers.length > TICKER_LIMIT) {
             tickers = tickers.slice(0, TICKER_LIMIT);
-            btn.textContent = `Show All (${allTickers.length})`;
+            btn.textContent = 'Show All';
             btn.classList.remove('active');
         } else {
             btn.textContent = 'Show Recent';
@@ -1406,32 +1940,108 @@
 
     async function markOutcome(ticker, signal, price, value, elemId) {
         const profitInput = document.getElementById(elemId + '-profit');
-        const profitLocked = profitInput ? profitInput.value : '';
+        const inputVal = parseFloat(profitInput ? profitInput.value : '') || 0;
         const el = document.getElementById(elemId);
 
-        el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
+        // Running P&L total stored on the element
+        const prevTotal = parseFloat(el.dataset.pnl || '0');
 
-        try {
-            await fetch(POST_URL, {
-                method: 'POST',
-                body: JSON.stringify({
-                    action: 'update_position',
-                    ticker: ticker,
-                    signal: signal,
-                    price: price,
-                    field: 'outcome',
-                    value: value,
-                    profitLocked: profitLocked
-                })
-            });
-            const color = value === 'Won' ? 'var(--green-candle)' : value === 'Lost' ? 'var(--red-candle)' : 'var(--accent)';
-            el.style.borderColor = color;
-            el.style.opacity = '0.5';
-            el.innerHTML = '<div><span class="ticker-badge">' + esc(ticker) + '</span><span class="message">' + value.toUpperCase() + (profitLocked ? ' ($' + profitLocked + ')' : '') + '</span></div>';
-            setTimeout(fetchData, 2000);
-        } catch (err) {
-            el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
-            alert('Failed to update: ' + err.message);
+        if (value === 'Won') {
+            // Hit TP — add to running total, keep card open
+            const newTotal = prevTotal + inputVal;
+            el.dataset.pnl = newTotal;
+            el.dataset.status = 'tp';
+            el.style.borderLeftColor = 'var(--green-candle)';
+
+            // Update or create the P&L badge
+            let badge = el.querySelector('.pnl-badge');
+            if (!badge) {
+                const header = el.querySelector('.ticker-header');
+                if (header) {
+                    header.insertAdjacentHTML('beforeend', '<span class="pnl-badge" style="font-size:0.55rem;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto;background:var(--green-dim);color:var(--green-bright)"></span>');
+                    badge = el.querySelector('.pnl-badge');
+                }
+            }
+            if (badge) badge.textContent = 'TP ' + (newTotal >= 0 ? '+$' + newTotal.toFixed(2) : '-$' + Math.abs(newTotal).toFixed(2));
+
+            // Update right-side P&L display
+            const pnlDisplay = el.querySelector('.pnl-amount');
+            if (pnlDisplay) {
+                pnlDisplay.textContent = (newTotal >= 0 ? '+$' : '-$') + Math.abs(newTotal).toFixed(2);
+                pnlDisplay.style.color = newTotal >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
+            }
+
+            // Clear input for next partial
+            if (profitInput) profitInput.value = '';
+            return; // Don't send to sheet yet — wait for Closed
+
+        } else if (value === '0x0') {
+            // Breakeven — keep card open
+            el.dataset.status = '0x0';
+            el.style.borderLeftColor = 'var(--accent)';
+
+            let badge = el.querySelector('.pnl-badge');
+            if (!badge) {
+                const header = el.querySelector('.ticker-header');
+                if (header) {
+                    header.insertAdjacentHTML('beforeend', '<span class="pnl-badge" style="font-size:0.55rem;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto;background:#4a9eff22;color:var(--accent-glow)"></span>');
+                    badge = el.querySelector('.pnl-badge');
+                }
+            }
+            if (badge) badge.textContent = '0x0';
+            if (profitInput) profitInput.value = '';
+            return;
+
+        } else {
+            // Closed or Stopped Out — finalize and send total to sheet
+            const grandTotal = prevTotal + inputVal;
+            const finalValue = value === 'Lost' ? 'Lost' : 'Closed';
+
+            el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
+
+            try {
+                await fetch(POST_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'update_position',
+                        ticker: ticker,
+                        signal: signal,
+                        price: price,
+                        field: 'outcome',
+                        value: finalValue,
+                        profitLocked: grandTotal.toFixed(2)
+                    })
+                });
+
+                // Flash the total before fading
+                const header = el.querySelector('.ticker-header');
+                let badge = el.querySelector('.pnl-badge');
+                if (!badge && header) {
+                    header.insertAdjacentHTML('beforeend', '<span class="pnl-badge" style="font-size:0.55rem;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto"></span>');
+                    badge = el.querySelector('.pnl-badge');
+                }
+                if (badge) {
+                    badge.style.background = grandTotal >= 0 ? 'var(--green-dim)' : 'var(--red-dim)';
+                    badge.style.color = grandTotal >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
+                    badge.textContent = grandTotal >= 0 ? '+$' + grandTotal.toFixed(2) : '-$' + Math.abs(grandTotal).toFixed(2);
+                }
+
+                // Fade out after a brief moment
+                setTimeout(() => {
+                    el.style.transition = 'opacity 0.5s, max-height 0.5s';
+                    el.style.opacity = '0';
+                    el.style.maxHeight = '0';
+                    el.style.overflow = 'hidden';
+                    el.style.padding = '0';
+                    el.style.margin = '0';
+                    setTimeout(() => el.remove(), 600);
+                }, 1200);
+
+                setTimeout(fetchData, 3000);
+            } catch (err) {
+                el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
+                alert('Failed to update: ' + err.message);
+            }
         }
     }
 
@@ -1476,6 +2086,105 @@
         }
     };
 
+    // ====== COMMAND BAR ======
+    // Common name → ticker symbol mapping
+    const COIN_NAMES = {
+        'bitcoin':'BTC','btc':'BTC','ethereum':'ETH','eth':'ETH','solana':'SOL','sol':'SOL',
+        'cardano':'ADA','ada':'ADA','dogecoin':'DOGE','doge':'DOGE','ripple':'XRP','xrp':'XRP',
+        'polkadot':'DOT','dot':'DOT','chainlink':'LINK','link':'LINK','avalanche':'AVAX','avax':'AVAX',
+        'polygon':'POL','pol':'POL','matic':'POL','litecoin':'LTC','ltc':'LTC',
+        'uniswap':'UNI','uni':'UNI','aave':'AAVE','pepe':'PEPE',
+        'layerzero':'ZRO','zro':'ZRO','stargate':'STG','stg':'STG',
+        'aether':'GHST','ghst':'GHST','baby':'BABY','babydoge':'BABY',
+        'home':'HOME','shiba':'SHIB','shib':'SHIB','bonk':'BONK',
+        'sui':'SUI','sei':'SEI','apt':'APT','aptos':'APT','arb':'ARB','arbitrum':'ARB',
+        'op':'OP','optimism':'OP','near':'NEAR','ton':'TON','toncoin':'TON',
+        'render':'RENDER','fet':'FET','fetchai':'FET','wif':'WIF','floki':'FLOKI',
+        'injective':'INJ','inj':'INJ','jup':'JUP','jupiter':'JUP',
+    };
+
+    // Also match any raw symbol from TV_EXCHANGE_MAP
+    Object.keys(TV_EXCHANGE_MAP).forEach(sym => {
+        COIN_NAMES[sym.toLowerCase()] = sym;
+    });
+
+    function parseCommand(input) {
+        const text = input.trim().toLowerCase();
+        if (!text) return null;
+
+        // Extract dollar amount
+        const amountMatch = text.match(/\$\s*(\d+(?:\.\d+)?)/);
+        const amount = amountMatch ? amountMatch[1] : null;
+
+        // Detect action
+        const isChart = /\bchart\b|\bview\b|\blook\b|\bcheck\b/.test(text);
+
+        // Find ticker - try each word/phrase against COIN_NAMES
+        const words = text.replace(/\$\s*\d+(?:\.\d+)?/g, '').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/);
+        let ticker = null;
+
+        // Try multi-word matches first (e.g. "baby doge")
+        for (let i = 0; i < words.length; i++) {
+            for (let j = Math.min(words.length, i + 3); j > i; j--) {
+                const phrase = words.slice(i, j).join('');
+                if (COIN_NAMES[phrase]) {
+                    ticker = COIN_NAMES[phrase];
+                    break;
+                }
+            }
+            if (ticker) break;
+            // Try single word
+            if (COIN_NAMES[words[i]]) {
+                ticker = COIN_NAMES[words[i]];
+                break;
+            }
+        }
+
+        if (!ticker) return null;
+        return { ticker, amount, isChart };
+    }
+
+    function executeCommand(input) {
+        const result = document.getElementById('commandResult');
+        const cmd = parseCommand(input);
+
+        if (!cmd) {
+            result.className = 'command-result error';
+            result.textContent = "Couldn't find a ticker. Try something like \"$5 ZRO\" or \"chart BTC\"";
+            setTimeout(() => result.className = 'command-result', 3000);
+            return;
+        }
+
+        if (cmd.isChart) {
+            window.open(DEFAULT_TV(cmd.ticker), '_blank');
+            result.className = 'command-result success';
+            result.textContent = `Opening ${cmd.ticker} chart on TradingView`;
+        } else {
+            if (cmd.amount) {
+                navigator.clipboard.writeText(cmd.amount).then(() => {
+                    result.className = 'command-result success';
+                    result.textContent = `Opening ${cmd.ticker} on Bitunix — $${cmd.amount} copied to clipboard`;
+                });
+            } else {
+                result.className = 'command-result success';
+                result.textContent = `Opening ${cmd.ticker} on Bitunix`;
+            }
+            setTimeout(() => {
+                window.open(DEFAULT_BX(cmd.ticker), '_blank');
+            }, 300);
+        }
+
+        setTimeout(() => result.className = 'command-result', 4000);
+    }
+
+    document.getElementById('commandInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && this.value.trim()) {
+            executeCommand(this.value);
+            this.value = '';
+        }
+    });
+
+
     // ====== QUOTES ======
     const QUOTES = [
         { text: "The trend is your friend until the end when it bends.", author: "Ed Seykota" },
@@ -1508,12 +2217,44 @@
         authEl.style.opacity = '0';
         setTimeout(() => {
             textEl.textContent = '"' + q.text + '"';
-            authEl.textContent = '-- ' + q.author;
+            authEl.textContent = '— ' + q.author;
             textEl.style.opacity = '0.7';
             authEl.style.opacity = '0.6';
         }, 300);
     }
     showQuote();
+
+    // ====== ZEN WISDOM ======
+    const ZEN_WISDOMS = [
+        "The capybara does not chase the candle. The capybara waits.",
+        "A green candle is not a reason to buy. A red candle is not a reason to cry.",
+        "Position size is self-respect measured in dollars.",
+        "The best trade you ever make might be the one you don't.",
+        "FOMO is just fear wearing a different hat.",
+        "Your stop loss is not a suggestion. It is a promise to yourself.",
+        "The market doesn't care about your entry. Trade what you see, not what you hope.",
+        "A capybara sits in hot water and remains calm. Be the capybara.",
+        "Zoom out. Then zoom out again. Then go touch grass.",
+        "Diamond hands are worthless without a diamond plan.",
+        "The chart will be there tomorrow. Your capital might not be.",
+        "Three red candles do not make a trend. Neither do three green ones.",
+        "The capybara trades the plan. The capybara never revenge trades.",
+        "If you can't explain why you're in a trade, you shouldn't be in the trade.",
+        "Every master was once a disaster. Every whale was once rekt.",
+        "Sleep is the most underrated trading indicator.",
+    ];
+
+    function showZenWisdom() {
+        const textEl = document.getElementById('zenWisdomText');
+        const w = ZEN_WISDOMS[Math.floor(Math.random() * ZEN_WISDOMS.length)];
+        textEl.style.opacity = '0';
+        setTimeout(() => {
+            textEl.textContent = '"' + w + '"';
+            textEl.style.opacity = '1';
+        }, 200);
+    }
+
+    document.getElementById('zenCapybara').addEventListener('click', showZenWisdom);
 
     // ====== INIT ======
     fetchData();
