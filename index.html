@@ -1283,7 +1283,14 @@
         const exchange = TV_EXCHANGE_MAP[sym] || 'BINANCE';
         return `https://www.tradingview.com/chart/xF34dN3g/?symbol=${exchange}:${encodeURIComponent(sym)}USDT`;
     };
-    const DEFAULT_BX = ticker => `https://www.bitunix.com/contract-trade/${encodeURIComponent(ticker.toUpperCase().replace(/USDT$|USD$|USDC$/,''))}USDT`;
+    const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+    const DEFAULT_BX = ticker => {
+        const pair = ticker.toUpperCase().replace(/USDT$|USD$|USDC$/,'') + 'USDT';
+        if (isMobile && /Android/i.test(navigator.userAgent)) {
+            return `intent://www.bitunix.com/contract-trade/${pair}#Intent;scheme=https;package=bu.app.android;S.browser_fallback_url=https://www.bitunix.com/contract-trade/${pair};end`;
+        }
+        return `https://www.bitunix.com/contract-trade/${pair}`;
+    };
 
     function getTickerLinks() {
         try { return JSON.parse(localStorage.getItem('crypto_ticker_links') || '{}'); }
