@@ -1310,11 +1310,14 @@
 
     function copyTicker(ticker) {
         const pair = ticker.toUpperCase().replace(/USDT$|USD$|USDC$/,'') + 'USDT';
-        navigator.clipboard.writeText(pair).then(() => {
-            const btn = event.target;
-            btn.textContent = '✓';
-            setTimeout(() => btn.textContent = '📋', 1000);
-        });
+        const ta = document.createElement('textarea');
+        ta.value = pair;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
     }
 
     function editLinks(ticker) {
