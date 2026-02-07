@@ -294,6 +294,22 @@
         }
         .top-pick-details dt { color: var(--text-dim); font-size: 0.6rem; }
         .top-pick-details dd { color: var(--text); font-weight: 700; text-align: right; }
+        .claude-analysis {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            padding: 0.4rem 0.6rem;
+            background: rgba(74,158,255,0.08);
+            border-left: 2px solid var(--accent);
+            border-radius: 4px;
+            margin: 0.4rem 0;
+            line-height: 1.4;
+        }
+        .claude-rec {
+            font-size: 0.7rem;
+            color: var(--accent);
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+        }
         .top-pick-actions {
             display: flex;
             gap: 0.4rem;
@@ -880,7 +896,7 @@
 
     // ====== RENDER ======
     function renderDashboard(data) {
-        const { tickers, recentSignals, actionNeeded, stats } = data;
+        const { tickers, recentSignals, actionNeeded, stats, claudePicks } = data;
 
         // Score all signals
         const scoredSignals = (recentSignals || []).map(s => {
@@ -904,8 +920,8 @@
         streakEl.textContent = streakStr;
         streakEl.className = 'stat-value' + (streakStr.includes('W') ? ' green' : streakStr.includes('L') ? ' red' : '');
 
-        // --- Top Picks (score >= 5) ---
-        renderTopPicks(scoredSignals);
+        // --- Top Picks (Claude's recommendations) ---
+        renderTopPicks(claudePicks || [], scoredSignals);
 
         // --- Action Needed ---
         renderActions(actionNeeded || []);
@@ -922,26 +938,32 @@
         renderPerformance(stats);
     }
 
-    // ====== TOP PICKS ======
-    function renderTopPicks(signals) {
+    // ====== TOP PICKS (Claude's Recommendations) ======
+    function renderTopPicks(claudePicks, signals) {
         const grid = document.getElementById('topPicksGrid');
         const countEl = document.getElementById('topPicksCount');
-        const topPicks = signals.filter(s => s._score >= 5);
-        countEl.textContent = topPicks.length;
 
-        if (topPicks.length === 0) {
-            grid.innerHTML = '<div class="no-picks">No high-conviction signals right now</div>';
+        // Use Claude picks if available, otherwise fall back to auto-scored
+        const hasClaude = claudePicks && claudePicks.length > 0;
+        const picks = hasClaude ? claudePicks : signals.filter(s => s._score >= 5);
+        countEl.textContent = picks.length;
+
+        if (picks.length === 0) {
+            grid.innerHTML = '<div class="no-picks">No picks yet — waiting for Claude to analyze signals</div>';
             return;
         }
 
-        grid.innerHTML = topPicks.map((s, i) => {
-            const dir = (s.direction || s.signal || '').toLowerCase();
-            const dirClass = dir === 'short' ? 'short' : 'long';
-            const entry = Number(s.entry || s.price || 0);
+        grid.innerHTML = picks.map((s, i) => {
+            const dir = (s.signal || s.direction || '').toLowerCase();
+            const dirClass = dir === 'short' || dir === 'sell' ? 'short' : 'long';
+            const entry = Number(s.entry || 0);
             const sl = Number(s.sl || 0);
             const tp1 = Number(s.tp1 || 0);
-            const rr = sl > 0 && entry > 0 ? Math.abs((tp1 - entry) / (entry - sl)).toFixed(2) : '-';
+            const rr = s.rr || (sl > 0 && entry > 0 ? Math.abs((tp1 - entry) / (entry - sl)).toFixed(2) : '-');
             const pickId = 'pick-' + i;
+            const analysis = s.analysis || '';
+            const rec = s.recommendation || '';
+            const score = s.score || s._score || 0;
 
             return `
                 <div class="top-pick-card" id="${pickId}">
@@ -950,17 +972,23 @@
                             <span class="top-pick-symbol">${esc(s.symbol || s.ticker || '-')}</span>
                             <span class="top-pick-direction ${dirClass}">${dirClass.toUpperCase()}</span>
                         </div>
-                        <span class="top-pick-score">${s._score}/7</span>
+                        <span class="top-pick-score">${score}/7</span>
                     </div>
+                    ${analysis ? `<div class="claude-analysis">${esc(analysis)}</div>` : ''}
+                    ${rec ? `<div class="claude-rec">${esc(rec)}</div>` : ''}
                     <dl class="top-pick-details">
-                        <dt>Entry</dt><dd>${entry ? '$' + entry.toFixed(2) : '-'}</dd>
-                        <dt>Stop Loss</dt><dd class="red">${sl ? '$' + sl.toFixed(2) : '-'}</dd>
-                        <dt>TP1</dt><dd class="green">${tp1 ? '$' + tp1.toFixed(2) : '-'}</dd>
+                        <dt>Entry</dt><dd>${entry || '-'}</dd>
+                        <dt>Stop Loss</dt><dd class="red">${sl || '-'}</dd>
+                        <dt>TP1</dt><dd class="green">${tp1 || '-'}</dd>
                         <dt>R:R</dt><dd>${rr}</dd>
                     </dl>
                     <div class="top-pick-actions">
-                        <button class="action-btn entered" onclick="markPickAction('${esc(s.symbol || s.ticker)}','${esc(s.direction || s.signal)}',${entry},'Entered','${pickId}')">Entered</button>
-                        <button class="action-btn skipped" onclick="markPickAction('${esc(s.symbol || s.ticker)}','${esc(s.direction || s.signal)}',${entry},'Skipped','${pickId}')">Skipped</button>
+                        <button class="action-btn entered" onclick="markPickAction('${esc(s.symbol || s.ticker)}','${esc(s.signal || s.direction)}',${entry},'Entered','${pickId}')">Entered</button>
+                        <button class="action-btn skipped" onclick="markPickAction('${esc(s.symbol || s.ticker)}','${esc(s.signal || s.direction)}',${entry},'Skipped','${pickId}')">Skipped</button>
+                    </div>
+                    <div class="ticker-links" style="margin-top:0.5rem">
+                        <a class="ticker-link tv" href="${getTickerLink(s.symbol || s.ticker, 'tv')}" target="_blank">TradingView</a>
+                        <button class="ticker-link bx" onclick="openBitunix('${esc(s.symbol || s.ticker)}')">Bitunix</button>
                     </div>
                 </div>
             `;
@@ -1468,6 +1496,12 @@
             { timestamp:'2026-02-06 17:00', symbol:'AVAXUSDT', signal:'buy', entry:'38', sl:'34', tp1:'44', tp2:'50', macd:'rising', volume:'below', cross:'11', in_zone:'false', rsi:'47', timeframe:'4h', score:2 },
             { timestamp:'2026-02-06 16:45', symbol:'DOTUSDT', signal:'buy', entry:'7.20', sl:'6.50', tp1:'8.50', tp2:'9.50', macd:'flat', volume:'below', cross:'16', in_zone:'false', rsi:'43', timeframe:'4h', score:0 },
             { timestamp:'2026-02-06 16:30', symbol:'LINKUSDT', signal:'buy', entry:'18.50', sl:'16.80', tp1:'21.00', tp2:'24.00', macd:'rising', volume:'below', cross:'10', in_zone:'false', rsi:'51', timeframe:'1h', score:2 }
+        ],
+        claudePicks: [
+            { timestamp:'2026-02-06 20:30', symbol:'SUIUSDT', signal:'buy', entry:'4.20', sl:'3.80', tp1:'5.00', tp2:'5.80', score:6, rr:'2.00', analysis:'MACD rising with volume confirmation. RSI bouncing off 50 level support. Cross within 2 bars — strong momentum. SUI showing relative strength vs BTC.', recommendation:'TAKE — Strong setup, good R:R' },
+            { timestamp:'2026-02-06 20:15', symbol:'PEPEUSDT', signal:'buy', entry:'0.0000125', sl:'0.0000110', tp1:'0.0000150', tp2:'0.0000180', score:6, rr:'1.67', analysis:'Volume spike above average. MACD crossover confirmed. Meme coins leading the bounce. In accumulation zone.', recommendation:'TAKE — Volume + momentum aligned' },
+            { timestamp:'2026-02-06 20:00', symbol:'ARBUSDT', signal:'sell', entry:'1.05', sl:'1.15', tp1:'0.88', tp2:'0.75', score:6, rr:'1.70', analysis:'Falling MACD, recent cross. Breaking below key support at 1.05. Volume confirming the move. L2 tokens weak across the board.', recommendation:'TAKE — Clean breakdown setup' },
+            { timestamp:'2026-02-06 19:45', symbol:'NEARUSDT', signal:'buy', entry:'5.50', sl:'4.90', tp1:'6.50', tp2:'7.50', score:6, rr:'1.67', analysis:'RSI trendline breakout with MACD rising. Volume above average. AI narrative still strong. Good support at 4.90.', recommendation:'TAKE — AI sector momentum' }
         ],
         actionNeeded: [
             { type:'mark_action', timestamp:'2026-02-06 20:30', symbol:'SUIUSDT', signal:'buy', entry:'4.20', sl:'3.80', tp1:'5.00', score:6, row:2 },
