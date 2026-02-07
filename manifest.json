@@ -4,8 +4,8 @@
   "description": "Crypto Trade Dashboard",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0c1119",
-  "theme_color": "#0c1119",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "orientation": "portrait",
   "icons": [
     {
