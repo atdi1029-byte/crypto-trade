@@ -1109,7 +1109,7 @@
                 <div class="ticker-last-signal">${t.lastTimestamp ? 'Last: ' + esc(t.lastTimestamp) : 'No signals yet'}</div>
                 <div class="ticker-links">
                     <a class="ticker-link tv" href="${getTickerLink(t.ticker, 'tv')}" target="_blank">TradingView</a>
-                    <a class="ticker-link bx" href="${getTickerLink(t.ticker, 'bx')}" target="_blank" onclick="copyTicker('${esc(t.ticker)}')">Bitunix</a>
+                    <button class="ticker-link bx" onclick="openBitunix('${esc(t.ticker)}')">Bitunix</button>
                     <button class="ticker-link" onclick="editLinks('${esc(t.ticker)}')" title="Edit links">&#9998;</button>
                 </div>
             </div>
@@ -1308,16 +1308,12 @@
         return platform === 'tv' ? DEFAULT_TV(ticker) : DEFAULT_BX(ticker);
     }
 
-    function copyTicker(ticker) {
+    function openBitunix(ticker) {
         const pair = ticker.toUpperCase().replace(/USDT$|USD$|USDC$/,'') + 'USDT';
-        const ta = document.createElement('textarea');
-        ta.value = pair;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
+        navigator.clipboard.writeText(pair).catch(() => {});
+        setTimeout(() => {
+            window.open(getTickerLink(ticker, 'bx'), '_blank');
+        }, 300);
     }
 
     function editLinks(ticker) {
