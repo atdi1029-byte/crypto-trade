@@ -1110,6 +1110,7 @@
                 <div class="ticker-links">
                     <a class="ticker-link tv" href="${getTickerLink(t.ticker, 'tv')}" target="_blank">TradingView</a>
                     <a class="ticker-link bx" href="${getTickerLink(t.ticker, 'bx')}" target="_blank">Bitunix</a>
+                    <button class="ticker-link" onclick="copyTicker('${esc(t.ticker)}')" title="Copy ticker">&#128203;</button>
                     <button class="ticker-link" onclick="editLinks('${esc(t.ticker)}')" title="Edit links">&#9998;</button>
                 </div>
             </div>
@@ -1306,6 +1307,15 @@
         const key = ticker.toUpperCase();
         if (links[key] && links[key][platform]) return links[key][platform];
         return platform === 'tv' ? DEFAULT_TV(ticker) : DEFAULT_BX(ticker);
+    }
+
+    function copyTicker(ticker) {
+        const pair = ticker.toUpperCase().replace(/USDT$|USD$|USDC$/,'') + 'USDT';
+        navigator.clipboard.writeText(pair).then(() => {
+            const btn = event.target;
+            btn.textContent = '✓';
+            setTimeout(() => btn.textContent = '📋', 1000);
+        });
     }
 
     function editLinks(ticker) {
