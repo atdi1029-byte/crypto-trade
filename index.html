@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#0a1628">
+    <meta name="theme-color" content="#0c1119">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
@@ -14,6 +14,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { background: #0c1119; }
 
         :root {
             --bg-deep: #0c1119;
@@ -1032,7 +1033,13 @@
             .ticker-grid { grid-template-columns: 1fr; }
             .top-picks-grid { grid-template-columns: 1fr; }
             .stats-bar { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+            .ticker-grid { max-height: 500px; overflow-y: auto; }
             .command-bar { display: none; }
+            .quote-banner { display: none; }
+            .mobile-capybara-top { display: block !important; }
+            .zen-capybara { display: none; }
+            #zenWisdomText { display: none; }
+            .mobile-footer-quote { display: block !important; }
         }
     </style>
 </head>
@@ -1059,6 +1066,33 @@
             <span id="lastUpdate"></span>
             <button class="refresh-btn" onclick="fetchData()">Refresh</button>
         </div>
+    </div>
+
+    <!-- Mobile Capybara (hidden on desktop, shown on mobile) -->
+    <div class="mobile-capybara-top" style="display:none;text-align:center;margin:0.5rem 0 1rem">
+        <svg viewBox="150 380 550 580" width="100" height="100">
+            <g fill="none" stroke="var(--accent-glow)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M180 750 Q150 650 200 580 Q220 550 250 540 Q280 530 320 540 L340 545"/>
+                <path d="M340 545 Q380 500 420 480 Q480 450 540 460 Q600 470 640 510 Q680 550 690 600 Q695 640 680 680 Q660 720 620 740 Q560 770 480 760 Q400 750 340 720 Q300 700 280 680"/>
+                <path d="M380 480 Q370 440 390 410 Q410 385 440 390 Q460 400 455 430 Q450 455 430 470"/>
+                <path d="M540 455 Q550 420 580 400 Q610 385 635 400 Q655 420 645 455 Q635 480 610 490"/>
+                <circle cx="480" cy="540" r="18" fill="var(--accent-deep)"/>
+                <circle cx="485" cy="535" r="6" fill="var(--accent-glow)"/>
+                <ellipse cx="580" cy="580" rx="25" ry="18" fill="var(--accent-deep)"/>
+                <circle cx="570" cy="575" r="4" fill="var(--accent-glow)"/>
+                <circle cx="590" cy="575" r="4" fill="var(--accent-glow)"/>
+                <path d="M560 610 Q580 625 600 610"/>
+                <path d="M620 570 L680 550"/>
+                <path d="M625 590 L690 590"/>
+                <path d="M620 610 L680 630"/>
+                <path d="M320 700 Q310 750 320 800 Q325 830 350 840 Q380 845 390 820 Q400 790 395 750"/>
+                <path d="M450 750 Q445 800 455 840 Q465 870 495 870 Q525 865 530 835 Q535 800 520 760"/>
+                <path d="M280 680 Q240 720 220 780 Q200 850 230 900 Q260 940 320 940 Q370 935 380 890 Q390 840 370 800"/>
+                <path d="M350 680 Q360 700 350 720"/>
+                <path d="M380 690 Q390 710 380 730"/>
+                <path d="M410 695 Q420 715 410 735"/>
+            </g>
+        </svg>
     </div>
 
     <!-- Quote Banner -->
@@ -1193,6 +1227,7 @@
             </div>
         </div>
         <div id="zenWisdomText" style="font-family:'Noto Serif JP',serif;font-size:0.85rem;font-style:italic;color:white;margin-top:0.5rem;cursor:pointer;max-width:520px;margin-left:auto;margin-right:auto;line-height:1.6;background:rgba(8,12,18,0.92);padding:0.8rem 1.4rem;border-radius:8px;border:1px solid var(--accent-deep);box-shadow:0 0 15px rgba(0,0,0,0.5);transition:opacity 0.3s;text-shadow:0 1px 3px rgba(0,0,0,0.5)" onclick="showZenWisdom()">click the capybara</div>
+        <div class="mobile-footer-quote" id="mobileFooterQuote" style="display:none;font-family:'Noto Serif JP',serif;font-size:0.85rem;font-style:italic;color:white;margin-top:0.5rem;max-width:520px;margin-left:auto;margin-right:auto;line-height:1.6;background:rgba(8,12,18,0.92);padding:0.8rem 1.4rem;border-radius:8px;border:1px solid var(--accent-deep);box-shadow:0 0 15px rgba(0,0,0,0.5);text-shadow:0 1px 3px rgba(0,0,0,0.5);text-align:center"></div>
         <div class="zen-credit">Crypto Trade Dashboard</div>
     </div>
 </div>
@@ -2234,6 +2269,8 @@
             authEl.textContent = '— ' + q.author;
             textEl.style.opacity = '0.7';
             authEl.style.opacity = '0.6';
+            const mfq = document.getElementById('mobileFooterQuote');
+            if (mfq) mfq.innerHTML = '"' + q.text + '"<br><span style="font-size:0.7rem;color:var(--text-dim)">' + '— ' + q.author + '</span>';
         }, 300);
     }
     showQuote();
