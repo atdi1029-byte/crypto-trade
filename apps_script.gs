@@ -12,13 +12,18 @@ var CONFIG      = 'Config';
 var PERFORMANCE = 'Performance';
 
 // === SCORING WEIGHTS ===
-// MACD rising/falling: +2, cross <= 5 bars ago: +2, in_zone: +1, volume above avg: +1
-// Max auto-score = 6. A 7th point (open slots available) is calculated dashboard-side.
+// MACD rising/falling: +2, cross <= 5 bars ago: +2, in_zone: +1, volume above avg: +1, signals not maxed: +1
+// Max auto-score = 7.
 var SCORE_MACD       = 2;
 var SCORE_CROSS      = 2;
 var SCORE_IN_ZONE    = 1;
 var SCORE_VOLUME     = 1;
-var MAX_AUTO_SCORE   = 6;
+var SCORE_SIGNALS    = 1;
+var MAX_AUTO_SCORE   = 7;
+
+// === AUTO-PICK THRESHOLDS ===
+var MIN_PICK_SCORE   = 4;   // Minimum score to auto-add to Claude Picks
+var MIN_PICK_RR      = 1.4; // Minimum R:R ratio to auto-add
 
 // ---------------------------------------------------------------
 // doPost — Webhook receiver + position update handler
@@ -60,8 +65,9 @@ function doPost(e) {
     var rsi       = data.rsi || '';
     var timeframe = data.timeframe || '';
 
-    // --- Auto-score the signal ---
-    var score = calcSignalScore_(macd, cross, inZone, volume);
+    // --- Auto-score the signal (now includes signals_used) ---
+    var signalsUsed = data.signals_used || '';
+    var score = calcSignalScore_(macd, cross, inZone, volume, signalsUsed);
 
     // --- Signal Log (raw backup, never edit) ---
     var logSheet = ss.getSheetByName(SIGNAL_LOG);
@@ -78,6 +84,9 @@ function doPost(e) {
       '',  // Outcome — user fills: Won / Lost / Open
       ''   // Realized P&L
     ]);
+
+    // --- Auto-pick: if score + R:R meet thresholds, add to Claude Picks ---
+    autoPickSignal_(ss, data, score);
 
     return ContentService
       .createTextOutput(JSON.stringify({
@@ -99,17 +108,16 @@ function doPost(e) {
 // calcSignalScore_ — Auto-score an incoming signal (max 6)
 // MACD rising/falling: +2, cross <= 5: +2, in_zone: +1, volume above: +1
 // ---------------------------------------------------------------
-function calcSignalScore_(macd, cross, inZone, volume) {
+function calcSignalScore_(macd, cross, inZone, volume, signalsUsed) {
   var score = 0;
 
   // MACD confirmation: +2 if rising (for buy) or falling (for short)
-  // We award points if MACD has a directional value at all
   if (macd === 'rising' || macd === 'falling') {
     score += SCORE_MACD;
   }
 
   // Cross recency: +2 if the cross happened within 5 bars
-  if (cross !== undefined && cross !== null && cross !== '' && Number(cross) <= 5) {
+  if (cross !== undefined && cross !== null && cross !== '' && cross !== 'no' && Number(cross) <= 5) {
     score += SCORE_CROSS;
   }
 
@@ -123,7 +131,105 @@ function calcSignalScore_(macd, cross, inZone, volume) {
     score += SCORE_VOLUME;
   }
 
+  // Signals not maxed: +1 if signals_used is not at max (e.g., "1/2" not "2/2")
+  if (signalsUsed) {
+    var parts = String(signalsUsed).split('/');
+    if (parts.length === 2 && Number(parts[0]) < Number(parts[1])) {
+      score += SCORE_SIGNALS;
+    }
+  } else {
+    // If no signals_used field, assume not maxed
+    score += SCORE_SIGNALS;
+  }
+
   return Math.min(score, MAX_AUTO_SCORE);
+}
+
+// ---------------------------------------------------------------
+// calcRiskReward_ — Calculate R:R ratio for a signal
+// Returns numeric R:R or null if invalid
+// ---------------------------------------------------------------
+function calcRiskReward_(signal, entry, sl, tp1) {
+  if (!entry || !sl || !tp1) return null;
+  entry = Number(entry);
+  sl = Number(sl);
+  tp1 = Number(tp1);
+  if (isNaN(entry) || isNaN(sl) || isNaN(tp1)) return null;
+
+  var risk, reward;
+  if (signal === 'buy') {
+    risk = entry - sl;
+    reward = tp1 - entry;
+  } else {
+    risk = sl - entry;
+    reward = entry - tp1;
+  }
+  if (risk <= 0) return null;
+  return reward / risk;
+}
+
+// ---------------------------------------------------------------
+// autoPickSignal_ — Auto-add qualifying signals to Claude Picks
+// Called from doPost after logging. Checks score + R:R thresholds.
+// ---------------------------------------------------------------
+function autoPickSignal_(ss, data, score) {
+  var signal = (data.signal || '').toLowerCase();
+  var entry  = data.entry;
+  var sl     = data.sl;
+  var tp1    = data.tp1;
+  var tp2    = data.tp2;
+  var symbol = (data.symbol || '').toUpperCase();
+
+  // Check score threshold
+  if (score < MIN_PICK_SCORE) return;
+
+  // Calculate R:R
+  var rr = calcRiskReward_(signal, entry, sl, tp1);
+  if (rr === null || rr < MIN_PICK_RR) return;
+
+  // Check for duplicate — skip if same symbol already picked in last 24h
+  var pickSheet = ss.getSheetByName('Claude Picks');
+  if (!pickSheet) {
+    pickSheet = ss.insertSheet('Claude Picks');
+    pickSheet.appendRow([
+      'Timestamp', 'Symbol', 'Signal', 'Entry', 'SL', 'TP1', 'TP2',
+      'Score', 'R:R', 'Analysis', 'Recommendation', 'Status'
+    ]);
+    pickSheet.getRange(1, 1, 1, 12).setFontWeight('bold');
+    pickSheet.setFrozenRows(1);
+  }
+
+  var pickData = pickSheet.getDataRange().getValues();
+  var now = new Date();
+  for (var i = pickData.length - 1; i >= 1; i--) {
+    var pickSym = String(pickData[i][1]).toUpperCase();
+    var pickTs  = pickData[i][0];
+    if (pickSym === symbol && pickTs instanceof Date) {
+      var hoursDiff = (now - pickTs) / (1000 * 60 * 60);
+      if (hoursDiff < 24) return; // Already picked within 24h
+    }
+  }
+
+  // Build auto-analysis text
+  var parts = [];
+  if (data.macd) parts.push('MACD ' + data.macd);
+  if (data.volume === 'above') parts.push('volume above avg');
+  if (data.in_zone) parts.push('in zone');
+  if (data.cross && data.cross !== 'no') parts.push('cross ' + data.cross + ' bars ago');
+  if (data.rsi) parts.push('RSI ' + Number(data.rsi).toFixed(1));
+  if (data.touches) parts.push(data.touches + ' touches');
+  if (data.divergence) parts.push('DIVERGENCE');
+  if (data.dmi === 'caution') parts.push('DMI CAUTION');
+  var analysis = parts.join(', ') + '.';
+
+  var rrStr = rr.toFixed(2);
+  var rec = 'TAKE — Score ' + score + '/7, R:R ' + rrStr + ':1';
+  if (data.dmi === 'caution') rec = 'WATCH — DMI caution, R:R ' + rrStr + ':1';
+
+  pickSheet.appendRow([
+    now, symbol, signal, entry, sl, tp1, tp2,
+    score, rrStr, analysis, rec, 'new'
+  ]);
 }
 
 // ---------------------------------------------------------------
@@ -145,17 +251,26 @@ function updatePosition_(ss, data) {
   var posData  = posSheet.getDataRange().getValues();
 
   // Find the most recent matching row (walk backwards)
+  // Try exact match first, then fall back to symbol+signal only
   var matchRow = -1;
+  var loosMatch = -1;
   for (var i = posData.length - 1; i >= 1; i--) {
     var rowSymbol = String(posData[i][1]).toUpperCase();
     var rowSignal = String(posData[i][2]).toLowerCase();
     var rowEntry  = String(posData[i][3]);
+    var rowAction = String(posData[i][8] || '').trim();
 
-    if (rowSymbol === symbol && rowSignal === signal && rowEntry === String(entry)) {
-      matchRow = i + 1; // 1-indexed for Sheets
-      break;
+    if (rowSymbol === symbol && rowSignal === signal) {
+      if (rowEntry === String(entry)) {
+        matchRow = i + 1;
+        break;
+      }
+      if (loosMatch === -1 && rowAction === '') {
+        loosMatch = i + 1;
+      }
     }
   }
+  if (matchRow === -1) matchRow = loosMatch;
 
   if (matchRow === -1) {
     return ContentService
@@ -167,6 +282,19 @@ function updatePosition_(ss, data) {
   //                     H=score, I=action, J=outcome, K=realized_pnl
   if (field === 'action') {
     posSheet.getRange(matchRow, 9).setValue(value);   // Column I = Action
+    // Also update Claude Picks status so skipped/entered picks disappear from Top Picks
+    var cpSheet = ss.getSheetByName('Claude Picks');
+    if (cpSheet) {
+      var cpData = cpSheet.getDataRange().getValues();
+      for (var cp = cpData.length - 1; cp >= 1; cp--) {
+        var cpSymbol = String(cpData[cp][1]).toUpperCase();
+        var cpSignal = String(cpData[cp][2]).toLowerCase();
+        if (cpSymbol === symbol && cpSignal === signal) {
+          cpSheet.getRange(cp + 1, 12).setValue(value.toLowerCase()); // Column L = Status
+          break;
+        }
+      }
+    }
   } else if (field === 'outcome') {
     posSheet.getRange(matchRow, 10).setValue(value);  // Column J = Outcome
     if (realizedPnl !== '') {
@@ -244,12 +372,83 @@ function doGet(e) {
     return serveDashboardJSON_();
   }
 
+  if (action === 'pending') {
+    return getPendingAlerts_();
+  }
+
+  if (action === 'clear') {
+    return clearSignalLog_();
+  }
+
+  if (action === 'performance') {
+    return servePerformanceJSON_();
+  }
+
+  if (action === 'scaling') {
+    return serveScalingJSON_();
+  }
+
+  if (action === 'balance') {
+    var bal = (e && e.parameter && e.parameter.value) || '';
+    if (bal) return recordBalance_(Number(bal));
+    return getBalanceHistory_();
+  }
+
   return ContentService
     .createTextOutput(JSON.stringify({
       status: 'ok',
       message: 'Crypto Trade Tracker webhook is live',
       timestamp: new Date().toISOString()
     }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---------------------------------------------------------------
+// getPendingAlerts_ — Returns all signals from Signal Log as JSON
+// Called via: ?action=pending
+// ---------------------------------------------------------------
+function getPendingAlerts_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var logSheet = ss.getSheetByName(SIGNAL_LOG);
+  var data = logSheet.getDataRange().getValues();
+  var alerts = [];
+
+  for (var i = 1; i < data.length; i++) {
+    var rawJson = data[i][14]; // Column O = Raw JSON (index 14)
+    if (!rawJson) continue;
+    try {
+      var alert = JSON.parse(rawJson);
+      if (!alert.signal) continue; // Skip junk rows
+      var ts = data[i][0];
+      if (ts instanceof Date) {
+        alert.timestamp = Utilities.formatDate(ts, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+      } else {
+        alert.timestamp = String(ts);
+      }
+      alert.id = i;
+      alerts.push(alert);
+    } catch(e) { continue; }
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify({ alerts: alerts, count: alerts.length }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---------------------------------------------------------------
+// clearSignalLog_ — Deletes all data rows from Signal Log
+// Called via: ?action=clear
+// ---------------------------------------------------------------
+function clearSignalLog_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var logSheet = ss.getSheetByName(SIGNAL_LOG);
+  var lastRow = logSheet.getLastRow();
+  if (lastRow > 1) {
+    logSheet.deleteRows(2, lastRow - 1);
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify({ status: 'cleared', timestamp: new Date().toISOString() }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -557,9 +756,13 @@ function serveDashboardJSON_() {
     // Columns: 0=timestamp, 1=symbol, 2=signal, 3=entry, 4=sl, 5=tp1, 6=tp2,
     //          7=score, 8=rr, 9=analysis, 10=recommendation, 11=status
     // Show last 10, newest first
-    var cpStart = Math.max(1, cpData.length - 10);
+    var cpStart = Math.max(1, cpData.length - 20);
     for (var cp = cpData.length - 1; cp >= cpStart; cp--) {
       var cpr = cpData[cp];
+      // Skip picks that have been acted on (Entered/Skipped)
+      var cpStatus = String(cpr[11] || '').toLowerCase();
+      if (cpStatus === 'entered' || cpStatus === 'skipped') continue;
+      if (claudePicks.length >= 10) break; // Still cap at 10 visible picks
       var cpTs = cpr[0];
       var cpTsStr = '';
       if (cpTs instanceof Date) {
@@ -618,6 +821,9 @@ function getConfig_(label) {
 // Helper: get ALL completed trades across all symbols
 // Returns array of enriched trade objects
 // ---------------------------------------------------------------
+// P&L reset date — ignore all trades before this date
+var PNL_RESET_DATE = new Date('2026-02-08T00:00:00');
+
 function getAllCompletedTrades_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
@@ -656,6 +862,10 @@ function getAllCompletedTrades_() {
     // Only include entered trades with a resolved outcome
     if (action !== 'entered') continue;
     if (outcome !== 'won' && outcome !== 'lost') continue;
+
+    // Skip trades before P&L reset date
+    var tradeTs = posData[j][0];
+    if (tradeTs instanceof Date && tradeTs < PNL_RESET_DATE) continue;
 
     var symbol = String(posData[j][1]).toUpperCase();
     var signal = String(posData[j][2]).toLowerCase();
@@ -1132,7 +1342,7 @@ function testWebhook() {
     var timestamp = new Date();
     var raw = JSON.stringify(testData);
 
-    var score = calcSignalScore_(testData.macd, testData.cross, testData.in_zone, testData.volume);
+    var score = calcSignalScore_(testData.macd, testData.cross, testData.in_zone, testData.volume, testData.signals_used);
 
     var logSheet = ss.getSheetByName(SIGNAL_LOG);
     logSheet.appendRow([
@@ -1221,5 +1431,307 @@ function setupSheet() {
     perf.getRange('A1').setFontWeight('bold');
   }
 
-  SpreadsheetApp.getUi().alert('Setup complete! All tabs created with headers.\n\nSignal Log: 15 columns\nPositions: 11 columns\nDashboard: 8 columns\nConfig: max_positions = 3');
+  // --- Balance History ---
+  var balSheet = ss.getSheetByName('Balance History') || ss.insertSheet('Balance History');
+  if (balSheet.getLastRow() === 0 || balSheet.getRange('A1').getValue() === '') {
+    balSheet.getRange('A1:C1').setValues([['Timestamp', 'Balance', 'Notes']]);
+    balSheet.getRange('A1:C1').setFontWeight('bold');
+    balSheet.setFrozenRows(1);
+  }
+
+  SpreadsheetApp.getUi().alert('Setup complete! All tabs created with headers.\n\nSignal Log: 15 columns\nPositions: 11 columns\nDashboard: 8 columns\nConfig: max_positions = 3\nBalance History: 3 columns');
+}
+
+// ===============================================================
+// PERFORMANCE ANALYSIS API
+// ?action=performance — Full performance breakdown as JSON
+// ===============================================================
+function servePerformanceJSON_() {
+  var trades = getAllCompletedTrades_();
+
+  if (trades.length === 0) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'ok', message: 'No completed trades yet', trades: 0 }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  var wins = trades.filter(function(t) { return t.win; });
+  var losses = trades.filter(function(t) { return !t.win; });
+  var totalPnl = 0;
+  trades.forEach(function(t) { totalPnl += t.realizedPnl; });
+  var streaks = calcStreaks_(trades);
+
+  // --- By Score ---
+  var byScore = {};
+  trades.forEach(function(t) {
+    var s = String(t.score);
+    if (!byScore[s]) byScore[s] = { wins: 0, losses: 0, pnl: 0 };
+    if (t.win) byScore[s].wins++; else byScore[s].losses++;
+    byScore[s].pnl += t.realizedPnl;
+  });
+  var scoreBreakdown = [];
+  Object.keys(byScore).sort(function(a,b) { return Number(b)-Number(a); }).forEach(function(s) {
+    var d = byScore[s];
+    var total = d.wins + d.losses;
+    scoreBreakdown.push({
+      score: s + '/7',
+      trades: total,
+      wins: d.wins,
+      losses: d.losses,
+      winRate: (d.wins / total * 100).toFixed(1) + '%',
+      pnl: d.pnl.toFixed(2)
+    });
+  });
+
+  // --- By RSI Range ---
+  var rsiRanges = {'20-30':[],'30-40':[],'40-50':[],'50-60':[],'60-70':[]};
+  trades.forEach(function(t) {
+    if (t.rsi === null) return;
+    var r = t.rsi;
+    if (r >= 20 && r < 30) rsiRanges['20-30'].push(t);
+    else if (r >= 30 && r < 40) rsiRanges['30-40'].push(t);
+    else if (r >= 40 && r < 50) rsiRanges['40-50'].push(t);
+    else if (r >= 50 && r < 60) rsiRanges['50-60'].push(t);
+    else if (r >= 60 && r < 70) rsiRanges['60-70'].push(t);
+  });
+  var rsiBreakdown = [];
+  Object.keys(rsiRanges).forEach(function(range) {
+    var rt = rsiRanges[range];
+    if (rt.length === 0) return;
+    var rw = rt.filter(function(t) { return t.win; });
+    rsiBreakdown.push({
+      range: range,
+      trades: rt.length,
+      wins: rw.length,
+      winRate: (rw.length / rt.length * 100).toFixed(1) + '%'
+    });
+  });
+
+  // --- By Signal Type ---
+  var bySignal = {};
+  trades.forEach(function(t) {
+    if (!bySignal[t.signal]) bySignal[t.signal] = { wins: 0, losses: 0 };
+    if (t.win) bySignal[t.signal].wins++; else bySignal[t.signal].losses++;
+  });
+  var signalBreakdown = [];
+  Object.keys(bySignal).forEach(function(sig) {
+    var d = bySignal[sig];
+    var total = d.wins + d.losses;
+    signalBreakdown.push({
+      signal: sig,
+      trades: total,
+      wins: d.wins,
+      winRate: (d.wins / total * 100).toFixed(1) + '%'
+    });
+  });
+
+  // --- Top/Bottom Tickers ---
+  var tickerStats = {};
+  trades.forEach(function(t) {
+    if (!tickerStats[t.ticker]) tickerStats[t.ticker] = { wins: 0, losses: 0, pnl: 0 };
+    if (t.win) tickerStats[t.ticker].wins++; else tickerStats[t.ticker].losses++;
+    tickerStats[t.ticker].pnl += t.realizedPnl;
+  });
+  var tickerList = Object.keys(tickerStats).map(function(sym) {
+    var d = tickerStats[sym];
+    var total = d.wins + d.losses;
+    return { ticker: sym, trades: total, wins: d.wins, winRate: (d.wins/total*100).toFixed(1)+'%', pnl: d.pnl.toFixed(2) };
+  }).sort(function(a,b) { return parseFloat(b.winRate) - parseFloat(a.winRate); });
+
+  // --- Milestone check ---
+  var milestone = null;
+  var milestones = [25, 50, 75, 100, 150, 200, 250, 500];
+  for (var m = 0; m < milestones.length; m++) {
+    if (trades.length >= milestones[m] && trades.length < milestones[m] + 5) {
+      // Compare last N vs previous N
+      var half = Math.floor(milestones[m] / 2);
+      var recent = trades.slice(-half);
+      var earlier = trades.slice(-milestones[m], -half);
+      var recentWR = recent.filter(function(t){return t.win;}).length / recent.length * 100;
+      var earlierWR = earlier.filter(function(t){return t.win;}).length / earlier.length * 100;
+      milestone = {
+        reached: milestones[m],
+        recentWinRate: recentWR.toFixed(1) + '%',
+        earlierWinRate: earlierWR.toFixed(1) + '%',
+        trend: recentWR > earlierWR ? 'IMPROVING' : recentWR < earlierWR ? 'DECLINING' : 'STABLE',
+        message: 'Milestone: ' + milestones[m] + ' trades! Recent ' + half + ': ' + recentWR.toFixed(1) + '% vs Earlier ' + half + ': ' + earlierWR.toFixed(1) + '%'
+      };
+      break;
+    }
+  }
+
+  var payload = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    summary: {
+      totalTrades: trades.length,
+      wins: wins.length,
+      losses: losses.length,
+      winRate: (wins.length / trades.length * 100).toFixed(1) + '%',
+      netPnl: totalPnl.toFixed(2),
+      bestWinStreak: streaks.bestWin,
+      worstLossStreak: streaks.worstLoss,
+      currentStreak: streaks.current > 0 ? streaks.current + 'W' : Math.abs(streaks.current) + 'L'
+    },
+    byScore: scoreBreakdown,
+    byRSI: rsiBreakdown,
+    bySignal: signalBreakdown,
+    topTickers: tickerList.slice(0, 5),
+    bottomTickers: tickerList.slice(-5).reverse(),
+    milestone: milestone
+  };
+
+  return ContentService
+    .createTextOutput(JSON.stringify(payload))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ===============================================================
+// SCALING ADVISOR
+// ?action=scaling — Returns current phase + recommended sizes
+// Based on the scaling plan from NOTES.txt
+// ===============================================================
+function serveScalingJSON_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var deposited = 132; // Total deposited
+
+  // Get latest balance from Balance History tab
+  var balSheet = ss.getSheetByName('Balance History');
+  var currentBalance = deposited;
+  if (balSheet && balSheet.getLastRow() > 1) {
+    var balData = balSheet.getDataRange().getValues();
+    currentBalance = Number(balData[balData.length - 1][1]) || deposited;
+  }
+
+  var profit = currentBalance - deposited;
+
+  // Scaling tiers: [profitThreshold, [t1, t2, t3, t4, t5]]
+  var tiers = [
+    [0,   [1,1,1,1,1]],
+    [50,  [3,2,2,1,1]],
+    [100, [4,3,2,1,1]],
+    [150, [5,3,2,1,1]],
+    [200, [5,3,2,2,1]],
+    [250, [5,3,3,3,2]],
+    [300, [5,4,3,3,2]],
+    [350, [5,4,4,4,2]],
+    [400, [5,5,4,4,2]],
+    [450, [5,5,5,4,2]],
+    [500, [5,5,5,5,3]],
+    [750, [6,6,6,6,3]],
+    [1000,[7,7,7,7,4]],
+    [1500,[8,8,8,8,4]],
+    [2000,[9,9,9,9,5]],
+    [2500,[10,10,10,10,5]],
+    [5000,[11,11,11,11,6]]
+  ];
+
+  var phase = 'Phase 1: Proving ($0-$500)';
+  var sizes = [1,1,1,1,1];
+  for (var i = tiers.length - 1; i >= 0; i--) {
+    if (profit >= tiers[i][0]) {
+      sizes = tiers[i][1];
+      if (profit < 500) phase = 'Phase 1: Proving ($0-$500)';
+      else if (profit < 5000) phase = 'Phase 2: Early Scaling ($500-$5k)';
+      else if (profit < 10000) phase = 'Phase 3: Slow ($5k-$10k)';
+      else if (profit < 20000) phase = 'Phase 4: Building ($10k-$20k)';
+      else if (profit < 40000) phase = 'Phase 5: Ramping ($20k-$40k)';
+      else if (profit < 80000) phase = 'Phase 6: Peak ($40k-$80k)';
+      else phase = 'Phase 7: Tapering ($80k-$150k)';
+      break;
+    }
+  }
+
+  var totalMargin = sizes.reduce(function(a,b) { return a+b; }, 0);
+
+  return ContentService
+    .createTextOutput(JSON.stringify({
+      status: 'ok',
+      deposited: deposited,
+      currentBalance: currentBalance,
+      profit: profit.toFixed(2),
+      phase: phase,
+      positionSizes: sizes,
+      totalMarginPerSession: totalMargin,
+      sizing: 'Trade 1: $' + sizes[0] + ' | Trade 2: $' + sizes[1] + ' | Trade 3: $' + sizes[2] + ' | Trade 4: $' + sizes[3] + ' | Trade 5: $' + sizes[4]
+    }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ===============================================================
+// BALANCE TRACKING
+// ?action=balance&value=XX — Record a new balance snapshot
+// ?action=balance — Get balance history
+// ===============================================================
+function recordBalance_(balance) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var balSheet = ss.getSheetByName('Balance History');
+  if (!balSheet) {
+    balSheet = ss.insertSheet('Balance History');
+    balSheet.appendRow(['Timestamp', 'Balance', 'Notes']);
+    balSheet.getRange(1, 1, 1, 3).setFontWeight('bold');
+    balSheet.setFrozenRows(1);
+  }
+
+  var now = new Date();
+  balSheet.appendRow([now, balance, '']);
+
+  var deposited = 132;
+  var profit = balance - deposited;
+
+  return ContentService
+    .createTextOutput(JSON.stringify({
+      status: 'ok',
+      balance: balance,
+      deposited: deposited,
+      profit: profit.toFixed(2),
+      profitPct: (profit / deposited * 100).toFixed(1) + '%',
+      timestamp: now.toISOString()
+    }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getBalanceHistory_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var balSheet = ss.getSheetByName('Balance History');
+
+  if (!balSheet || balSheet.getLastRow() <= 1) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'ok', history: [], message: 'No balance records yet. Use ?action=balance&value=XX to record.' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  var data = balSheet.getDataRange().getValues();
+  var history = [];
+  var deposited = 132;
+
+  for (var i = 1; i < data.length; i++) {
+    var ts = data[i][0];
+    var tsStr = '';
+    if (ts instanceof Date) {
+      tsStr = Utilities.formatDate(ts, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+    } else {
+      tsStr = String(ts);
+    }
+    var bal = Number(data[i][1]);
+    history.push({
+      timestamp: tsStr,
+      balance: bal,
+      profit: (bal - deposited).toFixed(2),
+      notes: data[i][2] || ''
+    });
+  }
+
+  var latest = history[history.length - 1];
+
+  return ContentService
+    .createTextOutput(JSON.stringify({
+      status: 'ok',
+      deposited: deposited,
+      latestBalance: latest.balance,
+      currentProfit: latest.profit,
+      profitPct: ((latest.balance - deposited) / deposited * 100).toFixed(1) + '%',
+      history: history
+    }))
+    .setMimeType(ContentService.MimeType.JSON);
 }

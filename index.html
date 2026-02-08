@@ -1106,7 +1106,7 @@
 
     <!-- Command Bar -->
     <div class="command-bar">
-        <input type="text" class="command-input" id="commandInput" placeholder="e.g. &quot;$5 ZRO&quot; or &quot;chart BTC&quot;" autocomplete="off">
+        <input type="text" class="command-input" id="commandInput" placeholder="$ = Bitunix | ! = TradingView" autocomplete="off">
     </div>
     <div class="command-result" id="commandResult"></div>
 
@@ -1247,6 +1247,20 @@
     let showAllTickers = false;
     const TICKER_LIMIT = 8;
 
+    // ====== LOCAL SKIP TRACKING ======
+    const ACTED_KEY = 'crypto_acted_items';
+    function getActedItems() {
+        try { return JSON.parse(localStorage.getItem(ACTED_KEY) || '[]'); } catch { return []; }
+    }
+    function addActedItem(ticker, signal) {
+        const items = getActedItems().filter(i => Date.now() - i.ts < 3600000); // keep 1hr
+        items.push({ t: ticker.toUpperCase(), s: signal.toLowerCase(), ts: Date.now() });
+        localStorage.setItem(ACTED_KEY, JSON.stringify(items));
+    }
+    function isActed(ticker, signal) {
+        return getActedItems().some(i => i.t === ticker.toUpperCase() && i.s === signal.toLowerCase());
+    }
+
     // ====== SCORING LOGIC ======
     function scoreSignal(s) {
         let score = 0;
@@ -1367,7 +1381,8 @@
 
         // Use Claude picks if available, otherwise fall back to auto-scored
         const hasClaude = claudePicks && claudePicks.length > 0;
-        const picks = hasClaude ? claudePicks : signals.filter(s => s._score >= 5);
+        const allPicks = hasClaude ? claudePicks : signals.filter(s => s._score >= 5);
+        const picks = allPicks.filter(s => !isActed(s.symbol || s.ticker || '', s.signal || s.direction || ''));
         countEl.textContent = picks.length;
 
         if (picks.length === 0) {
@@ -1418,6 +1433,7 @@
     function renderActions(actionNeeded, allSignals) {
         const actionList = document.getElementById('actionList');
         const actionCount = document.getElementById('actionCount');
+        actionNeeded = actionNeeded.filter(a => !isActed(a.ticker || a.symbol || '', a.signal || ''));
         actionCount.textContent = actionNeeded.length;
 
         if (actionNeeded.length === 0) {
@@ -1893,9 +1909,13 @@
     };
 
     const DEFAULT_TV = ticker => {
-        const sym = ticker.toUpperCase().replace(/USDT$|USD$|USDC$/,'');
-        const exchange = TV_EXCHANGE_MAP[sym] || 'BINANCE';
-        return `https://www.tradingview.com/chart/xF34dN3g/?symbol=${exchange}:${encodeURIComponent(sym)}USDT`;
+        const upper = ticker.toUpperCase();
+        const sym = upper.replace(/USDT$|USD$|USDC$/,'');
+        const exchange = TV_EXCHANGE_MAP[sym];
+        const prefix = exchange ? exchange + ':' : '';
+        // If ticker already has a suffix (USD/USDT/USDC), use as-is; otherwise append USDT
+        const pair = /USDT$|USD$|USDC$/.test(upper) ? upper : sym + 'USDT';
+        return `https://www.tradingview.com/chart/xF34dN3g/?symbol=${prefix}${encodeURIComponent(pair)}`;
     };
     const isAndroid = /Android/i.test(navigator.userAgent);
     const DEFAULT_BX = ticker => {
@@ -1964,30 +1984,29 @@
         const sizeInput = document.getElementById(elemId + '-size');
         const entrySize = sizeInput ? sizeInput.value : '';
         const el = document.getElementById(elemId);
-
-        el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
-
-        try {
-            await fetch(POST_URL, {
-                method: 'POST',
-                body: JSON.stringify({
-                    action: 'update_position',
-                    ticker: ticker,
-                    signal: signal,
-                    price: price,
-                    field: 'action',
-                    value: value,
-                    entrySize: entrySize
-                })
-            });
-            el.style.borderColor = value === 'Entered' ? 'var(--green-candle)' : 'var(--text-dim)';
-            el.style.opacity = '0.5';
-            el.innerHTML = '<div><span class="ticker-badge">' + esc(ticker) + '</span><span class="message">' + value.toUpperCase() + (entrySize ? ' ($' + entrySize + ')' : '') + '</span></div>';
-            setTimeout(fetchData, 2000);
-        } catch (err) {
-            el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
-            alert('Failed to update: ' + err.message);
+        addActedItem(ticker, signal);
+        // If Entered with a size, open Bitunix and copy size
+        if (value === 'Entered' && entrySize) {
+            navigator.clipboard.writeText(entrySize);
+            window.open(DEFAULT_BX(ticker), '_blank');
         }
+        // Hide immediately
+        el.style.transition = 'opacity 0.3s';
+        el.style.opacity = '0';
+        setTimeout(() => el.style.display = 'none', 300);
+        // Send to server in background
+        fetch(POST_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'update_position',
+                ticker: ticker,
+                signal: signal,
+                price: price,
+                field: 'action',
+                value: value,
+                entrySize: entrySize
+            })
+        }).then(() => setTimeout(fetchData, 3000));
     }
 
     async function markOutcome(ticker, signal, price, value, elemId) {
@@ -2099,27 +2118,31 @@
 
     async function markPickAction(ticker, signal, price, value, elemId) {
         const el = document.getElementById(elemId);
-        el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
-
-        try {
-            await fetch(POST_URL, {
-                method: 'POST',
-                body: JSON.stringify({
-                    action: 'update_position',
-                    ticker: ticker,
-                    signal: signal,
-                    price: price,
-                    field: 'action',
-                    value: value
-                })
-            });
-            const btns = el.querySelector('.top-pick-actions');
-            btns.innerHTML = '<span style="font-size:0.7rem;color:' + (value === 'Entered' ? 'var(--green-bright)' : 'var(--text-dim)') + ';font-weight:700;letter-spacing:1px;text-transform:uppercase">' + value + '</span>';
-            setTimeout(fetchData, 2000);
-        } catch (err) {
-            el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
-            alert('Failed to update: ' + err.message);
+        const sizeInput = document.getElementById(elemId + '-size');
+        const entrySize = sizeInput ? sizeInput.value : '';
+        addActedItem(ticker, signal);
+        // If Entered with a size, open Bitunix and copy size
+        if (value === 'Entered' && entrySize) {
+            navigator.clipboard.writeText(entrySize);
+            window.open(DEFAULT_BX(ticker), '_blank');
         }
+        // Hide immediately
+        el.style.transition = 'opacity 0.3s';
+        el.style.opacity = '0';
+        setTimeout(() => el.style.display = 'none', 300);
+        // Send to server in background
+        fetch(POST_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'update_position',
+                ticker: ticker,
+                signal: signal,
+                price: price,
+                field: 'action',
+                value: value,
+                entrySize: entrySize
+            })
+        }).then(() => setTimeout(fetchData, 3000));
     }
 
     // ====== EMPTY FALLBACK ======
@@ -2169,10 +2192,11 @@
         const amount = amountMatch ? amountMatch[1] : null;
 
         // Detect action
-        const isChart = /\bchart\b|\bview\b|\blook\b|\bcheck\b/.test(text);
+        const isChart = /\bchart\b|\bview\b|\blook\b|\bcheck\b|^!/.test(text);
 
         // Find ticker - try each word/phrase against COIN_NAMES
-        const words = text.replace(/\$\s*\d+(?:\.\d+)?/g, '').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/);
+        const cmdWords = new Set(['chart','view','look','check','buy','sell','open']);
+        const words = text.replace(/\$\s*\d+(?:\.\d+)?/g, '').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(w => !cmdWords.has(w));
         let ticker = null;
 
         // Try multi-word matches first (e.g. "baby doge")
@@ -2192,38 +2216,63 @@
             }
         }
 
+        // Fallback: strip common suffixes (.P → p, USDT, USD, USDC) and try again
+        if (!ticker) {
+            for (let w = 0; w < words.length; w++) {
+                let word = words[w];
+                if (!(/(?:usdt?|usdc)p?$/.test(word))) continue; // only try words with USD-like suffix
+                let base = word.replace(/(?:usdt?|usdc)p?$/, '');
+                if (base && base.length >= 2) {
+                    // Preserve original suffix (USD vs USDT) for TradingView
+                    ticker = word.toUpperCase().replace(/P$/, '');
+                    break;
+                }
+            }
+        }
+
         if (!ticker) return null;
         return { ticker, amount, isChart };
     }
 
     function executeCommand(input) {
         const result = document.getElementById('commandResult');
+        const raw = input.trim();
+
+        // ! command → pass exact symbol to TradingView
+        if (raw.startsWith('!')) {
+            const sym = raw.substring(1).trim();
+            if (!sym) return;
+            const url = `https://www.tradingview.com/chart/xF34dN3g/?symbol=${encodeURIComponent(sym)}`;
+            window.open(url, '_blank');
+            result.className = 'command-result success';
+            result.textContent = `Opening ${sym} chart on TradingView`;
+            setTimeout(() => result.className = 'command-result', 4000);
+            return;
+        }
+
         const cmd = parseCommand(input);
 
         if (!cmd) {
             result.className = 'command-result error';
-            result.textContent = "Couldn't find a ticker. Try something like \"$5 ZRO\" or \"chart BTC\"";
+            result.textContent = "Couldn't find a ticker. Try something like \"$5 ZRO\" or \"!ACUUSDT.P\"";
             setTimeout(() => result.className = 'command-result', 3000);
             return;
         }
 
-        if (cmd.isChart) {
-            window.open(DEFAULT_TV(cmd.ticker), '_blank');
-            result.className = 'command-result success';
-            result.textContent = `Opening ${cmd.ticker} chart on TradingView`;
-        } else {
-            if (cmd.amount) {
-                navigator.clipboard.writeText(cmd.amount).then(() => {
-                    result.className = 'command-result success';
-                    result.textContent = `Opening ${cmd.ticker} on Bitunix — $${cmd.amount} copied to clipboard`;
-                });
-            } else {
+        if (cmd.amount) {
+            // Has dollar amount → open Bitunix to trade
+            navigator.clipboard.writeText(cmd.amount).then(() => {
                 result.className = 'command-result success';
-                result.textContent = `Opening ${cmd.ticker} on Bitunix`;
-            }
+                result.textContent = `Opening ${cmd.ticker} on Bitunix — $${cmd.amount} copied to clipboard`;
+            });
             setTimeout(() => {
                 window.open(DEFAULT_BX(cmd.ticker), '_blank');
             }, 300);
+        } else {
+            // Just a ticker → open TradingView chart
+            window.open(DEFAULT_TV(cmd.ticker), '_blank');
+            result.className = 'command-result success';
+            result.textContent = `Opening ${cmd.ticker} chart on TradingView`;
         }
 
         setTimeout(() => result.className = 'command-result', 4000);
