@@ -1988,9 +1988,10 @@
         const entrySize = sizeInput ? sizeInput.value : '';
         const el = document.getElementById(elemId);
         addActedItem(ticker, signal);
-        // If Entered with a size, open Bitunix and copy size
-        if (value === 'Entered' && entrySize) {
-            navigator.clipboard.writeText(entrySize);
+        // If Entered, open Bitunix and copy ticker pair
+        if (value === 'Entered') {
+            const pair = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'') + 'USDT';
+            navigator.clipboard.writeText(pair);
             window.open(DEFAULT_BX(ticker), '_blank');
         }
         // Hide immediately
@@ -2124,9 +2125,10 @@
         const sizeInput = document.getElementById(elemId + '-size');
         const entrySize = sizeInput ? sizeInput.value : '';
         addActedItem(ticker, signal);
-        // If Entered with a size, open Bitunix and copy size
-        if (value === 'Entered' && entrySize) {
-            navigator.clipboard.writeText(entrySize);
+        // If Entered, open Bitunix and copy ticker pair
+        if (value === 'Entered') {
+            const pair = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'') + 'USDT';
+            navigator.clipboard.writeText(pair);
             window.open(DEFAULT_BX(ticker), '_blank');
         }
         // Hide immediately
