@@ -52,7 +52,7 @@
             position: fixed;
             top: -100px; left: -20px; right: -20px; bottom: -100px;
             background: url('wave-bg.jpg') center center/cover no-repeat;
-            filter: brightness(0.65);
+            filter: brightness(1.0);
             z-index: 0;
             pointer-events: none;
         }
@@ -1439,12 +1439,12 @@
             const signalClass = signalType.includes('sell') || signalType.includes('short') ? 'sell' : 'buy';
             const score = a.score || a._score || '-';
 
-            // Find matching signal for extra details (match by symbol, prefer exact price, fall back to any)
+            // Use RSI/MACD/Vol from action item directly (from Apps Script), fall back to signal match
             const matched = (allSignals || []).find(s => (s.symbol || s.ticker || '').toUpperCase() === tkr.toUpperCase() && Math.abs(Number(s.entry || s.price || 0) - prc) < 0.001)
                 || (allSignals || []).find(s => (s.symbol || s.ticker || '').toUpperCase() === tkr.toUpperCase());
-            const rsi = matched ? matched.rsi : '';
-            const macd = matched ? matched.macd : '';
-            const vol = matched ? matched.volume : '';
+            const rsi = a.rsi || (matched ? matched.rsi : '');
+            const macd = a.macd || (matched ? matched.macd : '');
+            const vol = a.volume || (matched ? matched.volume : '');
             const sl = matched ? matched.sl : '';
             const tp1 = matched ? matched.tp1 : '';
 
@@ -1698,7 +1698,7 @@
 
     function renderTickerCard(t, i) {
         const dir = (t.lastDirection || t.lastSignal || 'idle').toLowerCase();
-        const dirClass = dir === 'short' ? 'short' : dir === 'long' ? 'long' : 'idle';
+        const dirClass = (dir === 'short' || dir === 'sell') ? 'short' : (dir === 'long' || dir === 'buy') ? 'long' : 'idle';
         const wrClass = (parseFloat(t.winRate) || 0) >= 50 ? 'green' : (parseFloat(t.winRate) || 0) > 0 ? 'red' : '';
         const tid = 'ticker-' + i;
 

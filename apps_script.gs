@@ -31,6 +31,8 @@ function doPost(e) {
   try {
     var ss   = SpreadsheetApp.getActiveSpreadsheet();
     var raw  = e.postData.contents;
+    // Sanitize invalid JSON values (NaN, Infinity) before parsing
+    raw = raw.replace(/\bNaN\b/g, 'null').replace(/\bInfinity\b/g, 'null').replace(/\b-Infinity\b/g, 'null');
     var data = JSON.parse(raw);
 
     // --- Position update actions ---
@@ -410,6 +412,18 @@ function serveDashboardJSON_() {
     }
   }
 
+  // --- Build Signal Log lookup by symbol+entry for RSI/MACD/Vol ---
+  // Signal Log columns: 0=timestamp, 1=symbol, 2=signal, 3=entry, 4=sl, 5=tp1, 6=tp2,
+  //                     7=macd, 8=volume, 9=cross, 10=inZone, 11=rsi, 12=timeframe, 13=score
+  var signalLookup = {};
+  for (var sl = 1; sl < logData.length; sl++) {
+    var logSym = String(logData[sl][1] || '').toUpperCase().trim();
+    var logEntry = logData[sl][3] || 0;
+    // Key by symbol+entry for exact match, also keep latest by symbol only
+    signalLookup[logSym + '|' + logEntry] = sl;
+    signalLookup[logSym] = sl;
+  }
+
   // --- Action needed (positions needing user input) ---
   var actionNeeded = [];
   for (var k = 1; k < posData.length; k++) {
@@ -420,6 +434,10 @@ function serveDashboardJSON_() {
     var pOutcome = String(pr[9] || '').trim();
 
     if (!pSymbol) continue;
+
+    // Look up matching Signal Log row for RSI/MACD/Vol
+    var logIdx = signalLookup[pSymbol + '|' + (pr[3] || 0)] || signalLookup[pSymbol];
+    var logRow = logIdx ? logData[logIdx] : null;
 
     if (pAction === '') {
       // Needs Entered/Skipped
@@ -437,6 +455,9 @@ function serveDashboardJSON_() {
         score:     pr[7] || 0,
         timestamp: ptsStr,
         type:      'mark_action',
+        rsi:       logRow ? (logRow[11] || null) : null,
+        macd:      logRow ? String(logRow[7] || '') : '',
+        volume:    logRow ? String(logRow[8] || '') : '',
         message:   'Mark ' + pSignal.toUpperCase() + ' @ ' + pr[3] + ' as Entered/Skipped (score: ' + (pr[7] || 0) + ')'
       });
     } else if (pAction.toLowerCase() === 'entered' && (pOutcome === '' || pOutcome.toLowerCase() === 'open')) {
@@ -447,6 +468,9 @@ function serveDashboardJSON_() {
         score:     pr[7] || 0,
         timestamp: '',
         type:      'mark_outcome',
+        rsi:       logRow ? (logRow[11] || null) : null,
+        macd:      logRow ? String(logRow[7] || '') : '',
+        volume:    logRow ? String(logRow[8] || '') : '',
         message:   'Mark outcome for ' + pSymbol + ' ' + pSignal.toUpperCase() + ' @ ' + pr[3]
       });
     }
