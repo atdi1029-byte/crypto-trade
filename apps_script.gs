@@ -69,24 +69,39 @@ function doPost(e) {
     var signalsUsed = data.signals_used || '';
     var score = calcSignalScore_(macd, cross, inZone, volume, signalsUsed);
 
-    // --- Signal Log (raw backup, never edit) ---
+    // --- Dedup: skip if same symbol+signal was logged in last 4 hours ---
+    var posSheet = ss.getSheetByName(POSITIONS);
+    var posData = posSheet.getDataRange().getValues();
+    var fourHoursAgo = new Date(timestamp.getTime() - 4 * 60 * 60 * 1000);
+    var isDupe = false;
+    for (var d = posData.length - 1; d >= 1; d--) {
+      var dTs = posData[d][0];
+      if (!(dTs instanceof Date) || dTs < fourHoursAgo) break;
+      if (String(posData[d][1]).toUpperCase() === symbol && String(posData[d][2]).toLowerCase() === signal) {
+        isDupe = true;
+        break;
+      }
+    }
+
+    // --- Signal Log (raw backup, always log) ---
     var logSheet = ss.getSheetByName(SIGNAL_LOG);
     logSheet.appendRow([
       timestamp, symbol, signal, entry, sl, tp1, tp2,
       macd, volume, cross, inZone, rsi, timeframe, score, raw
     ]);
 
-    // --- Positions (user marks outcomes here) ---
-    var posSheet = ss.getSheetByName(POSITIONS);
-    posSheet.appendRow([
-      timestamp, symbol, signal, entry, sl, tp1, tp2, score,
-      '',  // Action — user fills: Entered / Skipped
-      '',  // Outcome — user fills: Won / Lost / Open
-      ''   // Realized P&L
-    ]);
+    // --- Positions (skip if duplicate) ---
+    if (!isDupe) {
+      posSheet.appendRow([
+        timestamp, symbol, signal, entry, sl, tp1, tp2, score,
+        '',  // Action — user fills: Entered / Skipped
+        '',  // Outcome — user fills: Won / Lost / Open
+        ''   // Realized P&L
+      ]);
+    }
 
-    // --- Auto-pick: if score + R:R meet thresholds, add to Claude Picks ---
-    autoPickSignal_(ss, data, score);
+    // --- Auto-pick: if score + R:R meet thresholds, add to Claude Picks (skip dupes) ---
+    if (!isDupe) autoPickSignal_(ss, data, score);
 
     return ContentService
       .createTextOutput(JSON.stringify({
@@ -230,6 +245,17 @@ function autoPickSignal_(ss, data, score) {
     now, symbol, signal, entry, sl, tp1, tp2,
     score, rrStr, analysis, rec, 'new'
   ]);
+
+  // Send email alert for new auto-pick
+  try {
+    var email = Session.getActiveUser().getEmail();
+    if (email) {
+      MailApp.sendEmail(email,
+        'Trade Alert: ' + symbol + ' ' + signal.toUpperCase(),
+        rec + '\n\n' + analysis + '\n\nEntry: ' + entry + ' | SL: ' + sl + ' | TP1: ' + tp1 + ' | TP2: ' + tp2
+      );
+    }
+  } catch(e) { /* skip if email fails */ }
 }
 
 // ---------------------------------------------------------------
@@ -250,29 +276,19 @@ function updatePosition_(ss, data) {
   var posSheet = ss.getSheetByName(POSITIONS);
   var posData  = posSheet.getDataRange().getValues();
 
-  // Find the most recent matching row (walk backwards)
-  // Try exact match first, then fall back to symbol+signal only
-  var matchRow = -1;
-  var loosMatch = -1;
+  // Find ALL matching rows and update them all (handles duplicates)
+  var matchRows = [];
   for (var i = posData.length - 1; i >= 1; i--) {
     var rowSymbol = String(posData[i][1]).toUpperCase();
     var rowSignal = String(posData[i][2]).toLowerCase();
-    var rowEntry  = String(posData[i][3]);
     var rowAction = String(posData[i][8] || '').trim();
 
-    if (rowSymbol === symbol && rowSignal === signal) {
-      if (rowEntry === String(entry)) {
-        matchRow = i + 1;
-        break;
-      }
-      if (loosMatch === -1 && rowAction === '') {
-        loosMatch = i + 1;
-      }
+    if (rowSymbol === symbol && rowSignal === signal && rowAction === '') {
+      matchRows.push(i + 1); // 1-indexed for Sheets
     }
   }
-  if (matchRow === -1) matchRow = loosMatch;
 
-  if (matchRow === -1) {
+  if (matchRows.length === 0) {
     return ContentService
       .createTextOutput(JSON.stringify({ status: 'error', message: 'No matching row found' }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -281,7 +297,9 @@ function updatePosition_(ss, data) {
   // Positions columns: A=timestamp, B=symbol, C=signal, D=entry, E=sl, F=tp1, G=tp2,
   //                     H=score, I=action, J=outcome, K=realized_pnl
   if (field === 'action') {
-    posSheet.getRange(matchRow, 9).setValue(value);   // Column I = Action
+    for (var m = 0; m < matchRows.length; m++) {
+      posSheet.getRange(matchRows[m], 9).setValue(value);   // Column I = Action
+    }
     // Also update Claude Picks status so skipped/entered picks disappear from Top Picks
     var cpSheet = ss.getSheetByName('Claude Picks');
     if (cpSheet) {
@@ -296,14 +314,14 @@ function updatePosition_(ss, data) {
       }
     }
   } else if (field === 'outcome') {
-    posSheet.getRange(matchRow, 10).setValue(value);  // Column J = Outcome
+    posSheet.getRange(matchRows[0], 10).setValue(value);  // Column J = Outcome
     if (realizedPnl !== '') {
-      posSheet.getRange(matchRow, 11).setValue(Number(realizedPnl)); // Column K
+      posSheet.getRange(matchRows[0], 11).setValue(Number(realizedPnl)); // Column K
     }
   }
 
   return ContentService
-    .createTextOutput(JSON.stringify({ status: 'ok', updated: field, value: value, row: matchRow }))
+    .createTextOutput(JSON.stringify({ status: 'ok', updated: field, value: value, rows: matchRows.length }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -555,34 +573,67 @@ function serveDashboardJSON_() {
     return parseFloat(b.winRate) - parseFloat(a.winRate);
   });
 
-  // --- Recent signals (last 20 from Signal Log) ---
+  // --- Recent signals (last 50 from Signal Log, fallback to Positions) ---
   var recentSignals = [];
-  var startIdx = Math.max(1, logData.length - 20);
-  for (var j = logData.length - 1; j >= startIdx; j--) {
-    var lr = logData[j];
-    var ts = lr[0];
-    var tsStr = '';
-    if (ts instanceof Date) {
-      tsStr = Utilities.formatDate(ts, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
-    } else {
-      tsStr = String(ts);
+  if (logData.length > 1) {
+    var startIdx = Math.max(1, logData.length - 50);
+    for (var j = logData.length - 1; j >= startIdx; j--) {
+      var lr = logData[j];
+      var ts = lr[0];
+      var tsStr = '';
+      if (ts instanceof Date) {
+        tsStr = Utilities.formatDate(ts, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+      } else {
+        tsStr = String(ts);
+      }
+      recentSignals.push({
+        timestamp: tsStr,
+        symbol:    String(lr[1] || '').toUpperCase(),
+        signal:    String(lr[2] || '').toLowerCase(),
+        entry:     lr[3] || 0,
+        sl:        lr[4] || 0,
+        tp1:       lr[5] || 0,
+        tp2:       lr[6] || 0,
+        macd:      String(lr[7] || ''),
+        volume:    String(lr[8] || ''),
+        cross:     lr[9],
+        inZone:    lr[10],
+        rsi:       lr[11] || null,
+        timeframe: String(lr[12] || ''),
+        score:     lr[13] || 0
+      });
     }
-    recentSignals.push({
-      timestamp: tsStr,
-      symbol:    String(lr[1] || '').toUpperCase(),
-      signal:    String(lr[2] || '').toLowerCase(),
-      entry:     lr[3] || 0,
-      sl:        lr[4] || 0,
-      tp1:       lr[5] || 0,
-      tp2:       lr[6] || 0,
-      macd:      String(lr[7] || ''),
-      volume:    String(lr[8] || ''),
-      cross:     lr[9],
-      inZone:    lr[10],
-      rsi:       lr[11] || null,
-      timeframe: String(lr[12] || ''),
-      score:     lr[13] || 0
-    });
+  } else {
+    // Fallback: build from Positions tab when Signal Log is empty
+    var posStart = Math.max(1, posData.length - 50);
+    for (var pj = posData.length - 1; pj >= posStart; pj--) {
+      var pr = posData[pj];
+      var pSym = String(pr[1] || '').toUpperCase().trim();
+      if (!pSym) continue;
+      var pts = pr[0];
+      var ptsStr = '';
+      if (pts instanceof Date) {
+        ptsStr = Utilities.formatDate(pts, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+      } else {
+        ptsStr = String(pts);
+      }
+      recentSignals.push({
+        timestamp: ptsStr,
+        symbol:    pSym,
+        signal:    String(pr[2] || '').toLowerCase(),
+        entry:     pr[3] || 0,
+        sl:        pr[4] || 0,
+        tp1:       pr[5] || 0,
+        tp2:       pr[6] || 0,
+        macd:      '',
+        volume:    '',
+        cross:     '',
+        inZone:    '',
+        rsi:       null,
+        timeframe: '',
+        score:     pr[7] || 0
+      });
+    }
   }
 
   // --- Top picks (score >= 5) from recent signals, deduplicated by symbol ---
