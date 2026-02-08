@@ -1253,7 +1253,7 @@
         try { return JSON.parse(localStorage.getItem(ACTED_KEY) || '[]'); } catch { return []; }
     }
     function addActedItem(ticker, signal) {
-        const items = getActedItems().filter(i => Date.now() - i.ts < 3600000); // keep 1hr
+        const items = getActedItems().filter(i => Date.now() - i.ts < 86400000); // keep 24hr
         items.push({ t: ticker.toUpperCase(), s: signal.toLowerCase(), ts: Date.now() });
         localStorage.setItem(ACTED_KEY, JSON.stringify(items));
     }
