@@ -1766,7 +1766,8 @@
                     <dt>Total Trades</dt><dd>${t.totalTrades || 0}</dd>
                     <dt>Total P&L</dt><dd class="${(t.totalPnl || 0) > 0 ? 'green' : (t.totalPnl || 0) < 0 ? 'red' : ''}">${(t.totalPnl || 0) !== 0 ? '$' + Number(t.totalPnl).toFixed(2) : '-'}</dd>
                     <dt>Last Signal</dt><dd>${esc((t.lastSignal || '-').toUpperCase())}</dd>
-                    <dt>Avg Score</dt><dd>${t.avgScore || '-'}</dd>
+                    <dt>Direction</dt><dd>${esc((t.lastDirection || '-').toUpperCase())}</dd>
+                    <dt>Avg R:R</dt><dd>${t.avgRR ? Number(t.avgRR).toFixed(2) : '-'}</dd>
                 </dl>
                 <div class="ticker-last-signal">${(t.lastTimestamp || t.lastSignalTime) ? 'Last: ' + esc(t.lastTimestamp || t.lastSignalTime) : 'No signals yet'}</div>
                 <div class="ticker-links">
