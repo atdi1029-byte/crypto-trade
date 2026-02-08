@@ -1247,6 +1247,37 @@
     let showAllTickers = false;
     const TICKER_LIMIT = 8;
 
+    // ====== PUSH NOTIFICATIONS ======
+    const NOTIF_KEY = 'crypto_known_picks';
+    function getKnownPicks() {
+        try { return JSON.parse(localStorage.getItem(NOTIF_KEY) || '[]'); } catch { return []; }
+    }
+    function setKnownPicks(picks) {
+        localStorage.setItem(NOTIF_KEY, JSON.stringify(picks));
+    }
+    function checkNewPicks(data) {
+        if (Notification.permission !== 'granted') return;
+        const picks = (data.claudePicks || []).concat(data.topPicks || []);
+        const pickKeys = picks.map(p => (p.symbol || '') + '|' + (p.signal || ''));
+        const known = getKnownPicks();
+        const newOnes = pickKeys.filter(k => !known.includes(k));
+        if (newOnes.length > 0 && known.length > 0) {
+            newOnes.forEach(k => {
+                const [sym, sig] = k.split('|');
+                const pick = picks.find(p => (p.symbol || '') + '|' + (p.signal || '') === k);
+                new Notification('Trade Alert: ' + sym, {
+                    body: (sig || '').toUpperCase() + ' | Score: ' + (pick ? pick.score : '?') + '/7',
+                    icon: 'icon-192.png',
+                    tag: k
+                });
+            });
+        }
+        setKnownPicks(pickKeys);
+    }
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+
     // ====== LOCAL SKIP TRACKING ======
     const ACTED_KEY = 'crypto_acted_items';
     function getActedItems() {
@@ -1292,6 +1323,7 @@
             if (data.status !== 'ok') throw new Error(data.message || 'Bad response');
 
             renderDashboard(data);
+            checkNewPicks(data);
 
             dot.className = 'status-dot';
             statusText.textContent = 'Live';
