@@ -1910,12 +1910,15 @@
 
     const DEFAULT_TV = ticker => {
         const upper = ticker.toUpperCase();
-        const sym = upper.replace(/USDT$|USD$|USDC$/,'');
+        // Handle .P (perpetual) suffix — strip for lookup, preserve for URL
+        const hasPerp = upper.endsWith('.P');
+        const clean = hasPerp ? upper.slice(0, -2) : upper;
+        const sym = clean.replace(/USDT$|USD$|USDC$/,'');
         const exchange = TV_EXCHANGE_MAP[sym];
         const prefix = exchange ? exchange + ':' : '';
-        // If ticker already has a suffix (USD/USDT/USDC), use as-is; otherwise append USDT
-        const pair = /USDT$|USD$|USDC$/.test(upper) ? upper : sym + 'USDT';
-        return `https://www.tradingview.com/chart/xF34dN3g/?symbol=${prefix}${encodeURIComponent(pair)}`;
+        const hasSuffix = /USDT$|USD$|USDC$/.test(clean);
+        const pair = hasSuffix ? clean : sym + 'USDT';
+        return `https://www.tradingview.com/chart/xF34dN3g/?symbol=${prefix}${encodeURIComponent(pair)}${hasPerp ? '.P' : ''}`;
     };
     const isAndroid = /Android/i.test(navigator.userAgent);
     const DEFAULT_BX = ticker => {
