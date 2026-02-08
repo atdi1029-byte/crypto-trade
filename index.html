@@ -1095,6 +1095,7 @@
             <span><span class="status-dot loading" id="statusDot"></span><span id="statusText">Connecting...</span></span>
             <span id="lastUpdate"></span>
             <button class="refresh-btn" onclick="fetchData()">Refresh</button>
+            <button class="refresh-btn" id="notifBtn" onclick="enableNotifs()" style="background:var(--accent-deep);">Enable Alerts</button>
         </div>
     </div>
 
@@ -1274,8 +1275,21 @@
         }
         setKnownPicks(pickKeys);
     }
-    if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
+    function enableNotifs() {
+        if (!('Notification' in window)) { alert('Notifications not supported on this browser'); return; }
+        Notification.requestPermission().then(p => {
+            if (p === 'granted') {
+                document.getElementById('notifBtn').textContent = 'Alerts ON';
+                document.getElementById('notifBtn').style.background = 'var(--green-candle)';
+                new Notification('Alerts Enabled', { body: 'You will be notified of new trade signals.', icon: 'icon-192.png' });
+            }
+        });
+    }
+    if ('Notification' in window && Notification.permission === 'granted') {
+        document.addEventListener('DOMContentLoaded', () => {
+            const btn = document.getElementById('notifBtn');
+            if (btn) { btn.textContent = 'Alerts ON'; btn.style.background = 'var(--green-candle)'; }
+        });
     }
 
     // ====== LOCAL SKIP TRACKING ======
