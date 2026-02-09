@@ -1365,7 +1365,7 @@
         document.getElementById('statToday').textContent = stats.todaySignals || 0;
 
         const pnlEl = document.getElementById('statPnL');
-        const pnl = stats.totalPnL || '-';
+        const pnl = parseFloat(stats.netPnl) || 0;
         pnlEl.textContent = typeof pnl === 'number' ? (pnl >= 0 ? '+$' + pnl : '-$' + Math.abs(pnl)) : pnl;
         pnlEl.className = 'stat-value' + (typeof pnl === 'number' && pnl > 0 ? ' green' : typeof pnl === 'number' && pnl < 0 ? ' red' : '');
 
