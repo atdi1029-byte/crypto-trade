@@ -518,7 +518,7 @@ function serveDashboardJSON_() {
   var tickerMap = {};
   for (var i = 1; i < posData.length; i++) {
     var sym = String(posData[i][1]).toUpperCase().trim();
-    if (!sym) continue;
+    if (!sym || sym.length > 20 || sym.indexOf(' ') !== -1) continue;
 
     if (!tickerMap[sym]) {
       tickerMap[sym] = {
@@ -618,7 +618,7 @@ function serveDashboardJSON_() {
   for (var pj = posData.length - 1; pj >= 1; pj--) {
     var pr = posData[pj];
     var pSym = String(pr[1] || '').toUpperCase().trim();
-    if (!pSym) continue;
+    if (!pSym || pSym.length > 20 || pSym.indexOf(' ') !== -1) continue;
     var pts = pr[0];
     var ptsStr = '';
     if (pts instanceof Date) {
