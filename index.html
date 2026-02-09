@@ -1697,10 +1697,7 @@
                 const labelDiv = pnlContainer.querySelector('div:first-child');
                 if (labelDiv && (status === '0x0' || status === 'tp')) {
                     labelDiv.textContent = status === '0x0' ? '0x0' : 'TP';
-                    labelDiv.style.fontSize = '1rem';
-                    labelDiv.style.fontWeight = '700';
-                    labelDiv.style.color = status === '0x0' ? 'var(--accent-glow)' : 'var(--green-bright)';
-                    labelDiv.style.letterSpacing = '0';
+                    labelDiv.style.cssText = 'font-size:1rem;font-weight:700;letter-spacing:0;text-transform:none;color:' + (status === '0x0' ? 'var(--accent-glow)' : 'var(--green-bright)');
                 }
             }
             const pnlDisplay = el.querySelector('.pnl-amount');
