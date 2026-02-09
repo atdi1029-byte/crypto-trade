@@ -1062,8 +1062,9 @@
             #zenWisdomText { display: none; }
             .mobile-footer-quote { display: block !important; }
             .open-trade-item .pnl-display { min-width: 50px; }
-            .open-trade-item .action-buttons { display: grid !important; grid-template-columns: repeat(4, auto); gap: 6px; justify-content: start; }
-            .open-trade-item .action-buttons .entry-input { grid-column: 1 / -1; width: 55px !important; justify-self: start; }
+            .open-trade-item .action-buttons { display: grid !important; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+            .open-trade-item .action-buttons .entry-input { grid-column: 1 / -1; width: 55px !important; }
+            .open-trade-item .action-buttons .action-btn { padding: 5px 4px; font-size: 0.5rem; }
         }
     </style>
 </head>
