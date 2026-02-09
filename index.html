@@ -1690,20 +1690,19 @@
                 const pStr = pnl >= 0 ? '+$' + Number(pnl).toFixed(2) : '-$' + Math.abs(pnl).toFixed(2);
                 if (header) header.insertAdjacentHTML('beforeend', `<span class="pnl-badge" style="background:rgba(74,158,255,0.13);color:var(--accent-glow)">P&L ${pStr}</span>`);
             }
-            // Update right-side P&L display with status + amount
+            // Update right-side P&L display: amount + status below
             const p = Number(pnl);
-            const pnlContainer = el.querySelector('.pnl-display');
-            if (pnlContainer) {
-                const labelDiv = pnlContainer.querySelector('div:first-child');
-                if (labelDiv && (status === '0x0' || status === 'tp')) {
-                    labelDiv.textContent = status === '0x0' ? '0x0' : 'TP';
-                    labelDiv.style.cssText = 'font-size:1rem;font-weight:700;letter-spacing:0;text-transform:none;color:' + (status === '0x0' ? 'var(--accent-glow)' : 'var(--green-bright)');
-                }
-            }
             const pnlDisplay = el.querySelector('.pnl-amount');
             if (pnlDisplay && p !== 0) {
                 pnlDisplay.textContent = (p >= 0 ? '+$' : '-$') + Math.abs(p).toFixed(2);
                 pnlDisplay.style.color = p >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
+            }
+            // Add big status label below the P&L amount
+            const pnlContainer = el.querySelector('.pnl-display');
+            if (pnlContainer && (status === '0x0' || status === 'tp')) {
+                const statusColor = status === '0x0' ? 'var(--accent-glow)' : 'var(--green-bright)';
+                const statusText = status === '0x0' ? '0x0' : 'TP';
+                pnlContainer.insertAdjacentHTML('beforeend', `<div style="font-family:'Space Mono',monospace;font-size:1.2rem;font-weight:700;color:${statusColor};margin-top:2px">${statusText}</div>`);
             }
         });
     }
@@ -2157,16 +2156,15 @@
             }
             if (badge) badge.textContent = 'TP ' + (newTotal >= 0 ? '+$' + newTotal.toFixed(2) : '-$' + Math.abs(newTotal).toFixed(2));
 
-            // Update right-side P&L display label + amount
-            const pnlContainer = el.querySelector('.pnl-display');
-            if (pnlContainer) {
-                const labelDiv = pnlContainer.querySelector('div:first-child');
-                if (labelDiv) { labelDiv.textContent = 'TP'; labelDiv.style.fontSize = '1rem'; labelDiv.style.fontWeight = '700'; labelDiv.style.color = 'var(--green-bright)'; labelDiv.style.letterSpacing = '0'; }
-            }
+            // Update right-side P&L display amount + add TP status below
             const pnlDisplay = el.querySelector('.pnl-amount');
             if (pnlDisplay) {
                 pnlDisplay.textContent = (newTotal >= 0 ? '+$' : '-$') + Math.abs(newTotal).toFixed(2);
                 pnlDisplay.style.color = newTotal >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
+            }
+            const pnlContainer = el.querySelector('.pnl-display');
+            if (pnlContainer && !pnlContainer.querySelector('.status-label')) {
+                pnlContainer.insertAdjacentHTML('beforeend', '<div class="status-label" style="font-family:\'Space Mono\',monospace;font-size:1.2rem;font-weight:700;color:var(--green-bright);margin-top:2px">TP</div>');
             }
 
             // Save to localStorage + sheet
@@ -2193,16 +2191,15 @@
             }
             if (badge) badge.textContent = '0x0' + (newTotal !== 0 ? ' $' + newTotal.toFixed(2) : '');
 
-            // Update right-side P&L display label + amount
-            const pnlContainer0 = el.querySelector('.pnl-display');
-            if (pnlContainer0) {
-                const labelDiv = pnlContainer0.querySelector('div:first-child');
-                if (labelDiv) { labelDiv.textContent = '0x0'; labelDiv.style.fontSize = '1rem'; labelDiv.style.fontWeight = '700'; labelDiv.style.color = 'var(--accent-glow)'; labelDiv.style.letterSpacing = '0'; }
-            }
+            // Update right-side P&L display amount + add 0x0 status below
             const pnlDisplay = el.querySelector('.pnl-amount');
             if (pnlDisplay) {
                 pnlDisplay.textContent = (newTotal >= 0 ? '+$' : '-$') + Math.abs(newTotal).toFixed(2);
                 pnlDisplay.style.color = newTotal > 0 ? 'var(--green-bright)' : newTotal < 0 ? 'var(--red-bright)' : 'var(--accent-glow)';
+            }
+            const pnlContainer0 = el.querySelector('.pnl-display');
+            if (pnlContainer0 && !pnlContainer0.querySelector('.status-label')) {
+                pnlContainer0.insertAdjacentHTML('beforeend', '<div class="status-label" style="font-family:\'Space Mono\',monospace;font-size:1.2rem;font-weight:700;color:var(--accent-glow);margin-top:2px">0x0</div>');
             }
 
             // Save to localStorage + sheet
