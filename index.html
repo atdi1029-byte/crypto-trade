@@ -388,6 +388,19 @@
             border-color: var(--accent);
             color: var(--text-bright);
         }
+        .ot-filter-btn.need-2day-btn.has-alerts {
+            background: rgba(255, 80, 80, 0.15);
+            border-color: var(--red-candle);
+            color: var(--red-bright);
+            animation: flash2day 1s ease-in-out infinite alternate;
+        }
+        .ot-filter-btn.need-2day-btn.has-alerts.active {
+            background: rgba(255, 80, 80, 0.3);
+        }
+        @keyframes flash2day {
+            from { opacity: 0.6; }
+            to { opacity: 1; box-shadow: 0 0 10px rgba(239, 83, 80, 0.4); }
+        }
         .open-trades-list {
             display: flex;
             flex-direction: column;
@@ -1254,6 +1267,7 @@
             <button class="ot-filter-btn active" data-filter="all" onclick="setOTFilter(this,'all')">All</button>
             <button class="ot-filter-btn" data-filter="no-0x0" onclick="setOTFilter(this,'no-0x0')">No 0x0</button>
             <button class="ot-filter-btn" data-filter="no-tp" onclick="setOTFilter(this,'no-tp')">No TP</button>
+            <button class="ot-filter-btn need-2day-btn" data-filter="need-2day" onclick="setOTFilter(this,'need-2day')" id="need2dayFilter">Need 2 Day</button>
         </div>
         <div class="open-trades-list" id="openTradesList" style="max-height: 480px; overflow-y: auto;"></div>
     </div>
@@ -1822,6 +1836,7 @@
         }
     }
     function restore2DayStates() {
+        let needCount = 0;
         document.querySelectorAll('.open-trade-item').forEach(el => {
             const ticker = el.dataset.ticker;
             const signal = el.querySelector('.signal-tag')?.textContent?.toLowerCase() || '';
@@ -1830,8 +1845,20 @@
             if (!localStorage.getItem(key)) {
                 localStorage.setItem(key, String(Date.now()));
             }
+            const ts = Number(localStorage.getItem(key) || 0);
+            if (!ts || (Date.now() - ts) >= TWO_DAY_MS) needCount++;
             update2DayBtn(ticker, signal, id);
         });
+        const filterBtn = document.getElementById('need2dayFilter');
+        if (filterBtn) {
+            if (needCount > 0) {
+                filterBtn.classList.add('has-alerts');
+                filterBtn.textContent = 'Need 2 Day (' + needCount + ')';
+            } else {
+                filterBtn.classList.remove('has-alerts');
+                filterBtn.textContent = 'Need 2 Day';
+            }
+        }
     }
 
     // ====== OPEN TRADE LOCAL STATE (survives refresh) ======
@@ -1923,6 +1950,13 @@
             if (otFilterMode === 'no-0x0') matchFilter = status !== '0x0';
             else if (otFilterMode === 'no-tp') matchFilter = status !== 'tp';
             else if (otFilterMode === 'done') matchFilter = status === '0x0' || status === 'tp';
+            else if (otFilterMode === 'need-2day') {
+                const ticker = (card.dataset.ticker || '').toUpperCase();
+                const signal = card.querySelector('.signal-tag')?.textContent?.toLowerCase() || '';
+                const key = get2DayKey(ticker, signal);
+                const ts = Number(localStorage.getItem(key) || 0);
+                matchFilter = !ts || (Date.now() - ts) >= TWO_DAY_MS;
+            }
             card.style.display = (matchSearch && matchFilter) ? '' : 'none';
         });
     }
