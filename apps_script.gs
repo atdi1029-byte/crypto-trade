@@ -783,15 +783,18 @@ function serveDashboardJSON_() {
   var bestTicker = '', worstTicker = '', bestWR = -1, worstWR = 101;
   var tickerPerf = {};
   trades.forEach(function(t) {
-    if (!tickerPerf[t.ticker]) tickerPerf[t.ticker] = { wins: 0, total: 0 };
+    if (!tickerPerf[t.ticker]) tickerPerf[t.ticker] = { wins: 0, total: 0, pnl: 0 };
     tickerPerf[t.ticker].total++;
     if (t.win) tickerPerf[t.ticker].wins++;
+    tickerPerf[t.ticker].pnl += t.realizedPnl;
   });
   for (var tp2 in tickerPerf) {
     var wr = tickerPerf[tp2].wins / tickerPerf[tp2].total * 100;
     if (wr > bestWR)  { bestWR = wr; bestTicker = tp2; }
     if (wr < worstWR) { worstWR = wr; worstTicker = tp2; }
   }
+  var bestPnl = bestTicker && tickerPerf[bestTicker] ? tickerPerf[bestTicker].pnl : 0;
+  var worstPnl = worstTicker && tickerPerf[worstTicker] ? tickerPerf[worstTicker].pnl : 0;
 
   var stats = {
     totalTrades:     trades.length,
@@ -809,7 +812,9 @@ function serveDashboardJSON_() {
     avgWinScore:     avgWinScore,
     avgLossScore:    avgLossScore,
     bestTicker:      bestTicker ? bestTicker + ' (' + bestWR.toFixed(0) + '%)' : 'N/A',
-    worstTicker:     worstTicker ? worstTicker + ' (' + worstWR.toFixed(0) + '%)' : 'N/A'
+    bestTickerPnl:   bestPnl.toFixed(2),
+    worstTicker:     worstTicker ? worstTicker + ' (' + worstWR.toFixed(0) + '%)' : 'N/A',
+    worstTickerPnl:  worstPnl.toFixed(2)
   };
 
   // --- Claude Picks (from Claude Code analysis) ---

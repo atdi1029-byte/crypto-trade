@@ -1667,22 +1667,18 @@
         // Calculate win rate by score range from available data
         const wrByScore = stats.winRateByScore || {};
 
+        const streak = stats.currentStreak || '0';
+        const streakNum = parseInt(streak);
+        const streakColor = streak.includes('W') ? 'var(--green-bright)' : streak.includes('L') ? 'var(--red-bright)' : '';
+
         perfGrid.innerHTML = `
             <div class="perf-item">
-                <div class="perf-val">${stats.totalTrades || 0}</div>
-                <div class="perf-label">Total Trades</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:${parseFloat(stats.winRate) >= 50 ? 'var(--green-bright)' : 'var(--red-bright)'}">${stats.winRate || '0%'}</div>
-                <div class="perf-label">Win Rate</div>
-            </div>
-            <div class="perf-item">
                 <div class="perf-val" style="color:var(--green-bright)">${stats.bestTicker || '-'}</div>
-                <div class="perf-label">Best Ticker</div>
+                <div class="perf-label">Best Ticker ${stats.bestTickerPnl && parseFloat(stats.bestTickerPnl) !== 0 ? '<span style="color:' + (parseFloat(stats.bestTickerPnl) >= 0 ? 'var(--green-bright)' : 'var(--red-bright)') + '">$' + stats.bestTickerPnl + '</span>' : ''}</div>
             </div>
             <div class="perf-item">
                 <div class="perf-val" style="color:var(--red-bright)">${stats.worstTicker || '-'}</div>
-                <div class="perf-label">Worst Ticker</div>
+                <div class="perf-label">Worst Ticker ${stats.worstTickerPnl && parseFloat(stats.worstTickerPnl) !== 0 ? '<span style="color:' + (parseFloat(stats.worstTickerPnl) >= 0 ? 'var(--green-bright)' : 'var(--red-bright)') + '">$' + stats.worstTickerPnl + '</span>' : ''}</div>
             </div>
             <div class="perf-item">
                 <div class="perf-val" style="color:var(--green-bright)">${wrByScore.high || '-'}</div>
@@ -1697,8 +1693,8 @@
                 <div class="perf-label">WR Score 0-2</div>
             </div>
             <div class="perf-item">
-                <div class="perf-val">${stats.bestWinStreak || 0}W</div>
-                <div class="perf-label">Best Win Streak</div>
+                <div class="perf-val">${stats.bestWinStreak || 0} Wins</div>
+                <div class="perf-label">Best Streak</div>
             </div>
         `;
     }
