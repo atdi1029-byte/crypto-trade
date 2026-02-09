@@ -1568,6 +1568,7 @@
         }
 
         list.innerHTML = trades.map((a, i) => renderOpenTradeCard(a, i)).join('');
+        setTimeout(restoreOpenTradeStates, 50);
     }
 
     function renderOpenTradeCard(a, i) {
@@ -1607,6 +1608,43 @@
                         </div>
                     </div>
                 </div>`;
+    }
+
+    // ====== OPEN TRADE LOCAL STATE (survives refresh) ======
+    function tradeStateKey(ticker, signal) { return 'trade_' + ticker.toUpperCase() + '_' + signal.toLowerCase(); }
+    function saveTradeState(ticker, signal, state) {
+        localStorage.setItem(tradeStateKey(ticker, signal), JSON.stringify(state));
+    }
+    function getTradeState(ticker, signal) {
+        try { return JSON.parse(localStorage.getItem(tradeStateKey(ticker, signal))) || null; } catch(e) { return null; }
+    }
+    function clearTradeState(ticker, signal) { localStorage.removeItem(tradeStateKey(ticker, signal)); }
+
+    // Restore saved state after rendering open trade cards
+    function restoreOpenTradeStates() {
+        document.querySelectorAll('.open-trade-item').forEach(el => {
+            const ticker = el.dataset.ticker;
+            const signal = el.querySelector('.signal-tag')?.textContent?.toLowerCase() || '';
+            const state = getTradeState(ticker, signal);
+            if (!state) return;
+            el.dataset.pnl = state.pnl || 0;
+            el.dataset.status = state.status || 'active';
+            if (state.status === 'tp') {
+                el.style.borderLeftColor = 'var(--green-candle)';
+                const header = el.querySelector('.ticker-header');
+                if (header) header.insertAdjacentHTML('beforeend', `<span class="pnl-badge" style="font-size:0.55rem;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto;background:var(--green-dim);color:var(--green-bright)">TP ${state.pnl >= 0 ? '+$' + Number(state.pnl).toFixed(2) : '-$' + Math.abs(state.pnl).toFixed(2)}</span>`);
+            } else if (state.status === '0x0') {
+                el.style.borderLeftColor = 'var(--accent)';
+                const header = el.querySelector('.ticker-header');
+                if (header) header.insertAdjacentHTML('beforeend', '<span class="pnl-badge" style="font-size:0.55rem;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto;background:#4a9eff22;color:var(--accent-glow)">0x0</span>');
+            }
+            const pnlDisplay = el.querySelector('.pnl-amount');
+            if (pnlDisplay && state.pnl) {
+                const p = Number(state.pnl);
+                pnlDisplay.textContent = (p >= 0 ? '+$' : '-$') + Math.abs(p).toFixed(2);
+                pnlDisplay.style.color = p >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
+            }
+        });
     }
 
     // ====== OPEN TRADES FILTER ======
@@ -2070,6 +2108,8 @@
                 pnlDisplay.style.color = newTotal >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
             }
 
+            // Save state to localStorage so it survives refresh
+            saveTradeState(ticker, signal, { status: 'tp', pnl: newTotal });
             // Clear input for next partial
             if (profitInput) profitInput.value = '';
             return; // Don't send to sheet yet — wait for Closed
@@ -2088,6 +2128,7 @@
                 }
             }
             if (badge) badge.textContent = '0x0';
+            saveTradeState(ticker, signal, { status: '0x0', pnl: prevTotal });
             if (profitInput) profitInput.value = '';
             return;
 
@@ -2095,6 +2136,7 @@
             // Closed or Stopped Out — finalize and send total to sheet
             const grandTotal = prevTotal + inputVal;
             const finalValue = value === 'Lost' ? 'Lost' : 'Closed';
+            clearTradeState(ticker, signal);
 
             el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
 
