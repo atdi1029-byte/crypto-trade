@@ -1062,6 +1062,7 @@
             .mobile-footer-quote { display: block !important; }
             .open-trade-item .pnl-display { display: none !important; }
             .open-trade-item .action-buttons { flex-wrap: wrap; }
+            .open-trade-item .pnl-badge { font-size: 0.55rem; padding: 2px 6px; border-radius: 3px; }
         }
     </style>
 </head>
@@ -1689,8 +1690,19 @@
                 const pStr = pnl >= 0 ? '+$' + Number(pnl).toFixed(2) : '-$' + Math.abs(pnl).toFixed(2);
                 if (header) header.insertAdjacentHTML('beforeend', `<span class="pnl-badge" style="background:rgba(74,158,255,0.13);color:var(--accent-glow)">P&L ${pStr}</span>`);
             }
-            // Update P&L display
+            // Update right-side P&L display with status + amount
             const p = Number(pnl);
+            const pnlContainer = el.querySelector('.pnl-display');
+            if (pnlContainer) {
+                const labelDiv = pnlContainer.querySelector('div:first-child');
+                if (labelDiv && (status === '0x0' || status === 'tp')) {
+                    labelDiv.textContent = status === '0x0' ? '0x0' : 'TP';
+                    labelDiv.style.fontSize = '1rem';
+                    labelDiv.style.fontWeight = '700';
+                    labelDiv.style.color = status === '0x0' ? 'var(--accent-glow)' : 'var(--green-bright)';
+                    labelDiv.style.letterSpacing = '0';
+                }
+            }
             const pnlDisplay = el.querySelector('.pnl-amount');
             if (pnlDisplay && p !== 0) {
                 pnlDisplay.textContent = (p >= 0 ? '+$' : '-$') + Math.abs(p).toFixed(2);
@@ -2148,7 +2160,12 @@
             }
             if (badge) badge.textContent = 'TP ' + (newTotal >= 0 ? '+$' + newTotal.toFixed(2) : '-$' + Math.abs(newTotal).toFixed(2));
 
-            // Update right-side P&L display
+            // Update right-side P&L display label + amount
+            const pnlContainer = el.querySelector('.pnl-display');
+            if (pnlContainer) {
+                const labelDiv = pnlContainer.querySelector('div:first-child');
+                if (labelDiv) { labelDiv.textContent = 'TP'; labelDiv.style.fontSize = '1rem'; labelDiv.style.fontWeight = '700'; labelDiv.style.color = 'var(--green-bright)'; labelDiv.style.letterSpacing = '0'; }
+            }
             const pnlDisplay = el.querySelector('.pnl-amount');
             if (pnlDisplay) {
                 pnlDisplay.textContent = (newTotal >= 0 ? '+$' : '-$') + Math.abs(newTotal).toFixed(2);
@@ -2179,6 +2196,12 @@
             }
             if (badge) badge.textContent = '0x0' + (newTotal !== 0 ? ' $' + newTotal.toFixed(2) : '');
 
+            // Update right-side P&L display label + amount
+            const pnlContainer0 = el.querySelector('.pnl-display');
+            if (pnlContainer0) {
+                const labelDiv = pnlContainer0.querySelector('div:first-child');
+                if (labelDiv) { labelDiv.textContent = '0x0'; labelDiv.style.fontSize = '1rem'; labelDiv.style.fontWeight = '700'; labelDiv.style.color = 'var(--accent-glow)'; labelDiv.style.letterSpacing = '0'; }
+            }
             const pnlDisplay = el.querySelector('.pnl-amount');
             if (pnlDisplay) {
                 pnlDisplay.textContent = (newTotal >= 0 ? '+$' : '-$') + Math.abs(newTotal).toFixed(2);
