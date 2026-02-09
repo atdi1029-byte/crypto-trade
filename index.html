@@ -1367,7 +1367,7 @@
 
         // Score all signals
         const scoredSignals = (recentSignals || []).map(s => {
-            s._score = scoreSignal(s);
+            s._score = Math.max(scoreSignal(s), s.score || 0);
             return s;
         });
         allSignals = scoredSignals;
@@ -1431,7 +1431,7 @@
 
         // Use Claude picks if available, otherwise fall back to auto-scored
         const hasClaude = claudePicks && claudePicks.length > 0;
-        const allPicks = hasClaude ? claudePicks : signals.filter(s => s._score >= 5);
+        const allPicks = hasClaude ? claudePicks : signals.filter(s => (s.score || s._score) >= 5);
         const picks = allPicks.filter(s => !isActed(s.symbol || s.ticker || '', s.signal || s.direction || ''));
         countEl.textContent = picks.length;
 
