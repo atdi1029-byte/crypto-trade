@@ -1336,9 +1336,11 @@
         } catch (err) {
             renderDashboard(EMPTY_DATA);
             dot.className = 'status-dot';
-            statusText.textContent = 'Preview';
+            statusText.textContent = 'Error';
             document.getElementById('lastUpdate').textContent = 'No data';
-            document.getElementById('errorBanner').className = 'error-banner';
+            const banner = document.getElementById('errorBanner');
+            banner.textContent = 'Fetch failed: ' + err.message;
+            banner.className = 'error-banner show';
             document.getElementById('loading').className = 'loading-overlay hidden';
         }
 
