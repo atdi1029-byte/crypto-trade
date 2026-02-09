@@ -1613,8 +1613,12 @@
                                 <span class="signal-tag ${signalClass}">${signalType.toUpperCase()}</span>
                             </div>
                             <div class="meta" style="font-size:0.6rem">@ $${prc}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
-                            <div class="action-buttons">
+                            <div class="ot-pnl-row" style="display:flex;align-items:center;gap:0.5rem;margin:0.4rem 0">
                                 <input type="text" class="entry-input" placeholder="P&L $" id="${id}-profit" style="width:55px">
+                                <span class="pnl-badge-inline" id="${id}-badge"></span>
+                                <div class="pnl-amount" id="${id}-pnl-inline" style="font-family:'Space Mono',monospace;font-size:1.4rem;font-weight:700;color:var(--text-dim);margin-left:auto">$0</div>
+                            </div>
+                            <div class="action-buttons">
                                 <button class="action-btn entered" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'0x0','${id}')">0x0</button>
                                 <button class="action-btn won" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Won','${id}')">Hit TP</button>
                                 <button class="action-btn lost" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Lost','${id}')">Stopped Out</button>
@@ -1640,48 +1644,49 @@
     function clearTradeState(ticker, signal) { localStorage.removeItem(tradeStateKey(ticker, signal)); }
 
     // Restore saved state after rendering open trade cards
+    function applyTradeState(el, status, pnl) {
+        el.dataset.pnl = pnl;
+        el.dataset.status = status;
+        el.classList.remove('needs-attention');
+        // Border color
+        if (status === 'tp') el.style.borderLeftColor = 'var(--green-candle)';
+        else if (status === '0x0') el.style.borderLeftColor = 'var(--accent)';
+        else el.style.borderLeftColor = 'var(--green-candle)';
+        // Inline badge on P&L row
+        const badge = el.querySelector('.pnl-badge-inline');
+        if (badge) {
+            if (status === 'tp') {
+                badge.innerHTML = '<span style="font-size:0.6rem;font-weight:700;padding:2px 8px;border-radius:3px;background:var(--green-dim);color:var(--green-bright)">TP</span>';
+            } else if (status === '0x0') {
+                badge.innerHTML = '<span style="font-size:0.6rem;font-weight:700;padding:2px 8px;border-radius:3px;background:#4a9eff22;color:var(--accent-glow)">0x0</span>';
+            } else {
+                badge.innerHTML = '<span style="font-size:0.6rem;font-weight:700;padding:2px 8px;border-radius:3px;background:rgba(74,158,255,0.13);color:var(--accent-glow)">P&L</span>';
+            }
+        }
+        // Update all P&L displays (inline + side)
+        const p = Number(pnl);
+        const pStr = (p >= 0 ? '+$' : '-$') + Math.abs(p).toFixed(2);
+        const pColor = p >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
+        el.querySelectorAll('.pnl-amount').forEach(d => {
+            d.textContent = pStr;
+            d.style.color = pColor;
+            d.style.textShadow = p !== 0 ? '0 0 8px ' + (p >= 0 ? 'rgba(38,166,154,0.5)' : 'rgba(239,83,80,0.5)') : 'none';
+        });
+    }
+
     function restoreOpenTradeStates() {
         document.querySelectorAll('.open-trade-item').forEach(el => {
             const ticker = el.dataset.ticker;
             const signal = el.querySelector('.signal-tag')?.textContent?.toLowerCase() || '';
-            // Check localStorage first, then fall back to API data
-            let state = getTradeState(ticker, signal);
-            if (!state) {
-                const apiPnl = Number(el.dataset.pnl) || 0;
-                if (apiPnl !== 0) {
-                    // API has P&L but we don't know if it was 0x0 or TP — show P&L badge
-                    el.dataset.pnl = apiPnl;
-                    el.style.borderLeftColor = apiPnl > 0 ? 'var(--green-candle)' : 'var(--accent)';
-                    el.classList.remove('needs-attention');
-                    const header = el.querySelector('.ticker-header');
-                    const pStr = apiPnl >= 0 ? '+$' + apiPnl.toFixed(2) : '-$' + Math.abs(apiPnl).toFixed(2);
-                    if (header) header.insertAdjacentHTML('beforeend', `<span class="pnl-badge" style="font-size:0.55rem;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto;background:rgba(74,158,255,0.13);color:var(--accent-glow)">P&L ${pStr}</span>`);
-                    const pnlDisplay = el.querySelector('.pnl-amount');
-                    if (pnlDisplay) {
-                        pnlDisplay.textContent = pStr;
-                        pnlDisplay.style.color = apiPnl >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
-                    }
-                }
+            const state = getTradeState(ticker, signal);
+            if (state) {
+                applyTradeState(el, state.status || 'active', state.pnl || 0);
                 return;
             }
-            el.dataset.pnl = state.pnl || 0;
-            el.dataset.status = state.status || 'active';
-            if (state.status === 'tp') {
-                el.style.borderLeftColor = 'var(--green-candle)';
-                el.classList.remove('needs-attention');
-                const header = el.querySelector('.ticker-header');
-                if (header) header.insertAdjacentHTML('beforeend', `<span class="pnl-badge" style="font-size:0.55rem;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto;background:var(--green-dim);color:var(--green-bright)">TP ${state.pnl >= 0 ? '+$' + Number(state.pnl).toFixed(2) : '-$' + Math.abs(state.pnl).toFixed(2)}</span>`);
-            } else if (state.status === '0x0') {
-                el.style.borderLeftColor = 'var(--accent)';
-                el.classList.remove('needs-attention');
-                const header = el.querySelector('.ticker-header');
-                if (header) header.insertAdjacentHTML('beforeend', '<span class="pnl-badge" style="font-size:0.55rem;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto;background:#4a9eff22;color:var(--accent-glow)">0x0</span>');
-            }
-            const pnlDisplay = el.querySelector('.pnl-amount');
-            if (pnlDisplay && state.pnl) {
-                const p = Number(state.pnl);
-                pnlDisplay.textContent = (p >= 0 ? '+$' : '-$') + Math.abs(p).toFixed(2);
-                pnlDisplay.style.color = p >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
+            // Fallback: use API P&L from sheet
+            const apiPnl = Number(el.dataset.pnl) || 0;
+            if (apiPnl !== 0) {
+                applyTradeState(el, 'has-pnl', apiPnl);
             }
         });
     }
