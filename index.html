@@ -734,6 +734,24 @@
             border-color: #4a9eff44;
         }
         .action-btn.open-pos:hover { background: #4a9eff44; color: var(--text-bright); }
+        .action-btn.two-day-btn {
+            background: rgba(30, 58, 95, 0.3);
+            color: var(--text-dim);
+            border-color: rgba(30, 58, 95, 0.5);
+            opacity: 0.5;
+        }
+        .action-btn.two-day-btn:hover { background: rgba(30, 58, 95, 0.5); color: var(--text); opacity: 0.8; }
+        .action-btn.two-day-btn.checked {
+            background: var(--green-dim);
+            color: var(--green-bright);
+            border-color: var(--green-candle);
+        }
+        .action-btn.two-day-btn.needs-check {
+            background: rgba(255, 80, 80, 0.15);
+            color: var(--red-bright);
+            border-color: var(--red-candle);
+            animation: pickGlowLive 1.5s ease-in-out infinite alternate;
+        }
         .action-btn:disabled {
             opacity: 0.4;
             cursor: default;
@@ -1729,7 +1747,7 @@
         }
 
         list.innerHTML = deduped.map((a, i) => renderOpenTradeCard(a, i)).join('');
-        setTimeout(restoreOpenTradeStates, 50);
+        setTimeout(() => { restoreOpenTradeStates(); restore2DayStates(); }, 50);
     }
 
     function renderOpenTradeCard(a, i) {
@@ -1762,6 +1780,7 @@
                                 <button class="action-btn won" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Won','${id}')">Hit TP</button>
                                 <button class="action-btn lost" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Lost','${id}')">Stopped Out</button>
                                 <button class="action-btn skipped" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Closed','${id}')">Closed</button>
+                                <button class="action-btn two-day-btn" id="${id}-2day" onclick="toggle2DayCheck('${esc(tkr)}','${esc(a.signal)}','${id}')">2 Day</button>
                             </div>
                         </div>
                         <div class="pnl-display" id="${id}-pnl-display" style="text-align:right;min-width:70px">
@@ -1770,6 +1789,50 @@
                         </div>
                     </div>
                 </div>`;
+    }
+
+    // ====== 2-DAY CHECK ======
+    const TWO_DAY_PREFIX = '2day_';
+    const TWO_DAY_MS = 48 * 60 * 60 * 1000;
+    function get2DayKey(ticker, signal) { return TWO_DAY_PREFIX + ticker.toUpperCase() + '_' + signal.toLowerCase(); }
+    function toggle2DayCheck(ticker, signal, id) {
+        const key = get2DayKey(ticker, signal);
+        const existing = localStorage.getItem(key);
+        if (existing && (Date.now() - Number(existing)) < TWO_DAY_MS) {
+            localStorage.removeItem(key);
+        } else {
+            localStorage.setItem(key, String(Date.now()));
+        }
+        update2DayBtn(ticker, signal, id);
+    }
+    function update2DayBtn(ticker, signal, id) {
+        const btn = document.getElementById(id + '-2day');
+        if (!btn) return;
+        const key = get2DayKey(ticker, signal);
+        const ts = Number(localStorage.getItem(key) || 0);
+        if (!ts) {
+            btn.className = 'action-btn two-day-btn';
+            btn.textContent = '2 Day';
+            return;
+        }
+        const elapsed = Date.now() - ts;
+        if (elapsed >= TWO_DAY_MS) {
+            localStorage.removeItem(key);
+            btn.className = 'action-btn two-day-btn needs-check';
+            btn.textContent = 'CHECK!';
+        } else {
+            const hoursLeft = Math.ceil((TWO_DAY_MS - elapsed) / (60 * 60 * 1000));
+            btn.className = 'action-btn two-day-btn checked';
+            btn.textContent = hoursLeft + 'h';
+        }
+    }
+    function restore2DayStates() {
+        document.querySelectorAll('.open-trade-item').forEach(el => {
+            const ticker = el.dataset.ticker;
+            const signal = el.querySelector('.signal-tag')?.textContent?.toLowerCase() || '';
+            const id = el.id;
+            update2DayBtn(ticker, signal, id);
+        });
     }
 
     // ====== OPEN TRADE LOCAL STATE (survives refresh) ======
