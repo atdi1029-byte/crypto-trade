@@ -1562,14 +1562,26 @@
     function renderOpenTrades(trades) {
         const list = document.getElementById('openTradesList');
         const countEl = document.getElementById('openTradesCount');
-        countEl.textContent = trades.length;
 
-        if (trades.length === 0) {
+        // Deduplicate by ticker — keep most recent entry per ticker
+        const seen = {};
+        const deduped = [];
+        for (const t of trades) {
+            const key = (t.ticker || t.symbol || '').toUpperCase();
+            if (!seen[key]) {
+                seen[key] = true;
+                deduped.push(t);
+            }
+        }
+
+        countEl.textContent = deduped.length;
+
+        if (deduped.length === 0) {
             list.innerHTML = '<div class="no-actions">No open trades</div>';
             return;
         }
 
-        list.innerHTML = trades.map((a, i) => renderOpenTradeCard(a, i)).join('');
+        list.innerHTML = deduped.map((a, i) => renderOpenTradeCard(a, i)).join('');
         setTimeout(restoreOpenTradeStates, 50);
     }
 
