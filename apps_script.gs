@@ -601,6 +601,17 @@ function serveDashboardJSON_() {
     return parseFloat(b.winRate) - parseFloat(a.winRate);
   });
 
+  // --- Build Signal Log lookup by symbol+entry for RSI/MACD/Vol ---
+  // Signal Log columns: 0=timestamp, 1=symbol, 2=signal, 3=entry, 4=sl, 5=tp1, 6=tp2,
+  //                     7=macd, 8=volume, 9=cross, 10=inZone, 11=rsi, 12=timeframe, 13=score
+  var signalLookup = {};
+  for (var sl = 1; sl < logData.length; sl++) {
+    var logSym = String(logData[sl][1] || '').toUpperCase().trim();
+    var logEntry = logData[sl][3] || 0;
+    signalLookup[logSym + '|' + logEntry] = sl;
+    signalLookup[logSym] = sl;
+  }
+
   // --- All signals from Positions tab (enriched with Signal Log data) ---
   // Use Positions as primary source since Signal Log may have been cleared
   var recentSignals = [];
@@ -660,18 +671,6 @@ function serveDashboardJSON_() {
       });
       seenSymbols[sig.symbol] = true;
     }
-  }
-
-  // --- Build Signal Log lookup by symbol+entry for RSI/MACD/Vol ---
-  // Signal Log columns: 0=timestamp, 1=symbol, 2=signal, 3=entry, 4=sl, 5=tp1, 6=tp2,
-  //                     7=macd, 8=volume, 9=cross, 10=inZone, 11=rsi, 12=timeframe, 13=score
-  var signalLookup = {};
-  for (var sl = 1; sl < logData.length; sl++) {
-    var logSym = String(logData[sl][1] || '').toUpperCase().trim();
-    var logEntry = logData[sl][3] || 0;
-    // Key by symbol+entry for exact match, also keep latest by symbol only
-    signalLookup[logSym + '|' + logEntry] = sl;
-    signalLookup[logSym] = sl;
   }
 
   // --- Action needed (positions needing user input) ---
