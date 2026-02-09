@@ -238,6 +238,59 @@
         .command-result.success { display: block; background: var(--green-dim); color: var(--green-bright); }
         .command-result.error { display: block; background: var(--red-dim); color: var(--red-bright); }
 
+        /* ============ WEEKLY TASKS ============ */
+        .weekly-tasks { margin-bottom: 1.25rem; }
+        .weekly-tasks-list {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        .weekly-task-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0.25rem;
+            border-bottom: 1px solid rgba(30, 58, 95, 0.4);
+            cursor: pointer;
+            transition: opacity 0.2s;
+            border-radius: 4px;
+        }
+        .weekly-task-item:last-child { border-bottom: none; }
+        .weekly-task-item:hover { background: rgba(74, 158, 255, 0.05); }
+        .weekly-task-item.checked { opacity: 0.4; }
+        .weekly-task-item.checked .task-text { text-decoration: line-through; }
+        .weekly-task-checkbox {
+            width: 18px; height: 18px;
+            border: 2px solid var(--border);
+            border-radius: 3px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            transition: all 0.2s;
+        }
+        .weekly-task-item.checked .weekly-task-checkbox {
+            background: var(--green-candle);
+            border-color: var(--green-candle);
+        }
+        .weekly-task-item.checked .weekly-task-checkbox::after {
+            content: '\2713';
+            color: var(--text-bright);
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .task-text {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text);
+            transition: all 0.2s;
+        }
+
         /* ============ QUICK STATS BAR ============ */
         .stats-bar {
             display: grid;
@@ -1126,6 +1179,12 @@
     </div>
     <div class="command-result" id="commandResult"></div>
 
+    <!-- Weekly Tasks -->
+    <div class="weekly-tasks" id="weeklyTasks" style="display: none;">
+        <div class="section-header">Weekly Tasks <span class="count" id="weeklyTasksCount">0</span></div>
+        <div class="weekly-tasks-list" id="weeklyTasksList"></div>
+    </div>
+
     <!-- Quick Stats Bar -->
     <div class="stats-bar" id="statsBar">
         <div class="stat-card">
@@ -1306,6 +1365,72 @@
     }
     function isActed(ticker, signal) {
         return getActedItems().some(i => i.t === ticker.toUpperCase() && i.s === signal.toLowerCase());
+    }
+
+    // ====== WEEKLY TASKS ======
+    let _weeklyTasks = [];
+    function getMonday(d) {
+        d = new Date(d);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        d.setDate(diff);
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    const WEEKLY_TASKS_KEY_PREFIX = 'weekly_todos_';
+    function getWeeklyTaskKey() { return WEEKLY_TASKS_KEY_PREFIX + getMonday(new Date()); }
+    function getCheckedTasks() {
+        try { return JSON.parse(localStorage.getItem(getWeeklyTaskKey()) || '[]'); } catch { return []; }
+    }
+    function setCheckedTasks(checked) {
+        localStorage.setItem(getWeeklyTaskKey(), JSON.stringify(checked));
+    }
+
+    async function fetchWeeklyTasks() {
+        try {
+            const resp = await fetch(POST_URL + '?action=tasks');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (!data.tasks || data.tasks.length === 0) {
+                document.getElementById('weeklyTasks').style.display = 'none';
+                return;
+            }
+            _weeklyTasks = data.tasks;
+            renderWeeklyTasks();
+        } catch (e) { /* tasks are non-critical */ }
+    }
+
+    function renderWeeklyTasks() {
+        const tasks = _weeklyTasks;
+        if (!tasks || tasks.length === 0) return;
+        const container = document.getElementById('weeklyTasks');
+        const list = document.getElementById('weeklyTasksList');
+        const countEl = document.getElementById('weeklyTasksCount');
+        const checked = getCheckedTasks();
+
+        if (checked.length >= tasks.length && tasks.every((_, i) => checked.includes(i))) {
+            container.style.display = 'none';
+            return;
+        }
+
+        list.innerHTML = '';
+        let doneCount = 0;
+        tasks.forEach((text, idx) => {
+            const isDone = checked.includes(idx);
+            if (isDone) doneCount++;
+            const item = document.createElement('div');
+            item.className = 'weekly-task-item' + (isDone ? ' checked' : '');
+            item.innerHTML = '<div class="weekly-task-checkbox"></div><div class="task-text">' + text + '</div>';
+            item.addEventListener('click', () => {
+                const c = getCheckedTasks();
+                const pos = c.indexOf(idx);
+                if (pos === -1) c.push(idx); else c.splice(pos, 1);
+                setCheckedTasks(c);
+                renderWeeklyTasks();
+            });
+            list.appendChild(item);
+        });
+        countEl.textContent = doneCount + '/' + tasks.length;
+        container.style.display = '';
     }
 
     // ====== SCORING LOGIC ======
@@ -2495,6 +2620,7 @@
 
     // ====== INIT ======
     fetchData();
+    fetchWeeklyTasks();
 
     // ====== SERVICE WORKER ======
     if ('serviceWorker' in navigator) {

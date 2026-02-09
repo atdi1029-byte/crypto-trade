@@ -10,6 +10,7 @@ var POSITIONS   = 'Positions';
 var DASHBOARD   = 'Dashboard';
 var CONFIG      = 'Config';
 var PERFORMANCE = 'Performance';
+var WEEKLY_TASKS = 'Weekly Tasks';
 
 // === SCORING WEIGHTS ===
 // MACD rising/falling: +2, cross <= 5 bars ago: +2, in_zone: +1, volume above avg: +1, signals not maxed: +1
@@ -33,6 +34,8 @@ var MIN_PICK_RR      = 1.4; // Minimum R:R ratio to auto-add
 //    "cross":3,"in_zone":true,"rsi":38.5,"timeframe":"4h"}
 // ---------------------------------------------------------------
 function doPost(e) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
   try {
     var ss   = SpreadsheetApp.getActiveSpreadsheet();
     var raw  = e.postData.contents;
@@ -70,29 +73,19 @@ function doPost(e) {
     var score = calcSignalScore_(macd, cross, inZone, volume, signalsUsed);
 
     // --- Dedup: skip if same symbol+signal was logged in last 4 hours ---
-    // --- Also skip if there's already an open position for this symbol ---
     var posSheet = ss.getSheetByName(POSITIONS);
     var posData = posSheet.getDataRange().getValues();
     var fourHoursAgo = new Date(timestamp.getTime() - 4 * 60 * 60 * 1000);
     var isDupe = false;
-    var hasOpenPosition = false;
     for (var d = posData.length - 1; d >= 1; d--) {
-      // Check for recent dupe
       var dTs = posData[d][0];
-      if (!isDupe && dTs instanceof Date && dTs >= fourHoursAgo) {
+      if (dTs instanceof Date && dTs >= fourHoursAgo) {
         if (String(posData[d][1]).toUpperCase() === symbol && String(posData[d][2]).toLowerCase() === signal) {
           isDupe = true;
+          break;
         }
       }
-      // Check for open position (Entered with no resolved outcome)
-      var dAction = String(posData[d][8] || '').toLowerCase().trim();
-      var dOutcome = String(posData[d][9] || '').toLowerCase().trim();
-      if (String(posData[d][1]).toUpperCase() === symbol && dAction === 'entered' && (dOutcome === '' || dOutcome === 'open')) {
-        hasOpenPosition = true;
-      }
-      if (isDupe && hasOpenPosition) break;
     }
-    isDupe = isDupe || hasOpenPosition;
 
     // --- Signal Log (raw backup, always log) ---
     var logSheet = ss.getSheetByName(SIGNAL_LOG);
@@ -127,6 +120,8 @@ function doPost(e) {
     return ContentService
       .createTextOutput(JSON.stringify({ status: 'error', message: err.message }))
       .setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -436,6 +431,10 @@ function doGet(e) {
   if (action === 'update') {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     return updatePosition_(ss, e.parameter);
+  }
+
+  if (action === 'tasks') {
+    return serveWeeklyTasks_();
   }
 
   if (action === 'balance') {
@@ -894,9 +893,6 @@ function getConfig_(label) {
 // Helper: get ALL completed trades across all symbols
 // Returns array of enriched trade objects
 // ---------------------------------------------------------------
-// P&L reset date — ignore all trades before this date
-var PNL_RESET_DATE = new Date('2026-02-08T00:00:00');
-
 function getAllCompletedTrades_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
@@ -935,10 +931,6 @@ function getAllCompletedTrades_() {
     // Only include entered trades with a resolved outcome
     if (action !== 'entered') continue;
     if (outcome !== 'won' && outcome !== 'lost') continue;
-
-    // Skip trades before P&L reset date
-    var tradeTs = posData[j][0];
-    if (tradeTs instanceof Date && tradeTs < PNL_RESET_DATE) continue;
 
     var symbol = String(posData[j][1]).toUpperCase();
     var signal = String(posData[j][2]).toLowerCase();
@@ -1806,5 +1798,32 @@ function getBalanceHistory_() {
       profitPct: ((latest.balance - deposited) / deposited * 100).toFixed(1) + '%',
       history: history
     }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---------------------------------------------------------------
+// serveWeeklyTasks_ — Returns weekly task list as JSON array
+// Called via: ?action=tasks
+// Weekly Tasks tab: Column A = task text, row 1 = header
+// ---------------------------------------------------------------
+function serveWeeklyTasks_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(WEEKLY_TASKS);
+
+  if (!sheet || sheet.getLastRow() <= 1) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'ok', tasks: [] }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
+  var tasks = [];
+  for (var i = 0; i < data.length; i++) {
+    var text = String(data[i][0] || '').trim();
+    if (text) tasks.push(text);
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify({ status: 'ok', tasks: tasks }))
     .setMimeType(ContentService.MimeType.JSON);
 }
