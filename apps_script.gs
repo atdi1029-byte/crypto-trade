@@ -779,12 +779,18 @@ function serveDashboardJSON_() {
     avgLossScore = (lossScoreSum / losses.length).toFixed(1);
   }
 
-  // Best / worst individual trades by P&L
+  // Best / worst individual trades by P&L + per-ticker win rates
   var bestTrade = null, worstTrade = null;
+  var tickerPerf = {};
   trades.forEach(function(t) {
     if (!bestTrade || t.realizedPnl > bestTrade.realizedPnl) bestTrade = t;
     if (!worstTrade || t.realizedPnl < worstTrade.realizedPnl) worstTrade = t;
+    if (!tickerPerf[t.ticker]) tickerPerf[t.ticker] = { wins: 0, total: 0 };
+    tickerPerf[t.ticker].total++;
+    if (t.win) tickerPerf[t.ticker].wins++;
   });
+  var bestTradeWR = bestTrade && tickerPerf[bestTrade.ticker] ? (tickerPerf[bestTrade.ticker].wins / tickerPerf[bestTrade.ticker].total * 100).toFixed(0) : '0';
+  var worstTradeWR = worstTrade && tickerPerf[worstTrade.ticker] ? (tickerPerf[worstTrade.ticker].wins / tickerPerf[worstTrade.ticker].total * 100).toFixed(0) : '0';
 
   var stats = {
     totalTrades:     trades.length,
@@ -801,9 +807,9 @@ function serveDashboardJSON_() {
     currentStreak:   streaks.current > 0 ? streaks.current + 'W' : (streaks.current < 0 ? Math.abs(streaks.current) + 'L' : '0'),
     avgWinScore:     avgWinScore,
     avgLossScore:    avgLossScore,
-    bestTrade:       bestTrade ? bestTrade.ticker : 'N/A',
+    bestTrade:       bestTrade ? bestTrade.ticker + ' (' + bestTradeWR + '%)' : 'N/A',
     bestTradePnl:    bestTrade ? bestTrade.realizedPnl.toFixed(2) : '0.00',
-    worstTrade:      worstTrade ? worstTrade.ticker : 'N/A',
+    worstTrade:      worstTrade ? worstTrade.ticker + ' (' + worstTradeWR + '%)' : 'N/A',
     worstTradePnl:   worstTrade ? worstTrade.realizedPnl.toFixed(2) : '0.00'
   };
 
