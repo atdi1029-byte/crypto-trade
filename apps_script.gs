@@ -70,18 +70,29 @@ function doPost(e) {
     var score = calcSignalScore_(macd, cross, inZone, volume, signalsUsed);
 
     // --- Dedup: skip if same symbol+signal was logged in last 4 hours ---
+    // --- Also skip if there's already an open position for this symbol ---
     var posSheet = ss.getSheetByName(POSITIONS);
     var posData = posSheet.getDataRange().getValues();
     var fourHoursAgo = new Date(timestamp.getTime() - 4 * 60 * 60 * 1000);
     var isDupe = false;
+    var hasOpenPosition = false;
     for (var d = posData.length - 1; d >= 1; d--) {
+      // Check for recent dupe
       var dTs = posData[d][0];
-      if (!(dTs instanceof Date) || dTs < fourHoursAgo) break;
-      if (String(posData[d][1]).toUpperCase() === symbol && String(posData[d][2]).toLowerCase() === signal) {
-        isDupe = true;
-        break;
+      if (!isDupe && dTs instanceof Date && dTs >= fourHoursAgo) {
+        if (String(posData[d][1]).toUpperCase() === symbol && String(posData[d][2]).toLowerCase() === signal) {
+          isDupe = true;
+        }
       }
+      // Check for open position (Entered with no resolved outcome)
+      var dAction = String(posData[d][8] || '').toLowerCase().trim();
+      var dOutcome = String(posData[d][9] || '').toLowerCase().trim();
+      if (String(posData[d][1]).toUpperCase() === symbol && dAction === 'entered' && (dOutcome === '' || dOutcome === 'open')) {
+        hasOpenPosition = true;
+      }
+      if (isDupe && hasOpenPosition) break;
     }
+    isDupe = isDupe || hasOpenPosition;
 
     // --- Signal Log (raw backup, always log) ---
     var logSheet = ss.getSheetByName(SIGNAL_LOG);
