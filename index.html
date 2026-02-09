@@ -1248,7 +1248,7 @@
     let allTickers = [];
     let allSignals = [];
     let showAllTickers = false;
-    const TICKER_LIMIT = 8;
+    const TICKER_LIMIT = 50;
 
     // ====== PUSH NOTIFICATIONS ======
     const NOTIF_KEY = 'crypto_known_picks';
@@ -1838,6 +1838,9 @@
         if (search) {
             tickers = allTickers.filter(t => t.ticker.toUpperCase().includes(search));
             btn.textContent = `${tickers.length} match${tickers.length !== 1 ? 'es' : ''}`;
+        } else if (!showAllTickers && tickers.length > TICKER_LIMIT) {
+            tickers = tickers.slice(0, TICKER_LIMIT);
+            btn.textContent = 'Show All (' + allTickers.length + ')';
         } else {
             btn.textContent = tickers.length + ' tickers';
         }
@@ -1853,8 +1856,9 @@
         const search = document.getElementById('tickerSearch');
         if (search.value.trim()) {
             search.value = '';
-            renderTickerGrid();
         }
+        showAllTickers = !showAllTickers;
+        renderTickerGrid();
     }
 
     // ====== HELPERS ======
