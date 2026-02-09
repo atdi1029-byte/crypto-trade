@@ -807,9 +807,9 @@ function serveDashboardJSON_() {
     currentStreak:   streaks.current > 0 ? streaks.current + 'W' : (streaks.current < 0 ? Math.abs(streaks.current) + 'L' : '0'),
     avgWinScore:     avgWinScore,
     avgLossScore:    avgLossScore,
-    bestTrade:       bestTrade ? bestTrade.ticker + ' (' + bestTradeWR + '%)' : 'N/A',
+    bestTrade:       bestTrade ? bestTrade.ticker : 'N/A',
     bestTradePnl:    bestTrade ? bestTrade.realizedPnl.toFixed(2) : '0.00',
-    worstTrade:      worstTrade ? worstTrade.ticker + ' (' + worstTradeWR + '%)' : 'N/A',
+    worstTrade:      worstTrade ? worstTrade.ticker : 'N/A',
     worstTradePnl:   worstTrade ? worstTrade.realizedPnl.toFixed(2) : '0.00'
   };
 
