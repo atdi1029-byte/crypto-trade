@@ -1797,12 +1797,7 @@
     function get2DayKey(ticker, signal) { return TWO_DAY_PREFIX + ticker.toUpperCase() + '_' + signal.toLowerCase(); }
     function toggle2DayCheck(ticker, signal, id) {
         const key = get2DayKey(ticker, signal);
-        const existing = localStorage.getItem(key);
-        if (existing && (Date.now() - Number(existing)) < TWO_DAY_MS) {
-            localStorage.removeItem(key);
-        } else {
-            localStorage.setItem(key, String(Date.now()));
-        }
+        localStorage.setItem(key, String(Date.now()));
         update2DayBtn(ticker, signal, id);
     }
     function update2DayBtn(ticker, signal, id) {
@@ -1831,6 +1826,10 @@
             const ticker = el.dataset.ticker;
             const signal = el.querySelector('.signal-tag')?.textContent?.toLowerCase() || '';
             const id = el.id;
+            const key = get2DayKey(ticker, signal);
+            if (!localStorage.getItem(key)) {
+                localStorage.setItem(key, String(Date.now()));
+            }
             update2DayBtn(ticker, signal, id);
         });
     }
