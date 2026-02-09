@@ -1,4 +1,4 @@
-const CACHE_NAME = 'crypto-trade-v43';
+const CACHE_NAME = 'crypto-trade-v44';
 const ASSETS = [
   './',
   './index.html',
@@ -26,8 +26,9 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  if (event.request.url.includes('script.google.com')) {
-    return event.respondWith(fetch(event.request));
+  // Let browser handle POST requests and API calls directly (no service worker proxy)
+  if (event.request.method !== 'GET' || event.request.url.includes('script.google.com')) {
+    return;
   }
   event.respondWith(
     caches.match(event.request).then(cached => cached || fetch(event.request))
