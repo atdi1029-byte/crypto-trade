@@ -601,66 +601,39 @@ function serveDashboardJSON_() {
     return parseFloat(b.winRate) - parseFloat(a.winRate);
   });
 
-  // --- All signals from Signal Log (fallback to Positions) ---
+  // --- All signals from Positions tab (enriched with Signal Log data) ---
+  // Use Positions as primary source since Signal Log may have been cleared
   var recentSignals = [];
-  if (logData.length > 1) {
-    var startIdx = 1;
-    for (var j = logData.length - 1; j >= startIdx; j--) {
-      var lr = logData[j];
-      var ts = lr[0];
-      var tsStr = '';
-      if (ts instanceof Date) {
-        tsStr = Utilities.formatDate(ts, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
-      } else {
-        tsStr = String(ts);
-      }
-      recentSignals.push({
-        timestamp: tsStr,
-        symbol:    String(lr[1] || '').toUpperCase(),
-        signal:    String(lr[2] || '').toLowerCase(),
-        entry:     lr[3] || 0,
-        sl:        lr[4] || 0,
-        tp1:       lr[5] || 0,
-        tp2:       lr[6] || 0,
-        macd:      String(lr[7] || ''),
-        volume:    String(lr[8] || ''),
-        cross:     lr[9],
-        inZone:    lr[10],
-        rsi:       lr[11] || null,
-        timeframe: String(lr[12] || ''),
-        score:     lr[13] || 0
-      });
+  for (var pj = posData.length - 1; pj >= 1; pj--) {
+    var pr = posData[pj];
+    var pSym = String(pr[1] || '').toUpperCase().trim();
+    if (!pSym) continue;
+    var pts = pr[0];
+    var ptsStr = '';
+    if (pts instanceof Date) {
+      ptsStr = Utilities.formatDate(pts, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+    } else {
+      ptsStr = String(pts);
     }
-  } else {
-    // Fallback: build from Positions tab when Signal Log is empty
-    for (var pj = posData.length - 1; pj >= 1; pj--) {
-      var pr = posData[pj];
-      var pSym = String(pr[1] || '').toUpperCase().trim();
-      if (!pSym) continue;
-      var pts = pr[0];
-      var ptsStr = '';
-      if (pts instanceof Date) {
-        ptsStr = Utilities.formatDate(pts, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
-      } else {
-        ptsStr = String(pts);
-      }
-      recentSignals.push({
-        timestamp: ptsStr,
-        symbol:    pSym,
-        signal:    String(pr[2] || '').toLowerCase(),
-        entry:     pr[3] || 0,
-        sl:        pr[4] || 0,
-        tp1:       pr[5] || 0,
-        tp2:       pr[6] || 0,
-        macd:      '',
-        volume:    '',
-        cross:     '',
-        inZone:    '',
-        rsi:       null,
-        timeframe: '',
-        score:     pr[7] || 0
-      });
-    }
+    // Enrich with Signal Log data (MACD, volume, RSI, etc.) if available
+    var logIdx = signalLookup[pSym + '|' + (pr[3] || 0)] || signalLookup[pSym];
+    var logRow = logIdx ? logData[logIdx] : null;
+    recentSignals.push({
+      timestamp: ptsStr,
+      symbol:    pSym,
+      signal:    String(pr[2] || '').toLowerCase(),
+      entry:     pr[3] || 0,
+      sl:        pr[4] || 0,
+      tp1:       pr[5] || 0,
+      tp2:       pr[6] || 0,
+      macd:      logRow ? String(logRow[7] || '') : '',
+      volume:    logRow ? String(logRow[8] || '') : '',
+      cross:     logRow ? logRow[9] : '',
+      inZone:    logRow ? logRow[10] : '',
+      rsi:       logRow ? (logRow[11] || null) : null,
+      timeframe: logRow ? String(logRow[12] || '') : '',
+      score:     pr[7] || 0
+    });
   }
 
   // --- Top picks (score >= 5) from recent signals, deduplicated by symbol ---
