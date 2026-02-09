@@ -2108,11 +2108,12 @@
                 pnlDisplay.style.color = newTotal >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
             }
 
-            // Save state to localStorage so it survives refresh
+            // Save to localStorage + sheet
             saveTradeState(ticker, signal, { status: 'tp', pnl: newTotal });
-            // Clear input for next partial
+            const tpParams = new URLSearchParams({ action: 'update', ticker, signal, price, field: 'pnl', profitLocked: newTotal.toFixed(2) });
+            fetch(POST_URL + '?' + tpParams);
             if (profitInput) profitInput.value = '';
-            return; // Don't send to sheet yet — wait for Closed
+            return;
 
         } else if (value === '0x0') {
             // Breakeven — keep card open
@@ -2128,7 +2129,10 @@
                 }
             }
             if (badge) badge.textContent = '0x0';
+            // Save to localStorage + sheet
             saveTradeState(ticker, signal, { status: '0x0', pnl: prevTotal });
+            const zParams = new URLSearchParams({ action: 'update', ticker, signal, price, field: 'pnl', profitLocked: '0' });
+            fetch(POST_URL + '?' + zParams);
             if (profitInput) profitInput.value = '';
             return;
 

@@ -283,8 +283,8 @@ function updatePosition_(ss, data) {
     var rowSignal = String(posData[i][2]).toLowerCase();
     var rowAction = String(posData[i][8] || '').trim();
 
-    if (field === 'outcome') {
-      // For outcome updates, match rows already marked as Entered with Open/empty outcome
+    if (field === 'outcome' || field === 'pnl') {
+      // For outcome/pnl updates, match rows already marked as Entered with Open/empty outcome
       var rowOutcome = String(posData[i][9] || '').toLowerCase().trim();
       if (rowSymbol === symbol && rowSignal === signal && rowAction.toLowerCase() === 'entered' && (rowOutcome === '' || rowOutcome === 'open')) {
         matchRows.push(i + 1);
@@ -322,6 +322,9 @@ function updatePosition_(ss, data) {
         }
       }
     }
+  } else if (field === 'pnl') {
+    // Update just the P&L column without closing the trade (Hit TP / 0x0)
+    posSheet.getRange(matchRows[0], 11).setValue(Number(realizedPnl) || 0); // Column K
   } else if (field === 'outcome') {
     posSheet.getRange(matchRows[0], 10).setValue(value);  // Column J = Outcome
     if (realizedPnl !== '') {
@@ -779,12 +782,12 @@ function serveDashboardJSON_() {
     avgLossScore = (lossScoreSum / losses.length).toFixed(1);
   }
 
-  // Best / worst individual trades by P&L + per-ticker win rates
+  // Best / worst individual trades by P&L (best must be positive, worst must be negative)
   var bestTrade = null, worstTrade = null;
   var tickerPerf = {};
   trades.forEach(function(t) {
-    if (!bestTrade || t.realizedPnl > bestTrade.realizedPnl) bestTrade = t;
-    if (!worstTrade || t.realizedPnl < worstTrade.realizedPnl) worstTrade = t;
+    if (t.realizedPnl > 0 && (!bestTrade || t.realizedPnl > bestTrade.realizedPnl)) bestTrade = t;
+    if (t.realizedPnl < 0 && (!worstTrade || t.realizedPnl < worstTrade.realizedPnl)) worstTrade = t;
     if (!tickerPerf[t.ticker]) tickerPerf[t.ticker] = { wins: 0, total: 0 };
     tickerPerf[t.ticker].total++;
     if (t.win) tickerPerf[t.ticker].wins++;
