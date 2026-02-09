@@ -779,22 +779,12 @@ function serveDashboardJSON_() {
     avgLossScore = (lossScoreSum / losses.length).toFixed(1);
   }
 
-  // Best / worst tickers
-  var bestTicker = '', worstTicker = '', bestWR = -1, worstWR = 101;
-  var tickerPerf = {};
+  // Best / worst individual trades by P&L
+  var bestTrade = null, worstTrade = null;
   trades.forEach(function(t) {
-    if (!tickerPerf[t.ticker]) tickerPerf[t.ticker] = { wins: 0, total: 0, pnl: 0 };
-    tickerPerf[t.ticker].total++;
-    if (t.win) tickerPerf[t.ticker].wins++;
-    tickerPerf[t.ticker].pnl += t.realizedPnl;
+    if (!bestTrade || t.realizedPnl > bestTrade.realizedPnl) bestTrade = t;
+    if (!worstTrade || t.realizedPnl < worstTrade.realizedPnl) worstTrade = t;
   });
-  for (var tp2 in tickerPerf) {
-    var wr = tickerPerf[tp2].wins / tickerPerf[tp2].total * 100;
-    if (wr > bestWR)  { bestWR = wr; bestTicker = tp2; }
-    if (wr < worstWR) { worstWR = wr; worstTicker = tp2; }
-  }
-  var bestPnl = bestTicker && tickerPerf[bestTicker] ? tickerPerf[bestTicker].pnl : 0;
-  var worstPnl = worstTicker && tickerPerf[worstTicker] ? tickerPerf[worstTicker].pnl : 0;
 
   var stats = {
     totalTrades:     trades.length,
@@ -811,10 +801,10 @@ function serveDashboardJSON_() {
     currentStreak:   streaks.current > 0 ? streaks.current + 'W' : (streaks.current < 0 ? Math.abs(streaks.current) + 'L' : '0'),
     avgWinScore:     avgWinScore,
     avgLossScore:    avgLossScore,
-    bestTicker:      bestTicker ? bestTicker + ' (' + bestWR.toFixed(0) + '%)' : 'N/A',
-    bestTickerPnl:   bestPnl.toFixed(2),
-    worstTicker:     worstTicker ? worstTicker + ' (' + worstWR.toFixed(0) + '%)' : 'N/A',
-    worstTickerPnl:  worstPnl.toFixed(2)
+    bestTrade:       bestTrade ? bestTrade.ticker : 'N/A',
+    bestTradePnl:    bestTrade ? bestTrade.realizedPnl.toFixed(2) : '0.00',
+    worstTrade:      worstTrade ? worstTrade.ticker : 'N/A',
+    worstTradePnl:   worstTrade ? worstTrade.realizedPnl.toFixed(2) : '0.00'
   };
 
   // --- Claude Picks (from Claude Code analysis) ---
