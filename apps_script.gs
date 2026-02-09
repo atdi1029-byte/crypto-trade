@@ -271,7 +271,7 @@ function updatePosition_(ss, data) {
   var entry  = data.entry || data.price || '';
   var field  = (data.field || '').toLowerCase();   // 'action' or 'outcome'
   var value  = data.value || '';                    // 'Entered','Skipped','Won','Lost','Open'
-  var realizedPnl = data.realized_pnl || data.realizedPnl || '';
+  var realizedPnl = data.realized_pnl || data.realizedPnl || data.profitLocked || '';
 
   var posSheet = ss.getSheetByName(POSITIONS);
   var posData  = posSheet.getDataRange().getValues();
@@ -283,8 +283,17 @@ function updatePosition_(ss, data) {
     var rowSignal = String(posData[i][2]).toLowerCase();
     var rowAction = String(posData[i][8] || '').trim();
 
-    if (rowSymbol === symbol && rowSignal === signal && rowAction === '') {
-      matchRows.push(i + 1); // 1-indexed for Sheets
+    if (field === 'outcome') {
+      // For outcome updates, match rows already marked as Entered with Open/empty outcome
+      var rowOutcome = String(posData[i][9] || '').toLowerCase().trim();
+      if (rowSymbol === symbol && rowSignal === signal && rowAction.toLowerCase() === 'entered' && (rowOutcome === '' || rowOutcome === 'open')) {
+        matchRows.push(i + 1);
+      }
+    } else {
+      // For action updates, match rows with empty action
+      if (rowSymbol === symbol && rowSignal === signal && rowAction === '') {
+        matchRows.push(i + 1);
+      }
     }
   }
 
@@ -404,6 +413,10 @@ function doGet(e) {
 
   if (action === 'scaling') {
     return serveScalingJSON_();
+  }
+
+  if (action === 'update') {
+    return updatePosition_(ss, e.parameter);
   }
 
   if (action === 'balance') {

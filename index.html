@@ -2031,20 +2031,11 @@
         el.style.transition = 'opacity 0.3s';
         el.style.opacity = '0';
         setTimeout(() => el.style.display = 'none', 300);
-        // Send to server in background
-        fetch(POST_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            body: JSON.stringify({
-                action: 'update_position',
-                ticker: ticker,
-                signal: signal,
-                price: price,
-                field: 'action',
-                value: value,
-                entrySize: entrySize
-            })
-        }).then(() => setTimeout(fetchData, 3000));
+        // Send to server via GET (avoids CORS issues with POST)
+        const params = new URLSearchParams({
+            action: 'update', ticker, signal, price, field: 'action', value
+        });
+        fetch(POST_URL + '?' + params).then(() => setTimeout(fetchData, 3000));
     }
 
     async function markOutcome(ticker, signal, price, value, elemId) {
@@ -2109,19 +2100,12 @@
             el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
 
             try {
-                await fetch(POST_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify({
-                        action: 'update_position',
-                        ticker: ticker,
-                        signal: signal,
-                        price: price,
-                        field: 'outcome',
-                        value: finalValue,
-                        profitLocked: grandTotal.toFixed(2)
-                    })
+                const params = new URLSearchParams({
+                    action: 'update', ticker, signal, price,
+                    field: 'outcome', value: finalValue,
+                    profitLocked: grandTotal.toFixed(2)
                 });
+                await fetch(POST_URL + '?' + params);
 
                 // Flash the total before fading
                 const header = el.querySelector('.ticker-header');
@@ -2170,20 +2154,11 @@
         el.style.transition = 'opacity 0.3s';
         el.style.opacity = '0';
         setTimeout(() => el.style.display = 'none', 300);
-        // Send to server in background
-        fetch(POST_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            body: JSON.stringify({
-                action: 'update_position',
-                ticker: ticker,
-                signal: signal,
-                price: price,
-                field: 'action',
-                value: value,
-                entrySize: entrySize
-            })
-        }).then(() => setTimeout(fetchData, 3000));
+        // Send to server via GET (avoids CORS issues with POST)
+        const params2 = new URLSearchParams({
+            action: 'update', ticker, signal, price, field: 'action', value
+        });
+        fetch(POST_URL + '?' + params2).then(() => setTimeout(fetchData, 3000));
     }
 
     // ====== EMPTY FALLBACK ======
