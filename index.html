@@ -2116,7 +2116,9 @@
             return;
 
         } else if (value === '0x0') {
-            // Breakeven — keep card open
+            // Breakeven — add any input P&L, keep card open
+            const newTotal = prevTotal + inputVal;
+            el.dataset.pnl = newTotal;
             el.dataset.status = '0x0';
             el.style.borderLeftColor = 'var(--accent)';
 
@@ -2128,10 +2130,17 @@
                     badge = el.querySelector('.pnl-badge');
                 }
             }
-            if (badge) badge.textContent = '0x0';
+            if (badge) badge.textContent = '0x0' + (newTotal !== 0 ? ' $' + newTotal.toFixed(2) : '');
+
+            const pnlDisplay = el.querySelector('.pnl-amount');
+            if (pnlDisplay) {
+                pnlDisplay.textContent = (newTotal >= 0 ? '+$' : '-$') + Math.abs(newTotal).toFixed(2);
+                pnlDisplay.style.color = newTotal > 0 ? 'var(--green-bright)' : newTotal < 0 ? 'var(--red-bright)' : 'var(--accent-glow)';
+            }
+
             // Save to localStorage + sheet
-            saveTradeState(ticker, signal, { status: '0x0', pnl: prevTotal });
-            const zParams = new URLSearchParams({ action: 'update', ticker, signal, price, field: 'pnl', profitLocked: '0' });
+            saveTradeState(ticker, signal, { status: '0x0', pnl: newTotal });
+            const zParams = new URLSearchParams({ action: 'update', ticker, signal, price, field: 'pnl', profitLocked: newTotal.toFixed(2) });
             fetch(POST_URL + '?' + zParams);
             if (profitInput) profitInput.value = '';
             return;
