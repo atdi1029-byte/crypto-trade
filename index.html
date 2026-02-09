@@ -1687,9 +1687,7 @@
     function renderSignalsTable(signals) {
         // signalCount removed from UI
         const tbody = document.getElementById('signalsBody');
-        const capped = signals.slice(0, 80);
-
-        tbody.innerHTML = capped.map(s => {
+        tbody.innerHTML = signals.map(s => {
             const dir = (s.direction || s.signal || '').toLowerCase();
             const dirClass = dir === 'short' ? 'short' : 'long';
             const scoreClass = getScoreClass(s._score);
@@ -1840,21 +1838,14 @@
         if (search) {
             tickers = allTickers.filter(t => t.ticker.toUpperCase().includes(search));
             btn.textContent = `${tickers.length} match${tickers.length !== 1 ? 'es' : ''}`;
-            btn.classList.remove('active');
-        } else if (showAllTickers) {
-            btn.textContent = 'Show Recent ' + TICKER_LIMIT;
-            btn.classList.add('active');
         } else {
-            tickers = tickers.slice(0, TICKER_LIMIT);
-            btn.textContent = 'Show All (' + allTickers.length + ')';
-            btn.classList.remove('active');
+            btn.textContent = tickers.length + ' tickers';
         }
 
         grid.innerHTML = tickers.map((t, i) => renderTickerCard(t, i)).join('');
     }
 
     function filterTickers() {
-        showAllTickers = false;
         renderTickerGrid();
     }
 
@@ -1862,9 +1853,8 @@
         const search = document.getElementById('tickerSearch');
         if (search.value.trim()) {
             search.value = '';
+            renderTickerGrid();
         }
-        showAllTickers = !showAllTickers;
-        renderTickerGrid();
     }
 
     // ====== HELPERS ======

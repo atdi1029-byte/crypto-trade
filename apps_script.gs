@@ -601,10 +601,10 @@ function serveDashboardJSON_() {
     return parseFloat(b.winRate) - parseFloat(a.winRate);
   });
 
-  // --- Recent signals (last 80 from Signal Log, fallback to Positions) ---
+  // --- All signals from Signal Log (fallback to Positions) ---
   var recentSignals = [];
   if (logData.length > 1) {
-    var startIdx = Math.max(1, logData.length - 80);
+    var startIdx = 1;
     for (var j = logData.length - 1; j >= startIdx; j--) {
       var lr = logData[j];
       var ts = lr[0];
@@ -633,8 +633,7 @@ function serveDashboardJSON_() {
     }
   } else {
     // Fallback: build from Positions tab when Signal Log is empty
-    var posStart = Math.max(1, posData.length - 80);
-    for (var pj = posData.length - 1; pj >= posStart; pj--) {
+    for (var pj = posData.length - 1; pj >= 1; pj--) {
       var pr = posData[pj];
       var pSym = String(pr[1] || '').toUpperCase().trim();
       if (!pSym) continue;
