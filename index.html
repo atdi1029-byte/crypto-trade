@@ -1687,8 +1687,9 @@
     function renderSignalsTable(signals) {
         // signalCount removed from UI
         const tbody = document.getElementById('signalsBody');
+        const capped = signals.slice(0, 80);
 
-        tbody.innerHTML = signals.map(s => {
+        tbody.innerHTML = capped.map(s => {
             const dir = (s.direction || s.signal || '').toLowerCase();
             const dirClass = dir === 'short' ? 'short' : 'long';
             const scoreClass = getScoreClass(s._score);
@@ -1840,13 +1841,13 @@
             tickers = allTickers.filter(t => t.ticker.toUpperCase().includes(search));
             btn.textContent = `${tickers.length} match${tickers.length !== 1 ? 'es' : ''}`;
             btn.classList.remove('active');
-        } else if (!showAllTickers && tickers.length > TICKER_LIMIT) {
-            tickers = tickers.slice(0, TICKER_LIMIT);
-            btn.textContent = 'Show All';
-            btn.classList.remove('active');
-        } else {
-            btn.textContent = 'Show Recent';
+        } else if (showAllTickers) {
+            btn.textContent = 'Show Recent ' + TICKER_LIMIT;
             btn.classList.add('active');
+        } else {
+            tickers = tickers.slice(0, TICKER_LIMIT);
+            btn.textContent = 'Show All (' + allTickers.length + ')';
+            btn.classList.remove('active');
         }
 
         grid.innerHTML = tickers.map((t, i) => renderTickerCard(t, i)).join('');
