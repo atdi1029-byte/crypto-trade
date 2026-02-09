@@ -2592,6 +2592,16 @@
             }
         }
 
+        // Fallback: assume raw word is a coin symbol, append USDT
+        if (!ticker) {
+            for (let w = 0; w < words.length; w++) {
+                if (words[w].length >= 2 && words[w].length <= 10) {
+                    ticker = words[w].toUpperCase() + 'USDT';
+                    break;
+                }
+            }
+        }
+
         if (!ticker) return null;
         return { ticker, amount, isChart };
     }
