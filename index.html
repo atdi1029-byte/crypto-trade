@@ -1052,6 +1052,8 @@
             .zen-capybara { display: none; }
             #zenWisdomText { display: none; }
             .mobile-footer-quote { display: block !important; }
+            .open-trade-item .pnl-display { display: none !important; }
+            .open-trade-item .action-buttons { flex-wrap: wrap; }
         }
     </style>
 </head>
@@ -1646,13 +1648,21 @@
             let state = getTradeState(ticker, signal);
             if (!state) {
                 const apiPnl = Number(el.dataset.pnl) || 0;
-                if (apiPnl > 0) {
-                    state = { status: 'tp', pnl: apiPnl };
-                } else if (apiPnl !== 0) {
-                    state = { status: '0x0', pnl: apiPnl };
-                } else {
-                    return;
+                if (apiPnl !== 0) {
+                    // API has P&L but we don't know if it was 0x0 or TP — show P&L badge
+                    el.dataset.pnl = apiPnl;
+                    el.style.borderLeftColor = apiPnl > 0 ? 'var(--green-candle)' : 'var(--accent)';
+                    el.classList.remove('needs-attention');
+                    const header = el.querySelector('.ticker-header');
+                    const pStr = apiPnl >= 0 ? '+$' + apiPnl.toFixed(2) : '-$' + Math.abs(apiPnl).toFixed(2);
+                    if (header) header.insertAdjacentHTML('beforeend', `<span class="pnl-badge" style="font-size:0.55rem;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto;background:rgba(74,158,255,0.13);color:var(--accent-glow)">P&L ${pStr}</span>`);
+                    const pnlDisplay = el.querySelector('.pnl-amount');
+                    if (pnlDisplay) {
+                        pnlDisplay.textContent = pStr;
+                        pnlDisplay.style.color = apiPnl >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
+                    }
                 }
+                return;
             }
             el.dataset.pnl = state.pnl || 0;
             el.dataset.status = state.status || 'active';
