@@ -419,6 +419,7 @@ function doGet(e) {
   }
 
   if (action === 'update') {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
     return updatePosition_(ss, e.parameter);
   }
 
