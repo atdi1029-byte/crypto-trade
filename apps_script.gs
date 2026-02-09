@@ -810,7 +810,21 @@ function serveDashboardJSON_() {
     bestTrade:       bestTrade ? bestTrade.ticker : 'N/A',
     bestTradePnl:    bestTrade ? bestTrade.realizedPnl.toFixed(2) : '0.00',
     worstTrade:      worstTrade ? worstTrade.ticker : 'N/A',
-    worstTradePnl:   worstTrade ? worstTrade.realizedPnl.toFixed(2) : '0.00'
+    worstTradePnl:   worstTrade ? worstTrade.realizedPnl.toFixed(2) : '0.00',
+    winRateByScore:  (function() {
+      var buckets = { high: { w:0, t:0 }, mid: { w:0, t:0 }, low: { w:0, t:0 } };
+      trades.forEach(function(t) {
+        var s = Number(t.score);
+        var b = s >= 5 ? 'high' : s >= 3 ? 'mid' : 'low';
+        buckets[b].t++;
+        if (t.win) buckets[b].w++;
+      });
+      return {
+        high: buckets.high.t > 0 ? (buckets.high.w / buckets.high.t * 100).toFixed(0) + '%' : null,
+        mid:  buckets.mid.t > 0  ? (buckets.mid.w / buckets.mid.t * 100).toFixed(0) + '%' : null,
+        low:  buckets.low.t > 0  ? (buckets.low.w / buckets.low.t * 100).toFixed(0) + '%' : null
+      };
+    })()
   };
 
   // --- Claude Picks (from Claude Code analysis) ---

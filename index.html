@@ -929,16 +929,17 @@
         }
         .perf-item .perf-val {
             font-family: 'Space Mono', monospace;
-            font-size: 1.2rem;
+            font-size: 1.8rem;
             font-weight: 700;
             color: var(--text-bright);
+            line-height: 1.2;
         }
         .perf-item .perf-label {
-            font-size: 0.55rem;
+            font-size: 0.65rem;
             color: var(--text-dim);
             text-transform: uppercase;
             letter-spacing: 1.5px;
-            margin-top: 3px;
+            margin-top: 4px;
         }
 
         /* ============ LOADING / ERROR ============ */
@@ -1673,12 +1674,12 @@
 
         perfGrid.innerHTML = `
             <div class="perf-item">
-                <div class="perf-val" style="color:var(--green-bright);font-size:1.6rem;text-shadow:0 0 12px var(--green-bright),0 0 24px rgba(0,255,136,0.3)">+$${stats.bestTradePnl || '0'}</div>
+                <div class="perf-val" style="color:var(--green-bright);text-shadow:0 0 15px var(--green-bright),0 0 30px rgba(0,255,136,0.4)">+$${stats.bestTradePnl || '0'}</div>
                 <div class="perf-label">Best Trade</div>
                 <div style="font-size:0.55rem;color:var(--green-bright);margin-top:2px">${stats.bestTrade || '-'}</div>
             </div>
             <div class="perf-item">
-                <div class="perf-val" style="color:var(--red-bright);font-size:1.6rem;text-shadow:0 0 12px var(--red-bright),0 0 24px rgba(255,68,68,0.3)">${parseFloat(stats.worstTradePnl || 0) < 0 ? '-$' + Math.abs(parseFloat(stats.worstTradePnl)).toFixed(2) : '$' + (stats.worstTradePnl || '0')}</div>
+                <div class="perf-val" style="color:var(--red-bright);text-shadow:0 0 15px var(--red-bright),0 0 30px rgba(255,68,68,0.4)">${parseFloat(stats.worstTradePnl || 0) < 0 ? '-$' + Math.abs(parseFloat(stats.worstTradePnl)).toFixed(2) : '$' + (stats.worstTradePnl || '0')}</div>
                 <div class="perf-label">Worst Trade</div>
                 <div style="font-size:0.55rem;color:var(--red-bright);margin-top:2px">${stats.worstTrade || '-'}</div>
             </div>
