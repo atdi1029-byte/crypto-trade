@@ -376,6 +376,14 @@
             color: var(--text-bright);
             letter-spacing: 1px;
         }
+        .open-trade-item .pnl-badge {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 4px;
+            margin-left: auto;
+            white-space: nowrap;
+        }
         .top-picks-section { margin-bottom: 1.5rem; }
         .top-picks-grid {
             display: grid;
@@ -1603,7 +1611,7 @@
             const signalClass = signalType.includes('sell') || signalType.includes('short') ? 'sell' : 'buy';
 
             return `
-                <div class="open-trade-item needs-attention" id="${id}" data-status="${apiPnl ? 'has-pnl' : 'active'}" data-ticker="${esc(tkr).toUpperCase()}" data-pnl="${apiPnl}">
+                <div class="open-trade-item needs-attention" id="${id}" data-status="${apiPnl ? 'has-pnl' : 'active'}" data-ticker="${esc(tkr).toUpperCase()}" data-pnl="${apiPnl}" data-trade-status="${a.tradeStatus || ''}">
                     <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem">
                         <div style="flex:1">
                             <div class="ticker-header">
@@ -1652,7 +1660,11 @@
                 pnl = state.pnl || 0;
             } else {
                 const apiPnl = Number(el.dataset.pnl) || 0;
-                if (apiPnl !== 0) {
+                const apiStatus = (el.dataset.tradeStatus || '').toLowerCase();
+                if (apiStatus === '0x0' || apiStatus === 'tp') {
+                    status = apiStatus;
+                    pnl = apiPnl;
+                } else if (apiPnl !== 0) {
                     status = 'has-pnl';
                     pnl = apiPnl;
                 } else {
@@ -1666,16 +1678,16 @@
             if (status === 'tp') {
                 el.style.borderLeftColor = 'var(--green-candle)';
                 const header = el.querySelector('.ticker-header');
-                if (header) header.insertAdjacentHTML('beforeend', `<span class="pnl-badge" style="font-size:0.55rem;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto;background:var(--green-dim);color:var(--green-bright)">TP ${pnl >= 0 ? '+$' + Number(pnl).toFixed(2) : '-$' + Math.abs(pnl).toFixed(2)}</span>`);
+                if (header) header.insertAdjacentHTML('beforeend', `<span class="pnl-badge" style="background:var(--green-dim);color:var(--green-bright)">TP ${pnl >= 0 ? '+$' + Number(pnl).toFixed(2) : '-$' + Math.abs(pnl).toFixed(2)}</span>`);
             } else if (status === '0x0') {
                 el.style.borderLeftColor = 'var(--accent)';
                 const header = el.querySelector('.ticker-header');
-                if (header) header.insertAdjacentHTML('beforeend', '<span class="pnl-badge" style="font-size:0.55rem;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto;background:#4a9eff22;color:var(--accent-glow)">0x0</span>');
+                if (header) header.insertAdjacentHTML('beforeend', '<span class="pnl-badge" style="background:#4a9eff22;color:var(--accent-glow)">0x0</span>');
             } else {
                 el.style.borderLeftColor = 'var(--green-candle)';
                 const header = el.querySelector('.ticker-header');
                 const pStr = pnl >= 0 ? '+$' + Number(pnl).toFixed(2) : '-$' + Math.abs(pnl).toFixed(2);
-                if (header) header.insertAdjacentHTML('beforeend', `<span class="pnl-badge" style="font-size:0.55rem;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto;background:rgba(74,158,255,0.13);color:var(--accent-glow)">P&L ${pStr}</span>`);
+                if (header) header.insertAdjacentHTML('beforeend', `<span class="pnl-badge" style="background:rgba(74,158,255,0.13);color:var(--accent-glow)">P&L ${pStr}</span>`);
             }
             // Update P&L display
             const p = Number(pnl);
@@ -2130,7 +2142,7 @@
             if (!badge) {
                 const header = el.querySelector('.ticker-header');
                 if (header) {
-                    header.insertAdjacentHTML('beforeend', '<span class="pnl-badge" style="font-size:0.55rem;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto;background:var(--green-dim);color:var(--green-bright)"></span>');
+                    header.insertAdjacentHTML('beforeend', '<span class="pnl-badge" style="background:var(--green-dim);color:var(--green-bright)"></span>');
                     badge = el.querySelector('.pnl-badge');
                 }
             }
@@ -2145,7 +2157,7 @@
 
             // Save to localStorage + sheet
             saveTradeState(ticker, signal, { status: 'tp', pnl: newTotal });
-            const tpParams = new URLSearchParams({ action: 'update', ticker, signal, price, field: 'pnl', profitLocked: newTotal.toFixed(2) });
+            const tpParams = new URLSearchParams({ action: 'update', ticker, signal, price, field: 'pnl', profitLocked: newTotal.toFixed(2), tradeStatus: 'tp' });
             fetch(POST_URL + '?' + tpParams);
             if (profitInput) profitInput.value = '';
             return;
@@ -2161,7 +2173,7 @@
             if (!badge) {
                 const header = el.querySelector('.ticker-header');
                 if (header) {
-                    header.insertAdjacentHTML('beforeend', '<span class="pnl-badge" style="font-size:0.55rem;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto;background:#4a9eff22;color:var(--accent-glow)"></span>');
+                    header.insertAdjacentHTML('beforeend', '<span class="pnl-badge" style="background:#4a9eff22;color:var(--accent-glow)"></span>');
                     badge = el.querySelector('.pnl-badge');
                 }
             }
@@ -2175,7 +2187,7 @@
 
             // Save to localStorage + sheet
             saveTradeState(ticker, signal, { status: '0x0', pnl: newTotal });
-            const zParams = new URLSearchParams({ action: 'update', ticker, signal, price, field: 'pnl', profitLocked: newTotal.toFixed(2) });
+            const zParams = new URLSearchParams({ action: 'update', ticker, signal, price, field: 'pnl', profitLocked: newTotal.toFixed(2), tradeStatus: '0x0' });
             fetch(POST_URL + '?' + zParams);
             if (profitInput) profitInput.value = '';
             return;
@@ -2200,7 +2212,7 @@
                 const header = el.querySelector('.ticker-header');
                 let badge = el.querySelector('.pnl-badge');
                 if (!badge && header) {
-                    header.insertAdjacentHTML('beforeend', '<span class="pnl-badge" style="font-size:0.55rem;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto"></span>');
+                    header.insertAdjacentHTML('beforeend', '<span class="pnl-badge"></span>');
                     badge = el.querySelector('.pnl-badge');
                 }
                 if (badge) {

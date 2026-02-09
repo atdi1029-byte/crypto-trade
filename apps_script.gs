@@ -336,6 +336,10 @@ function updatePosition_(ss, data) {
   } else if (field === 'pnl') {
     // Update just the P&L column without closing the trade (Hit TP / 0x0)
     posSheet.getRange(matchRows[0], 11).setValue(Number(realizedPnl) || 0); // Column K
+    var tradeStatus = data.tradeStatus || '';
+    if (tradeStatus) {
+      posSheet.getRange(matchRows[0], 12).setValue(tradeStatus); // Column L = Trade Status (0x0/tp)
+    }
   } else if (field === 'outcome') {
     posSheet.getRange(matchRows[0], 10).setValue(value);  // Column J = Outcome
     if (realizedPnl !== '') {
@@ -711,6 +715,7 @@ function serveDashboardJSON_() {
       });
     } else if (pAction.toLowerCase() === 'entered' && (pOutcome === '' || pOutcome.toLowerCase() === 'open')) {
       var savedPnl = pr[10] || 0;
+      var savedStatus = pr[11] || '';
       actionNeeded.push({
         symbol:    pSymbol,
         signal:    pSignal,
@@ -719,6 +724,7 @@ function serveDashboardJSON_() {
         timestamp: '',
         type:      'mark_outcome',
         realizedPnl: savedPnl ? Number(savedPnl) : 0,
+        tradeStatus: String(savedStatus).toLowerCase(),
         rsi:       logRow ? (logRow[11] || null) : null,
         macd:      logRow ? String(logRow[7] || '') : '',
         volume:    logRow ? String(logRow[8] || '') : '',
