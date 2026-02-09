@@ -1552,7 +1552,7 @@
         pnlEl.className = 'stat-value' + (typeof pnl === 'number' && pnl > 0 ? ' green' : typeof pnl === 'number' && pnl < 0 ? ' red' : '');
 
         // --- Top Picks (Claude's recommendations) ---
-        renderTopPicks(claudePicks || [], scoredSignals);
+        renderTopPicks(claudePicks || [], scoredSignals, actionNeeded || []);
 
         // --- Split actions: new signals vs open trades ---
         const allActions = actionNeeded || [];
@@ -1589,14 +1589,26 @@
     }
 
     // ====== TOP PICKS (Claude's Recommendations) ======
-    function renderTopPicks(claudePicks, signals) {
+    function renderTopPicks(claudePicks, signals, actionNeeded) {
         const grid = document.getElementById('topPicksGrid');
         const countEl = document.getElementById('topPicksCount');
+
+        // Build set of symbols still needing action (from Google Sheet)
+        const pendingSet = new Set();
+        (actionNeeded || []).filter(a => a.type === 'mark_action').forEach(a => {
+            pendingSet.add((a.symbol || a.ticker || '').toUpperCase() + '|' + (a.signal || '').toLowerCase());
+        });
 
         // Use Claude picks if available, otherwise fall back to auto-scored
         const hasClaude = claudePicks && claudePicks.length > 0;
         const allPicks = hasClaude ? claudePicks : signals.filter(s => (s.score || s._score) >= 5);
-        const picks = allPicks.filter(s => !isActed(s.symbol || s.ticker || '', s.signal || s.direction || ''));
+        const picks = allPicks.filter(s => {
+            const sym = (s.symbol || s.ticker || '').toUpperCase();
+            const sig = (s.signal || s.direction || '').toLowerCase();
+            const key = sym + '|' + sig;
+            // Hide if acted locally OR if not in pending actions from sheet
+            return !isActed(sym, sig) && pendingSet.has(key);
+        });
         countEl.textContent = picks.length;
 
         if (picks.length === 0) {
