@@ -710,6 +710,7 @@ function serveDashboardJSON_() {
         message:   'Mark ' + pSignal.toUpperCase() + ' @ ' + pr[3] + ' as Entered/Skipped (score: ' + (pr[7] || 0) + ')'
       });
     } else if (pAction.toLowerCase() === 'entered' && (pOutcome === '' || pOutcome.toLowerCase() === 'open')) {
+      var savedPnl = pr[10] || 0;
       actionNeeded.push({
         symbol:    pSymbol,
         signal:    pSignal,
@@ -717,6 +718,7 @@ function serveDashboardJSON_() {
         score:     pr[7] || 0,
         timestamp: '',
         type:      'mark_outcome',
+        realizedPnl: savedPnl ? Number(savedPnl) : 0,
         rsi:       logRow ? (logRow[11] || null) : null,
         macd:      logRow ? String(logRow[7] || '') : '',
         volume:    logRow ? String(logRow[8] || '') : '',

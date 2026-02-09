@@ -1052,6 +1052,9 @@
             .zen-capybara { display: none; }
             #zenWisdomText { display: none; }
             .mobile-footer-quote { display: block !important; }
+            .open-trade-item > div { flex-direction: column !important; align-items: stretch !important; }
+            .open-trade-item .pnl-display { flex-direction: row !important; justify-content: space-between; align-items: center; min-width: unset !important; text-align: left !important; padding: 0.4rem 0; border-top: 1px solid var(--border); margin-top: 0.4rem; }
+            .open-trade-item .action-buttons { flex-wrap: wrap; }
         }
     </style>
 </head>
@@ -1591,6 +1594,7 @@
             const id = 'open-' + i;
             const tkr = a.ticker || a.symbol || '';
             const prc = a.price || a.entry || 0;
+            const apiPnl = a.realizedPnl || 0;
             const sym = getCoinSymbol(tkr);
             const iconUrl = sym ? `https://assets.coincap.io/assets/icons/${sym}@2x.png` : '';
             const fallbackText = sym ? sym.slice(0,2).toUpperCase() : '?';
@@ -1600,7 +1604,7 @@
             const signalClass = signalType.includes('sell') || signalType.includes('short') ? 'sell' : 'buy';
 
             return `
-                <div class="open-trade-item needs-attention" id="${id}" data-status="active" data-ticker="${esc(tkr).toUpperCase()}" data-pnl="0">
+                <div class="open-trade-item needs-attention" id="${id}" data-status="${apiPnl ? 'has-pnl' : 'active'}" data-ticker="${esc(tkr).toUpperCase()}" data-pnl="${apiPnl}">
                     <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem">
                         <div style="flex:1">
                             <div class="ticker-header">
@@ -1641,16 +1645,28 @@
         document.querySelectorAll('.open-trade-item').forEach(el => {
             const ticker = el.dataset.ticker;
             const signal = el.querySelector('.signal-tag')?.textContent?.toLowerCase() || '';
-            const state = getTradeState(ticker, signal);
-            if (!state) return;
+            // Check localStorage first, then fall back to API data
+            let state = getTradeState(ticker, signal);
+            if (!state) {
+                const apiPnl = Number(el.dataset.pnl) || 0;
+                if (apiPnl > 0) {
+                    state = { status: 'tp', pnl: apiPnl };
+                } else if (apiPnl !== 0) {
+                    state = { status: '0x0', pnl: apiPnl };
+                } else {
+                    return;
+                }
+            }
             el.dataset.pnl = state.pnl || 0;
             el.dataset.status = state.status || 'active';
             if (state.status === 'tp') {
                 el.style.borderLeftColor = 'var(--green-candle)';
+                el.classList.remove('needs-attention');
                 const header = el.querySelector('.ticker-header');
                 if (header) header.insertAdjacentHTML('beforeend', `<span class="pnl-badge" style="font-size:0.55rem;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto;background:var(--green-dim);color:var(--green-bright)">TP ${state.pnl >= 0 ? '+$' + Number(state.pnl).toFixed(2) : '-$' + Math.abs(state.pnl).toFixed(2)}</span>`);
             } else if (state.status === '0x0') {
                 el.style.borderLeftColor = 'var(--accent)';
+                el.classList.remove('needs-attention');
                 const header = el.querySelector('.ticker-header');
                 if (header) header.insertAdjacentHTML('beforeend', '<span class="pnl-badge" style="font-size:0.55rem;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto;background:#4a9eff22;color:var(--accent-glow)">0x0</span>');
             }
