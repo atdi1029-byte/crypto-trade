@@ -1312,16 +1312,25 @@
     }
 
     // ====== FETCH DATA ======
+    function dbg(msg) {
+        const b = document.getElementById('errorBanner');
+        b.className = 'error-banner show';
+        b.textContent = (b.textContent ? b.textContent + ' | ' : '') + msg;
+    }
     async function fetchData() {
         const dot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
         dot.className = 'status-dot loading';
         statusText.textContent = 'Fetching...';
+        dbg('START');
 
         try {
+            dbg('fetching...');
             const resp = await fetch(API_URL);
+            dbg('resp=' + resp.status);
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
             const data = await resp.json();
+            dbg('json ok, signals=' + (data.recentSignals||[]).length);
 
             if (data.status !== 'ok') throw new Error(data.message || 'Bad response');
 
@@ -1334,13 +1343,11 @@
             document.getElementById('errorBanner').className = 'error-banner';
             document.getElementById('loading').className = 'loading-overlay hidden';
         } catch (err) {
+            dbg('ERR: ' + err.message);
             renderDashboard(EMPTY_DATA);
             dot.className = 'status-dot';
             statusText.textContent = 'Error';
             document.getElementById('lastUpdate').textContent = 'No data';
-            const banner = document.getElementById('errorBanner');
-            banner.textContent = 'Fetch failed: ' + err.message;
-            banner.className = 'error-banner show';
             document.getElementById('loading').className = 'loading-overlay hidden';
         }
 
