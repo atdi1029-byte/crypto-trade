@@ -738,6 +738,8 @@
             grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
             gap: 0.75rem;
             margin-bottom: 1.5rem;
+            max-height: 600px;
+            overflow-y: auto;
         }
         .ticker-card {
             background: var(--bg-card);
@@ -1391,7 +1393,7 @@
                 latestByTicker[sym] = t || (i + 1);
             }
         });
-        allTickers = (tickers || []).slice().sort((a, b) => {
+        allTickers = (tickers || []).filter(t => (t.totalTrades || 0) > 0 || (t.openPositions || 0) > 0).slice().sort((a, b) => {
             const aKey = (a.ticker || '').toUpperCase();
             const bKey = (b.ticker || '').toUpperCase();
             const aTime = (a.lastSignalTime ? new Date(a.lastSignalTime).getTime() : 0) || latestByTicker[aKey] || 0;
