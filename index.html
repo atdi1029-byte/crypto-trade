@@ -1136,22 +1136,31 @@
         /* ============ SCALING SECTION ============ */
         .scaling-section { margin: 1.5rem 0; }
         .scaling-box {
-            background: rgba(8,12,18,0.85);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.2rem 1.5rem;
+            background: rgba(8,12,18,0.88);
+            border: 2px solid var(--accent-deep);
+            border-image: linear-gradient(135deg, var(--accent-deep), var(--border-light), var(--accent-deep)) 1;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 0 20px rgba(74,158,255,0.15), inset 0 0 30px rgba(0,0,0,0.3);
         }
         .scaling-phase {
             text-align: center;
-            margin-bottom: 1rem;
+            margin-bottom: 1.2rem;
         }
         .scaling-phase-name {
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: var(--accent-glow);
+            text-shadow: 0 0 15px var(--accent-glow), 0 0 30px rgba(106,180,255,0.5), 0 0 50px rgba(106,180,255,0.2);
+            letter-spacing: 2px;
+        }
+        .scaling-pnl {
             font-size: 1.1rem;
             font-weight: 700;
-            color: var(--accent-glow);
-            text-shadow: 0 0 12px var(--accent-glow), 0 0 25px rgba(106,180,255,0.4);
-            letter-spacing: 1px;
+            margin-top: 0.4rem;
         }
+        .scaling-pnl.positive { color: var(--green-bright); text-shadow: 0 0 10px var(--green-bright), 0 0 20px rgba(77,208,196,0.4); }
+        .scaling-pnl.negative { color: var(--red-bright); text-shadow: 0 0 10px var(--red-bright), 0 0 20px rgba(255,107,107,0.4); }
+        .scaling-pnl.zero { color: var(--text-dim); }
         .scaling-phase-range {
             font-size: 0.65rem;
             color: var(--text-dim);
@@ -1221,10 +1230,13 @@
         }
         .scaling-next-tier {
             text-align: center;
-            margin-top: 0.6rem;
-            font-size: 0.6rem;
-            color: var(--accent);
-            opacity: 0.8;
+            margin-top: 0.8rem;
+            font-size: 0.75rem;
+            color: var(--accent-glow);
+            text-shadow: 0 0 8px rgba(106,180,255,0.4);
+            font-weight: 700;
+            padding: 0.5rem;
+            border-top: 1px solid var(--border);
         }
 
         @media (max-width: 768px) {
@@ -2852,17 +2864,21 @@
 
     // ====== SCALING PLAN ======
     const SCALING_TABLE = [
+        // Phase 1: Proving ($0-$500) — smooth ramp, $25-$50 steps
         { min: 0,     sizes: [1,1,1,1,1] },
-        { min: 50,    sizes: [3,2,2,1,1] },
-        { min: 100,   sizes: [4,3,2,1,1] },
-        { min: 150,   sizes: [5,3,2,1,1] },
-        { min: 200,   sizes: [5,3,2,2,1] },
-        { min: 250,   sizes: [5,3,3,3,2] },
-        { min: 300,   sizes: [5,4,3,3,2] },
-        { min: 350,   sizes: [5,4,4,4,2] },
-        { min: 400,   sizes: [5,5,4,4,2] },
-        { min: 450,   sizes: [5,5,5,4,2] },
+        { min: 25,    sizes: [2,1,1,1,1] },
+        { min: 50,    sizes: [2,2,1,1,1] },
+        { min: 75,    sizes: [2,2,2,1,1] },
+        { min: 100,   sizes: [3,2,2,2,1] },
+        { min: 150,   sizes: [3,3,2,2,1] },
+        { min: 200,   sizes: [3,3,3,2,1] },
+        { min: 250,   sizes: [4,3,3,3,2] },
+        { min: 300,   sizes: [4,4,3,3,2] },
+        { min: 350,   sizes: [4,4,4,3,2] },
+        { min: 400,   sizes: [5,4,4,4,2] },
+        { min: 450,   sizes: [5,5,4,4,2] },
         { min: 500,   sizes: [5,5,5,5,3] },
+        // Phase 2: Early Scaling ($500-$5k)
         { min: 750,   sizes: [6,6,6,6,3] },
         { min: 1000,  sizes: [7,7,7,7,4] },
         { min: 1500,  sizes: [8,8,8,8,4] },
@@ -2925,8 +2941,12 @@
         const nextTier = getNextTier(pnl);
         const totalRisk = sizes.reduce((a, b) => a + b, 0);
 
+        const pnlStr = pnl >= 0 ? '+$' + pnl.toFixed(2) : '-$' + Math.abs(pnl).toFixed(2);
+        const pnlClass = pnl > 0 ? 'positive' : pnl < 0 ? 'negative' : 'zero';
+
         let html = `<div class="scaling-phase">
             <div class="scaling-phase-name">${phase.name}</div>
+            <div class="scaling-pnl ${pnlClass}">P&L: ${pnlStr}</div>
             <div class="scaling-phase-range">${phase.range} profit &middot; Total risk: $${totalRisk}</div>
         </div>`;
 
@@ -2952,7 +2972,7 @@
         if (nextTier && pnl < nextTier.profit) {
             const needed = nextTier.profit - Math.max(0, pnl);
             const nextSizes = nextTier.sizes.map(s => '$' + s).join(' / ');
-            html += `<div class="scaling-next-tier">+$${needed.toFixed(0)} profit to unlock ${nextSizes} sizing</div>`;
+            html += `<div class="scaling-next-tier">$${needed.toFixed(0)} more profit to unlock next level: ${nextSizes}</div>`;
         }
 
         box.innerHTML = html;
