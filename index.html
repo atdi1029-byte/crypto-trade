@@ -1233,6 +1233,32 @@
             color: var(--text-dim);
             margin-top: 0.3rem;
         }
+        .scaling-xp-bar {
+            margin: 0.8rem auto 1.2rem;
+            max-width: 500px;
+            position: relative;
+        }
+        .scaling-xp-track {
+            height: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .scaling-xp-fill {
+            height: 100%;
+            border-radius: 6px;
+            background: linear-gradient(90deg, var(--accent-deep), var(--green-bright));
+            box-shadow: 0 0 10px var(--green-bright), 0 0 20px rgba(77,208,196,0.3);
+            transition: width 0.8s ease;
+        }
+        .scaling-xp-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.3rem;
+            font-size: 0.5rem;
+            color: var(--text-dim);
+        }
         .scaling-slots {
             display: flex;
             gap: 0.8rem;
@@ -3085,10 +3111,31 @@
         const pnlClass = pnl > 0 ? 'positive' : pnl < 0 ? 'negative' : 'zero';
         const needStr = nextTier ? '$' + (nextTier.profit - pnl).toFixed(2) + ' to next level' : '';
 
+        // XP bar: find current tier min and next tier min
+        let currentTierMin = 0;
+        for (const tier of SCALING_TABLE) {
+            if (pnl >= tier.min) currentTierMin = tier.min;
+        }
+        const xpFrom = currentTierMin;
+        const xpTo = nextTier ? nextTier.profit : currentTierMin;
+        const xpRange = xpTo - xpFrom;
+        const xpProgress = xpRange > 0 ? Math.max(0, Math.min(100, ((pnl - xpFrom) / xpRange) * 100)) : 100;
+
         let html = `<div class="scaling-phase">
             <div class="scaling-phase-name">${phase.name}</div>
             <div class="scaling-pnl ${pnlClass}">P&L: ${pnlStr}${needStr ? ' <span style="color:var(--accent-glow)">&middot; ' + needStr + '</span>' : ''}</div>
             <div class="scaling-phase-range">${phase.range} profit &middot; Total risk: $${totalRisk}</div>
+        </div>`;
+
+        html += `<div class="scaling-xp-bar">
+            <div class="scaling-xp-track">
+                <div class="scaling-xp-fill" style="width:${xpProgress}%"></div>
+            </div>
+            <div class="scaling-xp-labels">
+                <span>$${xpFrom}</span>
+                <span>${xpProgress.toFixed(0)}%</span>
+                <span>$${xpTo}</span>
+            </div>
         </div>`;
 
         html += '<div class="scaling-slots">';
