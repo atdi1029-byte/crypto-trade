@@ -1133,6 +1133,73 @@
         }
 
         /* ============ RESPONSIVE ============ */
+        /* ============ LEVEL UP OVERLAY ============ */
+        .levelup-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            animation: levelupFadeIn 0.5s ease;
+        }
+        @keyframes levelupFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes levelupPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        @keyframes levelupGlow {
+            0%, 100% { text-shadow: 0 0 20px var(--green-bright), 0 0 40px rgba(77,208,196,0.5), 0 0 80px rgba(77,208,196,0.2); }
+            50% { text-shadow: 0 0 30px var(--green-bright), 0 0 60px rgba(77,208,196,0.7), 0 0 100px rgba(77,208,196,0.3); }
+        }
+        @keyframes capyBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        .levelup-content {
+            text-align: center;
+            animation: levelupPulse 2s ease infinite;
+        }
+        .levelup-capybara {
+            animation: capyBounce 1.5s ease infinite;
+            filter: drop-shadow(0 0 20px var(--accent-glow)) drop-shadow(0 0 40px rgba(106,180,255,0.3));
+            margin-bottom: 1rem;
+        }
+        .levelup-title {
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--green-bright);
+            letter-spacing: 6px;
+            animation: levelupGlow 2s ease infinite;
+            margin-bottom: 0.5rem;
+        }
+        .levelup-detail {
+            font-size: 1.1rem;
+            color: var(--text-bright);
+            margin-bottom: 1rem;
+            line-height: 1.8;
+        }
+        .levelup-sizes {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--accent-glow);
+            text-shadow: 0 0 15px var(--accent-glow);
+            letter-spacing: 2px;
+            margin-bottom: 1.5rem;
+        }
+        .levelup-tap {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            animation: levelupFadeIn 1s ease 1s both;
+        }
+
         /* ============ SCALING SECTION ============ */
         .scaling-section { margin: 1.5rem 0; }
         .scaling-box {
@@ -1275,6 +1342,36 @@
 <div class="loading-overlay" id="loading">
     <div class="spinner"></div>
     <div style="color: var(--text-dim); font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase;">Loading dashboard...</div>
+</div>
+
+<!-- Level Up Overlay -->
+<div class="levelup-overlay" id="levelupOverlay" style="display:none" onclick="dismissLevelUp()">
+    <div class="levelup-content">
+        <div class="levelup-capybara">
+            <svg viewBox="150 380 550 580" width="180" height="180">
+                <g fill="none" stroke="var(--accent-glow)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M180 750 Q150 650 200 580 Q220 550 250 540 Q280 530 320 540 L340 545"/>
+                    <path d="M340 545 Q380 500 420 480 Q480 450 540 460 Q600 470 640 510 Q680 550 690 600 Q695 640 680 680 Q660 720 620 740 Q560 770 480 760 Q400 750 340 720 Q300 700 280 680"/>
+                    <path d="M380 480 Q370 440 390 410 Q410 385 440 390 Q460 400 455 430 Q450 455 430 470"/>
+                    <path d="M540 455 Q550 420 580 400 Q610 385 635 400 Q655 420 645 455 Q635 480 610 490"/>
+                    <circle cx="480" cy="540" r="18" fill="var(--accent-deep)"/>
+                    <circle cx="485" cy="535" r="6" fill="var(--accent-glow)"/>
+                    <ellipse cx="580" cy="580" rx="25" ry="18" fill="var(--accent-deep)"/>
+                    <circle cx="570" cy="575" r="4" fill="var(--accent-glow)"/>
+                    <circle cx="590" cy="575" r="4" fill="var(--accent-glow)"/>
+                    <path d="M560 610 Q580 625 600 610"/>
+                    <path d="M620 570 L680 550"/><path d="M625 590 L690 590"/><path d="M620 610 L680 630"/>
+                    <path d="M320 700 Q310 750 320 800 Q325 830 350 840 Q380 845 390 820 Q400 790 395 750"/>
+                    <path d="M450 750 Q445 800 455 840 Q465 870 495 870 Q525 865 530 835 Q535 800 520 760"/>
+                    <path d="M280 680 Q240 720 220 780 Q200 850 230 900 Q260 940 320 940 Q370 935 380 890 Q390 840 370 800"/>
+                </g>
+            </svg>
+        </div>
+        <div class="levelup-title" id="levelupTitle">LEVEL UP!</div>
+        <div class="levelup-detail" id="levelupDetail"></div>
+        <div class="levelup-sizes" id="levelupSizes"></div>
+        <div class="levelup-tap">tap to continue</div>
+    </div>
 </div>
 
 <!-- ============ MAIN CONTENT ============ -->
@@ -2930,6 +3027,49 @@
         return null;
     }
 
+    // ====== LEVEL UP ======
+    const LEVELUP_KEY = 'crypto_unlocked_tier';
+    function getUnlockedTier() { return parseFloat(localStorage.getItem(LEVELUP_KEY) || '0'); }
+    function setUnlockedTier(val) { localStorage.setItem(LEVELUP_KEY, String(val)); }
+
+    function checkLevelUp(pnl) {
+        const currentUnlocked = getUnlockedTier();
+        // Find the highest tier we've reached
+        let reachedTier = 0;
+        for (const tier of SCALING_TABLE) {
+            if (pnl >= tier.min) reachedTier = tier.min;
+        }
+        if (reachedTier > currentUnlocked && currentUnlocked >= 0) {
+            // New tier unlocked!
+            const tier = SCALING_TABLE.find(t => t.min === reachedTier);
+            if (tier) showLevelUp(tier);
+            setUnlockedTier(reachedTier);
+        } else if (reachedTier <= currentUnlocked) {
+            // Update stored tier if we haven't gone backwards
+            // (don't re-trigger on refresh)
+        }
+    }
+
+    function showLevelUp(tier) {
+        const overlay = document.getElementById('levelupOverlay');
+        const detail = document.getElementById('levelupDetail');
+        const sizesEl = document.getElementById('levelupSizes');
+        detail.innerHTML = `Profit hit <span style="color:var(--green-bright);font-weight:700">$${tier.min}</span><br>New position sizes unlocked!`;
+        sizesEl.textContent = tier.sizes.map(s => '$' + s).join(' / ');
+        overlay.style.display = 'flex';
+    }
+
+    function dismissLevelUp() {
+        const overlay = document.getElementById('levelupOverlay');
+        overlay.style.transition = 'opacity 0.4s';
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+            overlay.style.display = 'none';
+            overlay.style.opacity = '';
+            overlay.style.transition = '';
+        }, 400);
+    }
+
     function renderScaling(stats) {
         const box = document.getElementById('scalingBox');
         if (!box) return;
@@ -2977,6 +3117,9 @@
         }
 
         box.innerHTML = html;
+
+        // Check for level up
+        checkLevelUp(pnl);
     }
 
     // ====== INIT ======
