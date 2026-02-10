@@ -2943,10 +2943,11 @@
 
         const pnlStr = pnl >= 0 ? '+$' + pnl.toFixed(2) : '-$' + Math.abs(pnl).toFixed(2);
         const pnlClass = pnl > 0 ? 'positive' : pnl < 0 ? 'negative' : 'zero';
+        const needStr = nextTier ? '$' + (nextTier.profit - pnl).toFixed(2) + ' to next level' : '';
 
         let html = `<div class="scaling-phase">
             <div class="scaling-phase-name">${phase.name}</div>
-            <div class="scaling-pnl ${pnlClass}">P&L: ${pnlStr}</div>
+            <div class="scaling-pnl ${pnlClass}">P&L: ${pnlStr}${needStr ? ' <span style="color:var(--text-dim);font-size:0.7rem;font-weight:400">&middot; ' + needStr + '</span>' : ''}</div>
             <div class="scaling-phase-range">${phase.range} profit &middot; Total risk: $${totalRisk}</div>
         </div>`;
 
