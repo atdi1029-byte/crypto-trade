@@ -2294,7 +2294,7 @@
     };
     const isAndroid = /Android/i.test(navigator.userAgent);
     const DEFAULT_BX = ticker => {
-        const pair = ticker.toUpperCase().replace(/USDT$|USD$|USDC$/,'') + 'USDT';
+        const pair = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'') + 'USDT';
         if (isAndroid) {
             return `https://www.unixcrypto.net/contract-trade/${pair}`;
         }
