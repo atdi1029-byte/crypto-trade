@@ -747,19 +747,19 @@
             border-color: #4a9eff44;
         }
         .action-btn.open-pos:hover { background: #4a9eff44; color: var(--text-bright); }
-        .action-btn.two-day-btn {
+        .action-btn.trade-clock {
             background: rgba(30, 58, 95, 0.3);
             color: var(--text-dim);
             border-color: rgba(30, 58, 95, 0.5);
-            opacity: 0.5;
+            font-size: 0.55rem;
+            cursor: default;
         }
-        .action-btn.two-day-btn:hover { background: rgba(30, 58, 95, 0.5); color: var(--text); opacity: 0.8; }
-        .action-btn.two-day-btn.checked {
-            background: var(--green-dim);
-            color: var(--green-bright);
-            border-color: var(--green-candle);
+        .action-btn.trade-clock.warn {
+            background: rgba(255, 160, 0, 0.15);
+            color: #ffa000;
+            border-color: #ffa000;
         }
-        .action-btn.two-day-btn.needs-check {
+        .action-btn.trade-clock.overdue {
             background: rgba(255, 80, 80, 0.15);
             color: var(--red-bright);
             border-color: var(--red-candle);
@@ -1989,7 +1989,7 @@
         }
 
         list.innerHTML = deduped.map((a, i) => renderOpenTradeCard(a, i)).join('');
-        setTimeout(() => { restoreOpenTradeStates(); restore2DayStates(); }, 50);
+        setTimeout(() => { restoreOpenTradeStates(); updateTradeClocks(); }, 50);
     }
 
     function renderOpenTradeCard(a, i) {
@@ -2022,7 +2022,7 @@
                                 <button class="action-btn won" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Won','${id}')">Hit TP</button>
                                 <button class="action-btn lost" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Lost','${id}')">Stopped Out</button>
                                 <button class="action-btn skipped" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Closed','${id}')">Closed</button>
-                                <button class="action-btn two-day-btn" id="${id}-2day" onclick="toggle2DayCheck('${esc(tkr)}','${esc(a.signal)}','${id}')">2 Day</button>
+                                <span class="action-btn trade-clock" id="${id}-clock" data-entered="${a.timestamp || ''}"></span>
                             </div>
                         </div>
                         <div class="pnl-display" id="${id}-pnl-display" style="text-align:right;min-width:70px">
@@ -2033,61 +2033,44 @@
                 </div>`;
     }
 
-    // ====== 2-DAY CHECK ======
-    const TWO_DAY_PREFIX = '2day_';
+    // ====== TRADE CLOCKS ======
     const TWO_DAY_MS = 48 * 60 * 60 * 1000;
-    function get2DayKey(ticker, signal) { return TWO_DAY_PREFIX + ticker.toUpperCase() + '_' + signal.toLowerCase(); }
-    function toggle2DayCheck(ticker, signal, id) {
-        const key = get2DayKey(ticker, signal);
-        localStorage.setItem(key, String(Date.now()));
-        update2DayBtn(ticker, signal, id);
-    }
-    function update2DayBtn(ticker, signal, id) {
-        const btn = document.getElementById(id + '-2day');
-        if (!btn) return;
-        const key = get2DayKey(ticker, signal);
-        const ts = Number(localStorage.getItem(key) || 0);
-        if (!ts) {
-            btn.className = 'action-btn two-day-btn';
-            btn.textContent = '2 Day';
-            return;
-        }
-        const elapsed = Date.now() - ts;
-        if (elapsed >= TWO_DAY_MS) {
-            localStorage.removeItem(key);
-            btn.className = 'action-btn two-day-btn needs-check';
-            btn.textContent = 'CHECK!';
-        } else {
-            const hoursLeft = Math.ceil((TWO_DAY_MS - elapsed) / (60 * 60 * 1000));
-            btn.className = 'action-btn two-day-btn checked';
-            btn.textContent = hoursLeft + 'h';
-        }
-    }
-    function restore2DayStates() {
-        let needCount = 0;
-        document.querySelectorAll('.open-trade-item').forEach(el => {
-            const ticker = el.dataset.ticker;
-            const signal = el.querySelector('.signal-tag')?.textContent?.toLowerCase() || '';
-            const id = el.id;
-            const key = get2DayKey(ticker, signal);
-            if (!localStorage.getItem(key)) {
-                localStorage.setItem(key, String(Date.now()));
+    function updateTradeClocks() {
+        let overdueCount = 0;
+        document.querySelectorAll('.trade-clock').forEach(el => {
+            const entered = el.dataset.entered;
+            if (!entered) { el.textContent = '--'; return; }
+            const enteredDate = new Date(entered);
+            if (isNaN(enteredDate)) { el.textContent = '--'; return; }
+            const elapsed = Date.now() - enteredDate.getTime();
+            const hours = Math.floor(elapsed / (60 * 60 * 1000));
+            const days = Math.floor(hours / 24);
+            const remainHours = hours % 24;
+            if (days > 0) {
+                el.textContent = days + 'd ' + remainHours + 'h';
+            } else {
+                el.textContent = hours + 'h';
             }
-            const ts = Number(localStorage.getItem(key) || 0);
-            if (!ts || (Date.now() - ts) >= TWO_DAY_MS) needCount++;
-            update2DayBtn(ticker, signal, id);
+            el.classList.remove('warn', 'overdue');
+            if (elapsed >= TWO_DAY_MS) {
+                el.classList.add('overdue');
+                overdueCount++;
+            } else if (elapsed >= TWO_DAY_MS * 0.75) {
+                el.classList.add('warn');
+            }
         });
         const filterBtn = document.getElementById('need2dayFilter');
         if (filterBtn) {
-            if (needCount > 0) {
+            if (overdueCount > 0) {
                 filterBtn.classList.add('has-alerts');
-                filterBtn.textContent = 'Need 2 Day (' + needCount + ')';
+                filterBtn.textContent = 'Need 2 Day (' + overdueCount + ')';
             } else {
                 filterBtn.classList.remove('has-alerts');
                 filterBtn.textContent = 'Need 2 Day';
             }
         }
     }
+    setInterval(updateTradeClocks, 60000);
 
     // ====== OPEN TRADE LOCAL STATE (survives refresh) ======
     function tradeStateKey(ticker, signal) { return 'trade_' + ticker.toUpperCase() + '_' + signal.toLowerCase(); }
@@ -2179,11 +2162,8 @@
             else if (otFilterMode === 'no-tp') matchFilter = status !== 'tp';
             else if (otFilterMode === 'done') matchFilter = status === '0x0' || status === 'tp';
             else if (otFilterMode === 'need-2day') {
-                const ticker = (card.dataset.ticker || '').toUpperCase();
-                const signal = card.querySelector('.signal-tag')?.textContent?.toLowerCase() || '';
-                const key = get2DayKey(ticker, signal);
-                const ts = Number(localStorage.getItem(key) || 0);
-                matchFilter = !ts || (Date.now() - ts) >= TWO_DAY_MS;
+                const clock = card.querySelector('.trade-clock');
+                matchFilter = clock && clock.classList.contains('overdue');
             }
             card.style.display = (matchSearch && matchFilter) ? '' : 'none';
         });
