@@ -389,18 +389,20 @@
             color: var(--text-bright);
         }
         .ot-filter-btn.need-2day-btn.has-alerts {
-            background: rgba(255, 80, 80, 0.25);
-            border-color: var(--red-bright);
+            background: #1a1a2e;
+            border: 2px solid var(--red-bright);
             color: var(--red-bright);
             font-weight: 700;
+            font-size: 0.7rem;
+            padding: 0.4rem 0.8rem;
             animation: flash2day 1s ease-in-out infinite alternate;
         }
         .ot-filter-btn.need-2day-btn.has-alerts.active {
-            background: rgba(255, 80, 80, 0.4);
+            background: #2a1525;
         }
         @keyframes flash2day {
-            from { box-shadow: 0 0 6px rgba(239, 83, 80, 0.3); }
-            to { box-shadow: 0 0 16px rgba(239, 83, 80, 0.7), 0 0 30px rgba(239, 83, 80, 0.3); }
+            from { box-shadow: 0 0 8px rgba(239, 83, 80, 0.4); text-shadow: 0 0 6px rgba(239, 83, 80, 0.5); }
+            to { box-shadow: 0 0 20px rgba(239, 83, 80, 0.8), 0 0 40px rgba(239, 83, 80, 0.3); text-shadow: 0 0 12px rgba(239, 83, 80, 0.8); }
         }
         .open-trades-list {
             display: flex;
