@@ -1309,138 +1309,6 @@
             font-weight: 700; padding-top: 0.5rem; border-top: 1px solid var(--border);
         }
 
-        /* ============ SCALING SECTION ============ */
-        .scaling-section { margin: 1.5rem 0; }
-        .scaling-box {
-            background: rgba(8,12,18,0.88);
-            border: 2px solid var(--accent-deep);
-            border-image: linear-gradient(135deg, var(--accent-deep), var(--border-light), var(--accent-deep)) 1;
-            padding: 1.5rem 2rem;
-            box-shadow: 0 0 20px rgba(74,158,255,0.15), inset 0 0 30px rgba(0,0,0,0.3);
-        }
-        .scaling-phase {
-            text-align: center;
-            margin-bottom: 1.2rem;
-        }
-        .scaling-phase-name {
-            font-size: 1.6rem;
-            font-weight: 900;
-            color: var(--accent-glow);
-            text-shadow: 0 0 15px var(--accent-glow), 0 0 30px rgba(106,180,255,0.5), 0 0 50px rgba(106,180,255,0.2);
-            letter-spacing: 2px;
-        }
-        .scaling-pnl {
-            font-size: 1.1rem;
-            font-weight: 700;
-            margin-top: 0.4rem;
-        }
-        .scaling-pnl.positive { color: var(--green-bright); text-shadow: 0 0 10px var(--green-bright), 0 0 20px rgba(77,208,196,0.4); }
-        .scaling-pnl.negative { color: var(--red-bright); text-shadow: 0 0 10px var(--red-bright), 0 0 20px rgba(255,107,107,0.4); }
-        .scaling-pnl.zero { color: var(--text-dim); }
-        .scaling-phase-range {
-            font-size: 0.65rem;
-            color: var(--text-dim);
-            margin-top: 0.3rem;
-        }
-        .scaling-xp-bar {
-            margin: 0.8rem auto 1.2rem;
-            max-width: 500px;
-            position: relative;
-        }
-        .scaling-xp-track {
-            height: 12px;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            overflow: hidden;
-        }
-        .scaling-xp-fill {
-            height: 100%;
-            border-radius: 6px;
-            background: linear-gradient(90deg, var(--accent-deep), var(--green-bright));
-            box-shadow: 0 0 10px var(--green-bright), 0 0 20px rgba(77,208,196,0.3);
-            transition: width 0.8s ease;
-        }
-        .scaling-xp-labels {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 0.3rem;
-            font-size: 0.5rem;
-            color: var(--text-dim);
-        }
-        .scaling-slots {
-            display: flex;
-            gap: 0.8rem;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        .scaling-slot {
-            flex: 0 0 110px;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 0.8rem 0.5rem;
-            text-align: center;
-            transition: all 0.3s;
-        }
-        .scaling-slot.available {
-            border-color: var(--green-bright);
-            box-shadow: 0 0 12px rgba(77,208,196,0.3), 0 0 25px rgba(77,208,196,0.15);
-        }
-        .scaling-slot.used {
-            opacity: 0.4;
-            border-color: var(--border);
-        }
-        .scaling-slot-label {
-            font-size: 0.55rem;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 0.4rem;
-        }
-        .scaling-slot-size {
-            font-size: 1.4rem;
-            font-weight: 700;
-            font-family: 'Space Mono', monospace;
-        }
-        .scaling-slot.available .scaling-slot-size {
-            color: var(--green-bright);
-            text-shadow: 0 0 10px var(--green-bright), 0 0 20px rgba(77,208,196,0.4);
-        }
-        .scaling-slot.used .scaling-slot-size {
-            color: var(--text-dim);
-        }
-        .scaling-slot-status {
-            font-size: 0.5rem;
-            margin-top: 0.3rem;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-        .scaling-slot.available .scaling-slot-status { color: var(--green-bright); }
-        .scaling-slot.used .scaling-slot-status { color: var(--text-dim); }
-        .scaling-message {
-            text-align: center;
-            margin-top: 1rem;
-            font-size: 0.7rem;
-            color: var(--text);
-            line-height: 1.5;
-        }
-        .scaling-message .highlight {
-            color: var(--green-bright);
-            text-shadow: 0 0 8px rgba(77,208,196,0.5);
-            font-weight: 700;
-        }
-        .scaling-next-tier {
-            text-align: center;
-            margin-top: 0.8rem;
-            font-size: 0.75rem;
-            color: var(--accent-glow);
-            text-shadow: 0 0 8px rgba(106,180,255,0.4);
-            font-weight: 700;
-            padding: 0.5rem;
-            border-top: 1px solid var(--border);
-        }
-
         @media (max-width: 768px) {
             .content { padding: 0.25rem 1rem 1rem; }
             .header { flex-direction: column; gap: 0.5rem; text-align: center; }
@@ -1464,7 +1332,6 @@
             .open-trade-item .action-buttons { display: grid !important; grid-template-columns: repeat(4, 1fr); gap: 4px; }
             .open-trade-item .action-buttons .entry-input { grid-column: 1 / -1; width: 55px !important; }
             .open-trade-item .action-buttons .action-btn { padding: 5px 4px; font-size: 0.5rem; }
-            .scaling-section { display: none !important; }
             .pokemon-section { margin: 1rem 0; }
             .pokemon-box { padding: 1rem 1.2rem; }
             .pokemon-sprite { width: 180px; height: 180px; margin: -1rem 0 -2rem; }
@@ -1600,12 +1467,6 @@
             <button class="ot-filter-btn need-2day-btn" data-filter="need-2day" onclick="setOTFilter(this,'need-2day')" id="need2dayFilter">Need 2 Day</button>
         </div>
         <div class="open-trades-list" id="openTradesList" style="max-height: 480px; overflow-y: auto;"></div>
-    </div>
-
-    <!-- Scaling Plan (desktop only) -->
-    <div class="scaling-section" id="scalingSection">
-        <div class="section-header">Position Sizing</div>
-        <div class="scaling-box" id="scalingBox"></div>
     </div>
 
     <!-- Pokemon Trainer Level -->
@@ -1928,9 +1789,6 @@
 
         // --- Performance Summary ---
         renderPerformance(stats);
-
-        // --- Scaling Plan ---
-        renderScaling(stats);
 
         // --- Pokemon Trainer Level ---
         renderPokemon(stats);
@@ -3361,74 +3219,6 @@
         checkPokemonLevelUp(pnl);
     }
 
-    // ====== SCALING PLAN ======
-    const SCALING_TABLE = [
-        // Phase 1: Proving ($0-$500) — smooth ramp, $25-$50 steps
-        { min: 0,     sizes: [1,1,1,1,1] },
-        { min: 25,    sizes: [2,1,1,1,1] },
-        { min: 50,    sizes: [2,2,1,1,1] },
-        { min: 75,    sizes: [2,2,2,1,1] },
-        { min: 100,   sizes: [3,2,2,2,1] },
-        { min: 150,   sizes: [3,3,2,2,1] },
-        { min: 200,   sizes: [3,3,3,2,1] },
-        { min: 250,   sizes: [4,3,3,3,2] },
-        { min: 300,   sizes: [4,4,3,3,2] },
-        { min: 350,   sizes: [4,4,4,3,2] },
-        { min: 400,   sizes: [5,4,4,4,2] },
-        { min: 450,   sizes: [5,5,4,4,2] },
-        { min: 500,   sizes: [5,5,5,5,3] },
-        // Phase 2: Early Scaling ($500-$5k)
-        { min: 750,   sizes: [6,6,6,6,3] },
-        { min: 1000,  sizes: [7,7,7,7,4] },
-        { min: 1500,  sizes: [8,8,8,8,4] },
-        { min: 2000,  sizes: [9,9,9,9,5] },
-        { min: 2500,  sizes: [10,10,10,10,5] },
-        { min: 5000,  sizes: [11,11,11,11,6] }
-    ];
-
-    function getScalingPhase(profit) {
-        const p = Math.max(0, profit);
-        if (p < 500) return { name: 'Phase 1: Proving', range: '$0 — $500' };
-        if (p < 5000) return { name: 'Phase 2: Early Scaling', range: '$500 — $5k' };
-        if (p < 10000) return { name: 'Phase 3: Slow', range: '$5k — $10k' };
-        if (p < 20000) return { name: 'Phase 4: Building', range: '$10k — $20k' };
-        if (p < 40000) return { name: 'Phase 5: Ramping', range: '$20k — $40k' };
-        if (p < 80000) return { name: 'Phase 6: Peak', range: '$40k — $80k' };
-        return { name: 'Phase 7: Tapering', range: '$80k — $150k' };
-    }
-
-    function getScalingSizes(profit) {
-        const p = Math.max(0, profit);
-        // Phases 3-7: formula-based
-        if (p >= 5000) {
-            let base = 11, t5 = 6;
-            if (p >= 5000) { base += Math.floor((Math.min(p, 10000) - 5000) / 1000) * 2; }
-            if (p >= 10000) { base = 11 + 10 + Math.floor((Math.min(p, 20000) - 10000) / 2000) * 5; }
-            if (p >= 20000) { base = 11 + 10 + 25 + Math.floor((Math.min(p, 40000) - 20000) / 2500) * 10; }
-            if (p >= 40000) { base = 11 + 10 + 25 + 80 + Math.floor((Math.min(p, 80000) - 40000) / 5000) * 20; }
-            if (p >= 80000) { base = 11 + 10 + 25 + 80 + 160 + Math.floor((Math.min(p, 150000) - 80000) / 10000) * 30; }
-            base = Math.min(base, 500);
-            t5 = Math.min(Math.ceil(base / 2), 250);
-            return [base, base, base, base, t5];
-        }
-        // Phases 1-2: lookup table
-        let sizes = SCALING_TABLE[0].sizes;
-        for (const tier of SCALING_TABLE) {
-            if (p >= tier.min) sizes = tier.sizes;
-        }
-        return sizes;
-    }
-
-    function getNextTier(profit) {
-        const p = Math.max(0, profit);
-        for (const tier of SCALING_TABLE) {
-            if (tier.min > p) {
-                return { profit: tier.min, sizes: tier.sizes };
-            }
-        }
-        return null;
-    }
-
     // ====== POKEMON LEVEL UP ======
     const POKE_LEVEL_KEY = 'crypto_pokemon_level';
     function getUnlockedPokeLevel() { return parseFloat(localStorage.getItem(POKE_LEVEL_KEY) || '0'); }
@@ -3470,76 +3260,6 @@
             overlay.style.opacity = '';
             overlay.style.transition = '';
         }, 400);
-    }
-
-    function renderScaling(stats) {
-        const box = document.getElementById('scalingBox');
-        if (!box) return;
-        const pnl = parseFloat(stats.netPnl) || 0;
-        const openCount = parseInt(stats.openPositions) || 0;
-        const phase = getScalingPhase(pnl);
-        const sizes = getScalingSizes(pnl);
-        const available = Math.max(0, 5 - openCount);
-        const nextTier = getNextTier(pnl);
-        const totalRisk = sizes.reduce((a, b) => a + b, 0);
-
-        const pnlStr = pnl >= 0 ? '+$' + pnl.toFixed(2) : '-$' + Math.abs(pnl).toFixed(2);
-        const pnlClass = pnl > 0 ? 'positive' : pnl < 0 ? 'negative' : 'zero';
-        const needStr = nextTier ? '$' + (nextTier.profit - pnl).toFixed(2) + ' to next level' : '';
-
-        // XP bar: find current tier min and next tier min
-        let currentTierMin = 0;
-        for (const tier of SCALING_TABLE) {
-            if (pnl >= tier.min) currentTierMin = tier.min;
-        }
-        const xpFrom = currentTierMin;
-        const xpTo = nextTier ? nextTier.profit : currentTierMin;
-        const xpRange = xpTo - xpFrom;
-        const xpProgress = xpRange > 0 ? Math.max(0, Math.min(100, ((pnl - xpFrom) / xpRange) * 100)) : 100;
-
-        let html = `<div class="scaling-phase">
-            <div class="scaling-phase-name">${phase.name}</div>
-            <div class="scaling-pnl ${pnlClass}">P&L: ${pnlStr}${needStr ? ' <span style="color:var(--accent-glow)">&middot; ' + needStr + '</span>' : ''}</div>
-            <div class="scaling-phase-range">${phase.range} profit &middot; Total risk: $${totalRisk}</div>
-        </div>`;
-
-        html += `<div class="scaling-xp-bar">
-            <div class="scaling-xp-track">
-                <div class="scaling-xp-fill" style="width:${xpProgress}%"></div>
-            </div>
-            <div class="scaling-xp-labels">
-                <span>$${xpFrom}</span>
-                <span>${xpProgress.toFixed(0)}%</span>
-                <span>$${xpTo}</span>
-            </div>
-        </div>`;
-
-        html += '<div class="scaling-slots">';
-        for (let i = 0; i < 5; i++) {
-            const isUsed = i < openCount;
-            const cls = isUsed ? 'used' : 'available';
-            html += `<div class="scaling-slot ${cls}">
-                <div class="scaling-slot-label">Trade ${i + 1}</div>
-                <div class="scaling-slot-size">$${sizes[i]}</div>
-                <div class="scaling-slot-status">${isUsed ? 'Open' : 'Available'}</div>
-            </div>`;
-        }
-        html += '</div>';
-
-        if (available > 0) {
-            const availSizes = sizes.slice(openCount).map(s => '$' + s).join(', ');
-            html += `<div class="scaling-message"><span class="highlight">${available} slot${available > 1 ? 's' : ''} available</span> &mdash; next trades at ${availSizes}</div>`;
-        } else {
-            html += '<div class="scaling-message" style="color:var(--text-dim)">All 5 slots filled &mdash; manage open trades before entering new ones</div>';
-        }
-
-        if (nextTier && pnl < nextTier.profit) {
-            const needed = nextTier.profit - Math.max(0, pnl);
-            const nextSizes = nextTier.sizes.map(s => '$' + s).join(' / ');
-            html += `<div class="scaling-next-tier">$${needed.toFixed(0)} more profit to unlock next level: ${nextSizes}</div>`;
-        }
-
-        box.innerHTML = html;
     }
 
     // ====== INIT ======
