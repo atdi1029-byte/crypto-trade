@@ -2578,6 +2578,8 @@
             const pair = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'') + 'USDT';
             navigator.clipboard.writeText(pair);
             window.open(DEFAULT_BX(ticker), '_blank');
+            // Set clock start to now (not signal time)
+            localStorage.setItem('clock_' + ticker.toUpperCase() + '_' + signal.toLowerCase(), String(Date.now()));
         }
         // Hide immediately
         el.style.transition = 'opacity 0.3s';
@@ -2723,6 +2725,8 @@
             const pair = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'') + 'USDT';
             navigator.clipboard.writeText(pair);
             window.open(DEFAULT_BX(ticker), '_blank');
+            // Set clock start to now (not signal time)
+            localStorage.setItem('clock_' + ticker.toUpperCase() + '_' + signal.toLowerCase(), String(Date.now()));
         }
         // Hide immediately
         el.style.transition = 'opacity 0.3s';
