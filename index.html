@@ -753,8 +753,9 @@
             color: var(--text-dim);
             border-color: rgba(30, 58, 95, 0.5);
             font-size: 0.55rem;
-            cursor: default;
+            cursor: pointer;
         }
+        .action-btn.trade-clock:hover { background: rgba(30, 58, 95, 0.5); color: var(--text); }
         .action-btn.trade-clock.warn {
             background: rgba(255, 160, 0, 0.15);
             color: #ffa000;
@@ -2022,7 +2023,7 @@
                                 <button class="action-btn won" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Won','${id}')">Hit TP</button>
                                 <button class="action-btn lost" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Lost','${id}')">Stopped Out</button>
                                 <button class="action-btn skipped" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Closed','${id}')">Closed</button>
-                                <span class="action-btn trade-clock" id="${id}-clock" data-entered="${a.timestamp || ''}"></span>
+                                <button class="action-btn trade-clock" id="${id}-clock" data-entered="${a.timestamp || ''}" onclick="dismissTradeClock('${id}')"></button>
                             </div>
                         </div>
                         <div class="pnl-display" id="${id}-pnl-display" style="text-align:right;min-width:70px">
@@ -2038,11 +2039,16 @@
     function updateTradeClocks() {
         let overdueCount = 0;
         document.querySelectorAll('.trade-clock').forEach(el => {
+            const card = el.closest('.open-trade-item');
+            const ticker = card ? (card.dataset.ticker || '') : '';
+            const signal = card ? (card.querySelector('.signal-tag')?.textContent?.toLowerCase() || '') : '';
+            const resetKey = 'clock_' + ticker + '_' + signal;
+            const resetTs = Number(localStorage.getItem(resetKey) || 0);
             const entered = el.dataset.entered;
-            if (!entered) { el.textContent = '--'; return; }
-            const enteredDate = new Date(entered);
-            if (isNaN(enteredDate)) { el.textContent = '--'; return; }
-            const elapsed = Date.now() - enteredDate.getTime();
+            if (!entered && !resetTs) { el.textContent = '--'; return; }
+            const baseTime = resetTs || new Date(entered).getTime();
+            if (isNaN(baseTime)) { el.textContent = '--'; return; }
+            const elapsed = Date.now() - baseTime;
             const hours = Math.floor(elapsed / (60 * 60 * 1000));
             const days = Math.floor(hours / 24);
             const remainHours = hours % 24;
@@ -2071,6 +2077,18 @@
         }
     }
     setInterval(updateTradeClocks, 60000);
+
+    function dismissTradeClock(id) {
+        const clock = document.getElementById(id + '-clock');
+        if (!clock) return;
+        const ticker = document.getElementById(id)?.dataset.ticker || '';
+        const signal = document.getElementById(id)?.querySelector('.signal-tag')?.textContent?.toLowerCase() || '';
+        // Save reset time to localStorage
+        localStorage.setItem('clock_' + ticker + '_' + signal, String(Date.now()));
+        clock.classList.remove('warn', 'overdue');
+        clock.textContent = '0h';
+        updateTradeClocks();
+    }
 
     // ====== OPEN TRADE LOCAL STATE (survives refresh) ======
     function tradeStateKey(ticker, signal) { return 'trade_' + ticker.toUpperCase() + '_' + signal.toLowerCase(); }
