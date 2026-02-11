@@ -1265,17 +1265,29 @@
             margin-top: 0.5rem;
         }
         .pokemon-size-chip {
-            background: rgba(74,158,255,0.15);
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            background: rgba(74,158,255,0.1);
             border: 1px solid var(--accent-deep);
-            border-radius: 6px;
-            padding: 0.3rem 0.6rem;
+            border-radius: 20px;
+            padding: 0.25rem 0.6rem 0.25rem 0.35rem;
             font-size: 0.75rem;
             font-weight: 700;
         }
+        .pokeball-svg { width: 18px; height: 18px; flex-shrink: 0; }
+        .pokeball-svg .ball-top { fill: #ef5350; }
+        .pokeball-svg .ball-bottom { fill: #fff; }
+        .pokeball-svg .ball-line { stroke: #333; stroke-width: 1.5; fill: none; }
+        .pokeball-svg .ball-center { fill: #fff; stroke: #333; stroke-width: 1.5; }
+        .pokeball-svg .ball-outline { fill: none; stroke: #333; stroke-width: 1.5; }
         .pokemon-size-chip.lead { color: var(--accent-glow); border-color: var(--accent-glow); box-shadow: 0 0 8px rgba(106,180,255,0.3); }
         .pokemon-size-chip.mid { color: var(--accent); border-color: var(--accent); }
         .pokemon-size-chip.half { color: var(--text-dim); border-color: var(--border); opacity: 0.7; }
-        .pokemon-size-chip.used { color: var(--text-dim); border-color: var(--border); opacity: 0.35; text-decoration: line-through; }
+        .pokemon-size-chip.used { color: var(--text-dim); border-color: var(--border); opacity: 0.35; }
+        .pokemon-size-chip.used .pokeball-svg .ball-top { fill: #666; }
+        .pokemon-size-chip.used .pokeball-svg .ball-bottom { fill: #444; }
+        .pokemon-size-chip.used .ball-amt { text-decoration: line-through; }
         .pokemon-xp-bar { margin: 0.8rem auto 1rem; max-width: 450px; }
         .pokemon-xp-track {
             height: 14px; background: var(--bg-card); border: 1px solid var(--border);
@@ -3307,22 +3319,16 @@
         const xpRange = xpTo - xpFrom;
         const xpProgress = xpRange > 0 ? Math.max(0, Math.min(100, ((pnl - xpFrom) / xpRange) * 100)) : 100;
 
-        // Build size chips — mark used slots as dimmed
+        // Build size chips with pokeball icons — mark used slots as dimmed
+        const pokeballSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path class="ball-top" d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle class="ball-center" cx="10" cy="10" r="3"/></svg>`;
         let sizeChips = '';
         for (let i = 0; i < 5; i++) {
             const isUsed = i < openCount;
-            const label = 'T' + (i + 1);
-            if (isUsed) {
-                sizeChips += `<span class="pokemon-size-chip used">${label}: $${sizes[i]}</span>`;
-            } else if (i === 0 || (i < 4 && !isUsed)) {
-                const cls = i === 0 ? 'lead' : i === 4 ? 'half' : 'mid';
-                sizeChips += `<span class="pokemon-size-chip ${cls}">${label}: $${sizes[i]}</span>`;
-            } else {
-                sizeChips += `<span class="pokemon-size-chip half">${label}: $${sizes[i]}</span>`;
-            }
+            const cls = isUsed ? 'used' : i === 0 ? 'lead' : i === 4 ? 'half' : 'mid';
+            sizeChips += `<span class="pokemon-size-chip ${cls}">${pokeballSvg}<span class="ball-amt">$${sizes[i]}</span></span>`;
         }
 
-        const needStr = nextLevel ? '$' + (nextLevel.min - Math.max(0, pnl)).toFixed(2) + ' to Evolve' : '';
+        const needStr = nextLevel ? '$' + (nextLevel.min - pnl).toFixed(2) + ' to Evolve' : '';
 
         let html = `<div class="pokemon-header">
             <div class="pokemon-level-name">Lv.${levelIdx} \u2014 ${level.pokemon}</div>
