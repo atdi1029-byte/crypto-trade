@@ -2023,8 +2023,8 @@
                                 <input type="text" class="entry-input" placeholder="P&L $" id="${id}-profit" style="width:55px">
                                 <button class="action-btn entered" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'0x0','${id}')">0x0</button>
                                 <button class="action-btn won" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Won','${id}')">Hit TP</button>
-                                <button class="action-btn lost" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Lost','${id}')">Stopped Out</button>
-                                <button class="action-btn skipped" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Closed','${id}')">Closed</button>
+                                <button class="action-btn lost" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Lost','${id}','Stopped Out')">Stopped Out</button>
+                                <button class="action-btn skipped" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Closed','${id}','Close')">Closed</button>
                                 <button class="action-btn trade-clock" id="${id}-clock" data-entered="${a.timestamp || ''}" onclick="dismissTradeClock('${id}')"></button>
                             </div>
                         </div>
@@ -2590,6 +2590,12 @@
             action: 'update', ticker, signal, price, field: 'action', value
         });
         fetch(POST_URL + '?' + params).then(() => setTimeout(fetchData, 3000));
+    }
+
+    function confirmOutcome(ticker, signal, price, value, elemId, label) {
+        if (confirm(label + ' ' + ticker + '?')) {
+            markOutcome(ticker, signal, price, value, elemId);
+        }
     }
 
     async function markOutcome(ticker, signal, price, value, elemId) {
