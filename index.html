@@ -3322,10 +3322,12 @@
             }
         }
 
+        const needStr = nextLevel ? '$' + (nextLevel.min - Math.max(0, pnl)).toFixed(2) + ' to ' + nextLevel.pokemon : '';
+
         let html = `<div class="pokemon-header">
             <div class="pokemon-level-name">Lv.${levelIdx} \u2014 ${level.pokemon}</div>
             <img class="pokemon-sprite" src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}">
-            <div class="pokemon-pnl ${pnlClass}">P&L: ${pnlStr}</div>
+            <div class="pokemon-pnl ${pnlClass}">P&L: ${pnlStr}${needStr ? ' <span style="color:var(--accent-glow);font-size:0.85rem">&middot; ' + needStr + '</span>' : ''}</div>
             <div class="pokemon-sizes">${sizeChips}</div>
         </div>`;
 
