@@ -1,0 +1,132 @@
+Crypto Trade Dashboard — Project Notes
+=======================================
+
+OVERVIEW
+--------
+Web dashboard for crypto trading tools.
+Pulls data from Google Sheet via Apps Script and displays
+live signals, action needed, ticker grid, and performance.
+Deployed to GitHub Pages as a PWA (mobile app).
+
+FILES
+-----
+Crypto/index.html
+  - Single-file HTML dashboard (dark blue wave theme)
+  - Fetches live data from Apps Script doGet(?action=dashboard)
+  - Auto-refreshes every 60 seconds
+  - Sections: Top Picks, Action Needed, Pokemon Level, Ticker Grid, Performance
+
+Crypto/apps_script.gs
+  - Google Apps Script backend
+  - doPost: receives TradingView webhook alerts
+  - doGet: serves dashboard JSON, handles position updates
+  - Tabs: Signal Log, Positions, Dashboard, Config, Balance History, Claude Picks
+
+Crypto/service-worker.js
+  - PWA service worker, network-first for HTML, cache-first for assets
+  - Cache version: v104
+
+Crypto/scaling-guide.html
+  - Visual reference page showing all 151 Pokemon levels with 5-trade sizes
+  - Interactive "Find Your Level" input, collapsible phase sections
+
+DEPLOYMENT — GitHub Pages
+--------------------------
+Repo: atdi1029-byte/crypto-trade
+URL: https://atdi1029-byte.github.io/crypto-trade/
+Git push: GIT_SSH_COMMAND="ssh -p 443 -o HostName=ssh.github.com" git push
+ALWAYS push before testing — user views GitHub Pages, not local files.
+Bump service-worker.js cache version when updating index.html.
+Android PWA: user must clear cookies/cache in Chrome settings to see updates.
+
+DEPLOYMENT — Apps Script
+-------------------------
+1. Open Google Sheet → Extensions → Apps Script
+2. Replace code with contents of apps_script.gs
+3. Deploy → Manage deployments → Edit → New version → Deploy
+4. Always use pbcopy to copy code (avoids $ corruption in chat)
+
+API ENDPOINT
+------------
+URL: https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec
+  ?action=dashboard        → returns JSON dashboard data
+  ?action=pending          → returns pending alerts
+  ?action=update_position  → updates position (GET with query params)
+  POST with JSON           → logs trade signal from TradingView
+
+CRITICAL: Dashboard writes use GET, not POST
+- POST to Google Apps Script silently fails from browser (CORS redirect issue)
+- All dashboard writes (Entered/Skipped/Won/Lost/0x0) use GET with query params
+
+POKEMON SCALING SYSTEM (Feb 10, 2026)
+--------------------------------------
+Replaces old "Position Sizing" phase system entirely.
+
+151 Pokemon levels: Bulbasaur ($0) → Mew ($30,000)
+  - Same profit thresholds as SPX dashboard
+  - Each level has 5 graduated trade sizes (T1 biggest → T5 ~half)
+  - Displayed as pokeball SVG chips (32px)
+  - Used trade slots shown as grayed-out pokeballs
+
+Sizing formula:
+  - $0-$500 profit: 13-entry lookup table (e.g. $0=[1,1,1,1,1], $500=[5,5,5,5,3])
+  - $500+ profit: power curve — base = round(5 + pow((p-500)/150, 0.6))
+    T1 = base + spread, T2-T3 = base, T4 = base - spread, T5 = ceil(base/2)
+
+"to Evolve" display:
+  - Shows distance from current P&L to next level threshold
+  - Formula: nextLevel.min - pnl (accounts for negative P&L)
+  - Example: P&L -$0.89, next level $4 → shows "$4.89 to Evolve"
+
+FRLG location backgrounds:
+  - 8 Pokemon regions mapped to progress phases
+  - Changes background image on the Pokemon card as you level up
+
+Evolution animation:
+  - White flash (pokeEvolve keyframe) when leveling up
+  - Pokemon sprite overlay with level details
+
+Open trade tracking:
+  - Currently tracks by count (openPositions from API)
+  - Dims first N pokeballs in order
+  - TODO: track entry sizes by value (not just count) for precise matching
+
+Scaling guide page:
+  - Crypto/scaling-guide.html — all 151 levels with 5-trade columns
+  - Same structure as SPX/scaling-guide.html but blue theme
+
+TRADINGVIEW ALERTS
+-------------------
+Alerts: "RSI BUY CRIPTO" + "RSI SELL CRIPTO" (Watchlist, 4h)
+Webhook points to Apps Script URL
+Indicator: RSI Trendline Breakout v8 (Analyzer Webhook)
+Layout: xF34dN3g
+
+DASHBOARD FEATURES
+-------------------
+- Top Picks: Claude Code analysis + highest-score signals
+- Action Needed: signals requiring Enter/Skip decision
+- Open Trades: with outcome buttons (0x0, Hit TP, Stopped Out, Closed)
+- Pokemon Level: P&L tracker with pokeball trade sizes
+- Ticker Grid: all tracked tickers sorted by recent signal
+- Performance: win rate, streaks, P&L summary
+- Bitunix links: desktop=bitunix.com, Android=unixcrypto.net + clipboard copy
+- TradingView links: TV_EXCHANGE_MAP with 500+ tickers mapped to exchanges
+
+MOBILE LAYOUT
+--------------
+- No header logo, no command/search bar
+- Capybara SVG next to "Trade!" title
+- Top Picks + Action Needed stacked vertically (1 column each)
+- Pokemon section visible on mobile (unlike old Position Sizing which was hidden)
+- Ticker grid: max-height 500px with scroll
+- Quote moved to bottom footer
+
+KNOWN ISSUES
+-------------
+- curl POST fails with Google Apps Script redirects; Python with SSL verify disabled works
+- Bitunix app doesn't deep link to specific pairs — clipboard copy workaround
+- $ chars in Apps Script code get corrupted when user copies from chat — always use pbcopy
+- NaN fix: Apps Script sanitizes NaN/Infinity in webhook JSON before JSON.parse()
+
+Service worker: v104
