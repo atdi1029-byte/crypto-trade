@@ -1157,39 +1157,54 @@
             0%, 100% { text-shadow: 0 0 20px var(--green-bright), 0 0 40px rgba(77,208,196,0.5), 0 0 80px rgba(77,208,196,0.2); }
             50% { text-shadow: 0 0 30px var(--green-bright), 0 0 60px rgba(77,208,196,0.7), 0 0 100px rgba(77,208,196,0.3); }
         }
-        @keyframes capyBounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-15px); }
+        @keyframes pokeBounce {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-20px) scale(1.1); }
+        }
+        @keyframes pokeEvolve {
+            0% { filter: brightness(1) drop-shadow(0 0 10px var(--accent-glow)); transform: scale(1); }
+            40% { filter: brightness(3) drop-shadow(0 0 40px white); transform: scale(1.3); }
+            60% { filter: brightness(3) drop-shadow(0 0 40px white); transform: scale(1.3); }
+            100% { filter: brightness(1) drop-shadow(0 0 20px var(--accent-glow)); transform: scale(1); }
         }
         .levelup-content {
             text-align: center;
             animation: levelupPulse 2s ease infinite;
         }
-        .levelup-capybara {
-            animation: capyBounce 1.5s ease infinite;
+        .levelup-pokemon {
+            width: 160px; height: 160px;
+            image-rendering: pixelated;
+            animation: pokeBounce 1.5s ease infinite;
             filter: drop-shadow(0 0 20px var(--accent-glow)) drop-shadow(0 0 40px rgba(106,180,255,0.3));
-            margin-bottom: 1rem;
         }
+        .levelup-pokemon.evolving { animation: pokeEvolve 1.5s ease forwards; }
         .levelup-title {
-            font-size: 3rem;
+            font-size: 2.5rem;
             font-weight: 900;
-            color: var(--green-bright);
-            letter-spacing: 6px;
+            color: var(--accent-glow);
+            letter-spacing: 4px;
             animation: levelupGlow 2s ease infinite;
-            margin-bottom: 0.5rem;
+            margin: 0.5rem 0;
         }
         .levelup-detail {
-            font-size: 1.1rem;
+            font-size: 1rem;
             color: var(--text-bright);
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
             line-height: 1.8;
         }
-        .levelup-sizes {
+        .levelup-pokename {
             font-size: 1.4rem;
             font-weight: 700;
-            color: var(--accent-glow);
-            text-shadow: 0 0 15px var(--accent-glow);
+            color: var(--text-bright);
             letter-spacing: 2px;
+            margin-bottom: 0.3rem;
+        }
+        .levelup-sizes {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--green-bright);
+            text-shadow: 0 0 15px var(--green-bright);
+            letter-spacing: 1px;
             margin-bottom: 1.5rem;
         }
         .levelup-tap {
@@ -1198,6 +1213,87 @@
             letter-spacing: 3px;
             text-transform: uppercase;
             animation: levelupFadeIn 1s ease 1s both;
+        }
+
+        /* ============ POKEMON SECTION ============ */
+        .pokemon-section { margin: 1.5rem 0; }
+        .pokemon-box {
+            background: rgba(8,12,18,0.9);
+            border: 2px solid var(--accent-deep);
+            border-image: linear-gradient(135deg, var(--accent-deep), var(--border-light), var(--accent-deep)) 1;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 0 20px rgba(74,158,255,0.15), inset 0 0 30px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+        .pokemon-box::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: var(--location-bg);
+            background-size: cover;
+            background-position: center;
+            image-rendering: pixelated;
+            z-index: -2;
+            opacity: 0.8;
+        }
+        .pokemon-box::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(ellipse at center, rgba(12,17,25,0.5) 0%, rgba(12,17,25,0.8) 100%);
+            z-index: -1;
+        }
+        .pokemon-header { text-align: center; margin-bottom: 1rem; }
+        .pokemon-level-name {
+            font-size: 1.5rem; font-weight: 900; color: var(--accent-glow);
+            text-shadow: 0 0 15px var(--accent-glow), 0 0 30px rgba(106,180,255,0.5);
+            letter-spacing: 2px;
+        }
+        .pokemon-sprite {
+            width: 280px; height: 280px; image-rendering: pixelated;
+            filter: drop-shadow(0 0 15px var(--accent-glow));
+            margin: -2rem 0 -4rem;
+        }
+        .pokemon-pnl { font-size: 1.1rem; font-weight: 700; margin-top: 0.3rem; }
+        .pokemon-pnl.positive { color: var(--green-bright); text-shadow: 0 0 10px var(--green-bright); }
+        .pokemon-pnl.negative { color: var(--red-bright); text-shadow: 0 0 10px var(--red-bright); }
+        .pokemon-pnl.zero { color: var(--text-dim); }
+        .pokemon-sizes {
+            display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;
+            margin-top: 0.5rem;
+        }
+        .pokemon-size-chip {
+            background: rgba(74,158,255,0.15);
+            border: 1px solid var(--accent-deep);
+            border-radius: 6px;
+            padding: 0.3rem 0.6rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+        .pokemon-size-chip.lead { color: var(--accent-glow); border-color: var(--accent-glow); }
+        .pokemon-size-chip.mid { color: var(--text); }
+        .pokemon-size-chip.half { color: var(--text-dim); }
+        .pokemon-xp-bar { margin: 0.8rem auto 1rem; max-width: 450px; }
+        .pokemon-xp-track {
+            height: 14px; background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 7px; overflow: hidden;
+        }
+        .pokemon-xp-fill {
+            height: 100%; border-radius: 7px;
+            background: linear-gradient(90deg, var(--accent-deep), var(--green-bright));
+            box-shadow: 0 0 10px var(--green-bright), 0 0 20px rgba(77,208,196,0.3);
+            transition: width 0.8s ease;
+        }
+        .pokemon-xp-labels {
+            display: flex; justify-content: space-between;
+            margin-top: 0.3rem; font-size: 0.5rem; color: var(--text-dim);
+        }
+        .pokemon-next-evolve {
+            text-align: center; margin-top: 0.8rem; font-size: 0.75rem;
+            color: var(--accent-glow); text-shadow: 0 0 8px rgba(106,180,255,0.4);
+            font-weight: 700; padding-top: 0.5rem; border-top: 1px solid var(--border);
         }
 
         /* ============ SCALING SECTION ============ */
@@ -1356,6 +1452,12 @@
             .open-trade-item .action-buttons .entry-input { grid-column: 1 / -1; width: 55px !important; }
             .open-trade-item .action-buttons .action-btn { padding: 5px 4px; font-size: 0.5rem; }
             .scaling-section { display: none !important; }
+            .pokemon-section { margin: 1rem 0; }
+            .pokemon-box { padding: 1rem 1.2rem; }
+            .pokemon-sprite { width: 180px; height: 180px; margin: -1rem 0 -2rem; }
+            .pokemon-level-name { font-size: 1.2rem; }
+            .pokemon-xp-bar { max-width: 100%; }
+            .pokemon-size-chip { font-size: 0.65rem; padding: 0.2rem 0.4rem; }
             .weekly-tasks { display: none !important; }
             .two-day-btn { display: none !important; }
             .need-2day-btn { display: none !important; }
@@ -1370,30 +1472,12 @@
     <div style="color: var(--text-dim); font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase;">Loading dashboard...</div>
 </div>
 
-<!-- Level Up Overlay -->
+<!-- Level Up Overlay (Pokemon Evolution) -->
 <div class="levelup-overlay" id="levelupOverlay" style="display:none" onclick="dismissLevelUp()">
     <div class="levelup-content">
-        <div class="levelup-capybara">
-            <svg viewBox="150 380 550 580" width="180" height="180">
-                <g fill="none" stroke="var(--accent-glow)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M180 750 Q150 650 200 580 Q220 550 250 540 Q280 530 320 540 L340 545"/>
-                    <path d="M340 545 Q380 500 420 480 Q480 450 540 460 Q600 470 640 510 Q680 550 690 600 Q695 640 680 680 Q660 720 620 740 Q560 770 480 760 Q400 750 340 720 Q300 700 280 680"/>
-                    <path d="M380 480 Q370 440 390 410 Q410 385 440 390 Q460 400 455 430 Q450 455 430 470"/>
-                    <path d="M540 455 Q550 420 580 400 Q610 385 635 400 Q655 420 645 455 Q635 480 610 490"/>
-                    <circle cx="480" cy="540" r="18" fill="var(--accent-deep)"/>
-                    <circle cx="485" cy="535" r="6" fill="var(--accent-glow)"/>
-                    <ellipse cx="580" cy="580" rx="25" ry="18" fill="var(--accent-deep)"/>
-                    <circle cx="570" cy="575" r="4" fill="var(--accent-glow)"/>
-                    <circle cx="590" cy="575" r="4" fill="var(--accent-glow)"/>
-                    <path d="M560 610 Q580 625 600 610"/>
-                    <path d="M620 570 L680 550"/><path d="M625 590 L690 590"/><path d="M620 610 L680 630"/>
-                    <path d="M320 700 Q310 750 320 800 Q325 830 350 840 Q380 845 390 820 Q400 790 395 750"/>
-                    <path d="M450 750 Q445 800 455 840 Q465 870 495 870 Q525 865 530 835 Q535 800 520 760"/>
-                    <path d="M280 680 Q240 720 220 780 Q200 850 230 900 Q260 940 320 940 Q370 935 380 890 Q390 840 370 800"/>
-                </g>
-            </svg>
-        </div>
-        <div class="levelup-title" id="levelupTitle">LEVEL UP!</div>
+        <img class="levelup-pokemon" id="levelupSprite" src="" alt="">
+        <div class="levelup-title" id="levelupTitle">EVOLUTION!</div>
+        <div class="levelup-pokename" id="levelupPokename"></div>
         <div class="levelup-detail" id="levelupDetail"></div>
         <div class="levelup-sizes" id="levelupSizes"></div>
         <div class="levelup-tap">tap to continue</div>
@@ -1509,6 +1593,12 @@
     <div class="scaling-section" id="scalingSection">
         <div class="section-header">Position Sizing</div>
         <div class="scaling-box" id="scalingBox"></div>
+    </div>
+
+    <!-- Pokemon Trainer Level -->
+    <div class="pokemon-section" id="pokemonSection">
+        <div class="section-header" style="margin-top:2rem">Trainer Level</div>
+        <div class="pokemon-box" id="pokemonBox"></div>
     </div>
 
     <!-- Ticker Grid -->
@@ -1828,6 +1918,9 @@
 
         // --- Scaling Plan ---
         renderScaling(stats);
+
+        // --- Pokemon Trainer Level ---
+        renderPokemon(stats);
     }
 
     // ====== TOP PICKS (Claude's Recommendations) ======
@@ -2985,6 +3078,269 @@
 
     document.getElementById('zenCapybara').addEventListener('click', showZenWisdom);
 
+    // ====== POKEMON SCALING ======
+    const POKE_SPRITE = id => `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+
+    const LOCATION_BG = {
+        pallet:   'https://archives.bulbagarden.net/media/upload/7/77/Pallet_Town_FRLG.png',
+        pewter:   'https://archives.bulbagarden.net/media/upload/c/cf/Pewter_City_FRLG.png',
+        cerulean: 'https://archives.bulbagarden.net/media/upload/0/0b/Cerulean_City_FRLG.png',
+        vermilion:'https://archives.bulbagarden.net/media/upload/8/8d/Vermilion_City_FRLG.png',
+        celadon:  'https://archives.bulbagarden.net/media/upload/e/ee/Celadon_City_FRLG.png',
+        fuchsia:  'https://archives.bulbagarden.net/media/upload/d/d0/Fuchsia_City_FRLG.png',
+        cinnabar: 'https://archives.bulbagarden.net/media/upload/6/65/Cinnabar_Island_FRLG.png',
+        indigo:   'https://archives.bulbagarden.net/media/upload/2/26/Indigo_Plateau_FRLG.png'
+    };
+
+    const POKEMON_LEVELS = [
+        { min:     0, pokemon: 'Bulbasaur',   pokeId:   1, location: 'pallet' },
+        { min:     4, pokemon: 'Ivysaur',     pokeId:   2, location: 'pallet' },
+        { min:     7, pokemon: 'Venusaur',    pokeId:   3, location: 'pallet' },
+        { min:    11, pokemon: 'Charmander',  pokeId:   4, location: 'pallet' },
+        { min:    14, pokemon: 'Charmeleon',  pokeId:   5, location: 'pallet' },
+        { min:    20, pokemon: 'Charizard',   pokeId:   6, location: 'pallet' },
+        { min:    27, pokemon: 'Squirtle',    pokeId:   7, location: 'pallet' },
+        { min:    35, pokemon: 'Wartortle',   pokeId:   8, location: 'pallet' },
+        { min:    45, pokemon: 'Blastoise',   pokeId:   9, location: 'pallet' },
+        { min:    57, pokemon: 'Caterpie',    pokeId:  10, location: 'pewter' },
+        { min:    69, pokemon: 'Metapod',     pokeId:  11, location: 'pewter' },
+        { min:    78, pokemon: 'Butterfree',  pokeId:  12, location: 'pewter' },
+        { min:    96, pokemon: 'Weedle',      pokeId:  13, location: 'pewter' },
+        { min:   106, pokemon: 'Kakuna',      pokeId:  14, location: 'pewter' },
+        { min:   128, pokemon: 'Beedrill',    pokeId:  15, location: 'pewter' },
+        { min:   142, pokemon: 'Pidgey',      pokeId:  16, location: 'pewter' },
+        { min:   156, pokemon: 'Pidgeotto',   pokeId:  17, location: 'pewter' },
+        { min:   186, pokemon: 'Pidgeot',     pokeId:  18, location: 'pewter' },
+        { min:   204, pokemon: 'Rattata',     pokeId:  19, location: 'pewter' },
+        { min:   234, pokemon: 'Raticate',    pokeId:  20, location: 'pewter' },
+        { min:   252, pokemon: 'Spearow',     pokeId:  21, location: 'pewter' },
+        { min:   278, pokemon: 'Fearow',      pokeId:  22, location: 'pewter' },
+        { min:   318, pokemon: 'Ekans',       pokeId:  23, location: 'pewter' },
+        { min:   344, pokemon: 'Arbok',       pokeId:  24, location: 'pewter' },
+        { min:   379, pokemon: 'Pikachu',     pokeId:  25, location: 'pewter' },
+        { min:   419, pokemon: 'Raichu',      pokeId:  26, location: 'pewter' },
+        { min:   459, pokemon: 'Sandshrew',   pokeId:  27, location: 'pewter' },
+        { min:   485, pokemon: 'Sandslash',   pokeId:  28, location: 'pewter' },
+        { min:   513, pokemon: 'Nidoran\u2640', pokeId: 29, location: 'pewter' },
+        { min:   548, pokemon: 'Nidorina',    pokeId:  30, location: 'pewter' },
+        { min:   598, pokemon: 'Nidoqueen',   pokeId:  31, location: 'pewter' },
+        { min:   628, pokemon: 'Nidoran\u2642', pokeId: 32, location: 'pewter' },
+        { min:   673, pokemon: 'Nidorino',    pokeId:  33, location: 'pewter' },
+        { min:   738, pokemon: 'Nidoking',    pokeId:  34, location: 'pewter' },
+        { min:   773, pokemon: 'Clefairy',    pokeId:  35, location: 'cerulean' },
+        { min:   853, pokemon: 'Clefable',    pokeId:  36, location: 'cerulean' },
+        { min:   893, pokemon: 'Vulpix',      pokeId:  37, location: 'cerulean' },
+        { min:   943, pokemon: 'Ninetales',   pokeId:  38, location: 'cerulean' },
+        { min:  1028, pokemon: 'Jigglypuff',  pokeId:  39, location: 'cerulean' },
+        { min:  1073, pokemon: 'Wigglytuff',  pokeId:  40, location: 'cerulean' },
+        { min:  1143, pokemon: 'Zubat',       pokeId:  41, location: 'vermilion' },
+        { min:  1203, pokemon: 'Golbat',      pokeId:  42, location: 'vermilion' },
+        { min:  1278, pokemon: 'Oddish',      pokeId:  43, location: 'vermilion' },
+        { min:  1353, pokemon: 'Gloom',       pokeId:  44, location: 'vermilion' },
+        { min:  1443, pokemon: 'Vileplume',   pokeId:  45, location: 'vermilion' },
+        { min:  1533, pokemon: 'Paras',       pokeId:  46, location: 'vermilion' },
+        { min:  1613, pokemon: 'Parasect',    pokeId:  47, location: 'vermilion' },
+        { min:  1678, pokemon: 'Venonat',     pokeId:  48, location: 'vermilion' },
+        { min:  1773, pokemon: 'Venomoth',    pokeId:  49, location: 'vermilion' },
+        { min:  1828, pokemon: 'Diglett',     pokeId:  50, location: 'vermilion' },
+        { min:  1918, pokemon: 'Dugtrio',     pokeId:  51, location: 'vermilion' },
+        { min:  1973, pokemon: 'Meowth',      pokeId:  52, location: 'vermilion' },
+        { min:  2053, pokemon: 'Persian',     pokeId:  53, location: 'vermilion' },
+        { min:  2183, pokemon: 'Psyduck',     pokeId:  54, location: 'vermilion' },
+        { min:  2258, pokemon: 'Golduck',     pokeId:  55, location: 'vermilion' },
+        { min:  2323, pokemon: 'Mankey',      pokeId:  56, location: 'vermilion' },
+        { min:  2423, pokemon: 'Primeape',    pokeId:  57, location: 'vermilion' },
+        { min:  2523, pokemon: 'Growlithe',   pokeId:  58, location: 'vermilion' },
+        { min:  2663, pokemon: 'Arcanine',    pokeId:  59, location: 'vermilion' },
+        { min:  2783, pokemon: 'Poliwag',     pokeId:  60, location: 'vermilion' },
+        { min:  2923, pokemon: 'Poliwhirl',   pokeId:  61, location: 'vermilion' },
+        { min:  3008, pokemon: 'Poliwrath',   pokeId:  62, location: 'vermilion' },
+        { min:  3158, pokemon: 'Abra',        pokeId:  63, location: 'vermilion' },
+        { min:  3298, pokemon: 'Kadabra',     pokeId:  64, location: 'vermilion' },
+        { min:  3448, pokemon: 'Alakazam',    pokeId:  65, location: 'vermilion' },
+        { min:  3618, pokemon: 'Machop',      pokeId:  66, location: 'celadon' },
+        { min:  3768, pokemon: 'Machoke',     pokeId:  67, location: 'celadon' },
+        { min:  3863, pokemon: 'Machamp',     pokeId:  68, location: 'celadon' },
+        { min:  4003, pokemon: 'Bellsprout',  pokeId:  69, location: 'celadon' },
+        { min:  4183, pokemon: 'Weepinbell',  pokeId:  70, location: 'celadon' },
+        { min:  4353, pokemon: 'Victreebel',  pokeId:  71, location: 'celadon' },
+        { min:  4543, pokemon: 'Tentacool',   pokeId:  72, location: 'celadon' },
+        { min:  4633, pokemon: 'Tentacruel',  pokeId:  73, location: 'celadon' },
+        { min:  4743, pokemon: 'Geodude',     pokeId:  74, location: 'celadon' },
+        { min:  4923, pokemon: 'Graveler',    pokeId:  75, location: 'celadon' },
+        { min:  5053, pokemon: 'Golem',       pokeId:  76, location: 'celadon' },
+        { min:  5233, pokemon: 'Ponyta',      pokeId:  77, location: 'celadon' },
+        { min:  5443, pokemon: 'Rapidash',    pokeId:  78, location: 'celadon' },
+        { min:  5653, pokemon: 'Slowpoke',    pokeId:  79, location: 'celadon' },
+        { min:  5793, pokemon: 'Slowbro',     pokeId:  80, location: 'celadon' },
+        { min:  6013, pokemon: 'Magnemite',   pokeId:  81, location: 'fuchsia' },
+        { min:  6233, pokemon: 'Magneton',    pokeId:  82, location: 'fuchsia' },
+        { min:  6473, pokemon: "Farfetch\u2019d", pokeId: 83, location: 'fuchsia' },
+        { min:  6583, pokemon: 'Doduo',       pokeId:  84, location: 'fuchsia' },
+        { min:  6693, pokemon: 'Dodrio',      pokeId:  85, location: 'fuchsia' },
+        { min:  6913, pokemon: 'Seel',        pokeId:  86, location: 'fuchsia' },
+        { min:  7163, pokemon: 'Dewgong',     pokeId:  87, location: 'fuchsia' },
+        { min:  7383, pokemon: 'Grimer',      pokeId:  88, location: 'fuchsia' },
+        { min:  7503, pokemon: 'Muk',         pokeId:  89, location: 'fuchsia' },
+        { min:  7733, pokemon: 'Shellder',    pokeId:  90, location: 'fuchsia' },
+        { min:  7923, pokemon: 'Cloyster',    pokeId:  91, location: 'fuchsia' },
+        { min:  8083, pokemon: 'Gastly',      pokeId:  92, location: 'fuchsia' },
+        { min:  8323, pokemon: 'Haunter',     pokeId:  93, location: 'fuchsia' },
+        { min:  8603, pokemon: 'Gengar',      pokeId:  94, location: 'fuchsia' },
+        { min:  8833, pokemon: 'Onix',        pokeId:  95, location: 'fuchsia' },
+        { min:  8993, pokemon: 'Drowzee',     pokeId:  96, location: 'fuchsia' },
+        { min:  9263, pokemon: 'Hypno',       pokeId:  97, location: 'fuchsia' },
+        { min:  9483, pokemon: 'Krabby',      pokeId:  98, location: 'fuchsia' },
+        { min:  9653, pokemon: 'Kingler',     pokeId:  99, location: 'fuchsia' },
+        { min:  9943, pokemon: 'Voltorb',     pokeId: 100, location: 'cinnabar' },
+        { min: 10103, pokemon: 'Electrode',   pokeId: 101, location: 'cinnabar' },
+        { min: 10373, pokemon: 'Exeggcute',   pokeId: 102, location: 'cinnabar' },
+        { min: 10523, pokemon: 'Exeggutor',   pokeId: 103, location: 'cinnabar' },
+        { min: 10773, pokemon: 'Cubone',      pokeId: 104, location: 'cinnabar' },
+        { min: 10993, pokemon: 'Marowak',     pokeId: 105, location: 'cinnabar' },
+        { min: 11203, pokemon: 'Hitmonlee',   pokeId: 106, location: 'cinnabar' },
+        { min: 11413, pokemon: 'Hitmonchan',  pokeId: 107, location: 'cinnabar' },
+        { min: 11713, pokemon: 'Lickitung',   pokeId: 108, location: 'cinnabar' },
+        { min: 11973, pokemon: 'Koffing',     pokeId: 109, location: 'cinnabar' },
+        { min: 12183, pokemon: 'Weezing',     pokeId: 110, location: 'cinnabar' },
+        { min: 12353, pokemon: 'Rhyhorn',     pokeId: 111, location: 'cinnabar' },
+        { min: 12533, pokemon: 'Rhydon',      pokeId: 112, location: 'cinnabar' },
+        { min: 12883, pokemon: 'Chansey',     pokeId: 113, location: 'cinnabar' },
+        { min: 13073, pokemon: 'Tangela',     pokeId: 114, location: 'cinnabar' },
+        { min: 13343, pokemon: 'Kangaskhan',  pokeId: 115, location: 'cinnabar' },
+        { min: 13613, pokemon: 'Horsea',      pokeId: 116, location: 'cinnabar' },
+        { min: 13893, pokemon: 'Seadra',      pokeId: 117, location: 'cinnabar' },
+        { min: 14123, pokemon: 'Goldeen',     pokeId: 118, location: 'cinnabar' },
+        { min: 14373, pokemon: 'Seaking',     pokeId: 119, location: 'cinnabar' },
+        { min: 14723, pokemon: 'Staryu',      pokeId: 120, location: 'cinnabar' },
+        { min: 14903, pokemon: 'Starmie',     pokeId: 121, location: 'cinnabar' },
+        { min: 15278, pokemon: 'Mr. Mime',    pokeId: 122, location: 'cinnabar' },
+        { min: 15468, pokemon: 'Scyther',     pokeId: 123, location: 'cinnabar' },
+        { min: 15728, pokemon: 'Jynx',        pokeId: 124, location: 'cinnabar' },
+        { min: 15998, pokemon: 'Electabuzz',  pokeId: 125, location: 'cinnabar' },
+        { min: 16268, pokemon: 'Magmar',      pokeId: 126, location: 'cinnabar' },
+        { min: 16668, pokemon: 'Pinsir',      pokeId: 127, location: 'cinnabar' },
+        { min: 17043, pokemon: 'Tauros',      pokeId: 128, location: 'cinnabar' },
+        { min: 17343, pokemon: 'Magikarp',    pokeId: 129, location: 'cinnabar' },
+        { min: 17743, pokemon: 'Gyarados',    pokeId: 130, location: 'cinnabar' },
+        { min: 18193, pokemon: 'Lapras',      pokeId: 131, location: 'indigo' },
+        { min: 18523, pokemon: 'Ditto',       pokeId: 132, location: 'indigo' },
+        { min: 18787, pokemon: 'Eevee',       pokeId: 133, location: 'indigo' },
+        { min: 19227, pokemon: 'Vaporeon',    pokeId: 134, location: 'indigo' },
+        { min: 19694, pokemon: 'Jolteon',     pokeId: 135, location: 'indigo' },
+        { min: 20002, pokemon: 'Flareon',     pokeId: 136, location: 'indigo' },
+        { min: 20310, pokemon: 'Porygon',     pokeId: 137, location: 'indigo' },
+        { min: 20596, pokemon: 'Omanyte',     pokeId: 138, location: 'indigo' },
+        { min: 20827, pokemon: 'Omastar',     pokeId: 139, location: 'indigo' },
+        { min: 21212, pokemon: 'Kabuto',      pokeId: 140, location: 'indigo' },
+        { min: 21679, pokemon: 'Kabutops',    pokeId: 141, location: 'indigo' },
+        { min: 22009, pokemon: 'Aerodactyl',  pokeId: 142, location: 'indigo' },
+        { min: 22421, pokemon: 'Snorlax',     pokeId: 143, location: 'indigo' },
+        { min: 22696, pokemon: 'Articuno',    pokeId: 144, location: 'indigo' },
+        { min: 23219, pokemon: 'Zapdos',      pokeId: 145, location: 'indigo' },
+        { min: 23460, pokemon: 'Moltres',     pokeId: 146, location: 'indigo' },
+        { min: 23873, pokemon: 'Dratini',     pokeId: 147, location: 'indigo' },
+        { min: 24285, pokemon: 'Dragonair',   pokeId: 148, location: 'indigo' },
+        { min: 24643, pokemon: 'Dragonite',   pokeId: 149, location: 'indigo' },
+        { min: 25000, pokemon: 'Mewtwo',      pokeId: 150, location: 'indigo' },
+        { min: 30000, pokemon: 'Mew',         pokeId: 151, location: 'indigo' }
+    ];
+
+    function getPokemonLevel(pnl) {
+        let level = POKEMON_LEVELS[0];
+        for (const l of POKEMON_LEVELS) {
+            if (pnl >= l.min) level = l;
+        }
+        return level;
+    }
+
+    function getNextPokemonLevel(currentLevel) {
+        const idx = POKEMON_LEVELS.indexOf(currentLevel);
+        if (idx >= 0 && idx < POKEMON_LEVELS.length - 1) return POKEMON_LEVELS[idx + 1];
+        return null;
+    }
+
+    // Compute 5 trade sizes for any profit level
+    function getCryptoSizes(profit) {
+        const p = Math.max(0, profit);
+        // $0-$500: fine-grained lookup table
+        const SIZE_TABLE = [
+            [0,[1,1,1,1,1]], [25,[2,1,1,1,1]], [50,[2,2,1,1,1]], [75,[2,2,2,1,1]],
+            [100,[3,2,2,2,1]], [150,[3,3,2,2,1]], [200,[3,3,3,2,1]], [250,[4,3,3,3,2]],
+            [300,[4,4,3,3,2]], [350,[4,4,4,3,2]], [400,[5,4,4,4,2]], [450,[5,5,4,4,2]],
+            [500,[5,5,5,5,3]]
+        ];
+        if (p <= 500) {
+            let sizes = SIZE_TABLE[0][1];
+            for (const [min, s] of SIZE_TABLE) { if (p >= min) sizes = s; }
+            return sizes.slice();
+        }
+        // $500+: smooth power curve
+        const base = Math.round(5 + Math.pow((p - 500) / 150, 0.6));
+        const spread = Math.max(1, Math.round(base * 0.05));
+        const t1 = base + spread;
+        const t2 = base;
+        const t3 = base;
+        const t4 = Math.max(1, base - spread);
+        const t5 = Math.max(1, Math.ceil(base / 2));
+        return [t1, t2, t3, t4, t5];
+    }
+
+    function renderPokemon(stats) {
+        const box = document.getElementById('pokemonBox');
+        if (!box) return;
+        const pnl = parseFloat(stats.netPnl) || 0;
+        const level = getPokemonLevel(pnl);
+        const nextLevel = getNextPokemonLevel(level);
+        const levelIdx = POKEMON_LEVELS.indexOf(level) + 1;
+        const sizes = getCryptoSizes(level.min);
+        const totalRisk = sizes.reduce((a, b) => a + b, 0);
+
+        const pnlStr = pnl >= 0 ? '+$' + pnl.toFixed(2) : '-$' + Math.abs(pnl).toFixed(2);
+        const pnlClass = pnl > 0 ? 'positive' : pnl < 0 ? 'negative' : 'zero';
+
+        const xpFrom = level.min;
+        const xpTo = nextLevel ? nextLevel.min : level.min;
+        const xpRange = xpTo - xpFrom;
+        const xpProgress = xpRange > 0 ? Math.max(0, Math.min(100, ((pnl - xpFrom) / xpRange) * 100)) : 100;
+
+        let html = `<div class="pokemon-header">
+            <div class="pokemon-level-name">Lv.${levelIdx} \u2014 ${level.pokemon}</div>
+            <img class="pokemon-sprite" src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}">
+            <div class="pokemon-pnl ${pnlClass}">P&L: ${pnlStr}</div>
+            <div class="pokemon-sizes">
+                <span class="pokemon-size-chip lead">T1: $${sizes[0]}</span>
+                <span class="pokemon-size-chip mid">T2: $${sizes[1]}</span>
+                <span class="pokemon-size-chip mid">T3: $${sizes[2]}</span>
+                <span class="pokemon-size-chip mid">T4: $${sizes[3]}</span>
+                <span class="pokemon-size-chip half">T5: $${sizes[4]}</span>
+            </div>
+        </div>`;
+
+        html += `<div class="pokemon-xp-bar">
+            <div class="pokemon-xp-track">
+                <div class="pokemon-xp-fill" style="width:${xpProgress}%"></div>
+            </div>
+            <div class="pokemon-xp-labels">
+                <span>$${xpFrom.toLocaleString()}</span>
+                <span>${xpProgress.toFixed(0)}%</span>
+                <span>${nextLevel ? '$' + xpTo.toLocaleString() : 'MAX'}</span>
+            </div>
+        </div>`;
+
+        if (nextLevel) {
+            html += `<div class="pokemon-next-evolve">${level.pokemon} evolves at $${nextLevel.min.toLocaleString()} profit \u2014 Total risk: $${totalRisk}</div>`;
+        } else {
+            html += `<div class="pokemon-next-evolve">MAX LEVEL \u2014 You are the very best!</div>`;
+        }
+
+        if (level.location && LOCATION_BG[level.location]) {
+            box.style.setProperty('--location-bg', `url('${LOCATION_BG[level.location]}')`);
+        }
+        box.innerHTML = html;
+        checkPokemonLevelUp(pnl);
+    }
+
     // ====== SCALING PLAN ======
     const SCALING_TABLE = [
         // Phase 1: Proving ($0-$500) — smooth ramp, $25-$50 steps
@@ -3053,36 +3409,36 @@
         return null;
     }
 
-    // ====== LEVEL UP ======
-    const LEVELUP_KEY = 'crypto_unlocked_tier';
-    function getUnlockedTier() { return parseFloat(localStorage.getItem(LEVELUP_KEY) || '0'); }
-    function setUnlockedTier(val) { localStorage.setItem(LEVELUP_KEY, String(val)); }
+    // ====== POKEMON LEVEL UP ======
+    const POKE_LEVEL_KEY = 'crypto_pokemon_level';
+    function getUnlockedPokeLevel() { return parseFloat(localStorage.getItem(POKE_LEVEL_KEY) || '0'); }
+    function setUnlockedPokeLevel(val) { localStorage.setItem(POKE_LEVEL_KEY, String(val)); }
 
-    function checkLevelUp(pnl) {
-        const currentUnlocked = getUnlockedTier();
-        // Find the highest tier we've reached
-        let reachedTier = 0;
-        for (const tier of SCALING_TABLE) {
-            if (pnl >= tier.min) reachedTier = tier.min;
-        }
-        if (reachedTier > currentUnlocked && currentUnlocked >= 0) {
-            // New tier unlocked!
-            const tier = SCALING_TABLE.find(t => t.min === reachedTier);
-            if (tier) showLevelUp(tier);
-            setUnlockedTier(reachedTier);
-        } else if (reachedTier <= currentUnlocked) {
-            // Update stored tier if we haven't gone backwards
-            // (don't re-trigger on refresh)
+    function checkPokemonLevelUp(pnl) {
+        const current = getPokemonLevel(pnl);
+        const unlocked = getUnlockedPokeLevel();
+        if (current.min > unlocked && unlocked >= 0) {
+            showPokemonLevelUp(current);
+            setUnlockedPokeLevel(current.min);
         }
     }
 
-    function showLevelUp(tier) {
+    function showPokemonLevelUp(level) {
         const overlay = document.getElementById('levelupOverlay');
+        const sprite = document.getElementById('levelupSprite');
         const detail = document.getElementById('levelupDetail');
+        const pokename = document.getElementById('levelupPokename');
         const sizesEl = document.getElementById('levelupSizes');
-        detail.innerHTML = `Profit hit <span style="color:var(--green-bright);font-weight:700">$${tier.min}</span><br>New position sizes unlocked!`;
-        sizesEl.textContent = tier.sizes.map(s => '$' + s).join(' / ');
+        const levelIdx = POKEMON_LEVELS.indexOf(level) + 1;
+        const sizes = getCryptoSizes(level.min);
+
+        sprite.src = POKE_SPRITE(level.pokeId);
+        sprite.className = 'levelup-pokemon evolving';
+        pokename.textContent = level.pokemon;
+        detail.innerHTML = `Lv.${levelIdx} \u2014 Profit hit <span style="color:var(--green-bright);font-weight:700">$${level.min.toLocaleString()}</span>`;
+        sizesEl.textContent = sizes.map(s => '$' + s).join(' / ');
         overlay.style.display = 'flex';
+        setTimeout(() => { sprite.className = 'levelup-pokemon'; }, 1500);
     }
 
     function dismissLevelUp() {
@@ -3164,9 +3520,6 @@
         }
 
         box.innerHTML = html;
-
-        // Check for level up
-        checkLevelUp(pnl);
     }
 
     // ====== INIT ======

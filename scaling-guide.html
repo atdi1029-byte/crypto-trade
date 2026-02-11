@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Pokemon Scaling Guide</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Space Mono', monospace;
+            background: #0c1119;
+            color: #c8d8e8;
+            padding: 2rem 3rem;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #4a9eff;
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 20px rgba(74,158,255,0.5);
+        }
+        .subtitle {
+            text-align: center;
+            color: #6a8aaa;
+            font-size: 0.7rem;
+            margin-bottom: 1.5rem;
+            letter-spacing: 2px;
+        }
+
+        /* Level Finder */
+        .level-finder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            padding: 0.8rem 1.2rem;
+            background: #132438;
+            border: 1px solid #1e3a5f;
+            border-radius: 8px;
+        }
+        .level-finder label {
+            color: #6a8aaa;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+        }
+        .level-finder input {
+            background: #0c1119;
+            border: 1px solid #1e3a5f;
+            color: #4a9eff;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 0.3rem 0.6rem;
+            width: 100px;
+            border-radius: 4px;
+            outline: none;
+        }
+        .level-finder input:focus { border-color: #4a9eff; }
+        .level-finder .finder-result {
+            font-size: 0.7rem;
+            color: #4dd0c4;
+            min-width: 300px;
+        }
+        .finder-result img {
+            width: 32px; height: 32px;
+            image-rendering: pixelated;
+            vertical-align: middle;
+            margin-right: 0.3rem;
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            height: 6px;
+            background: #132438;
+            border-radius: 3px;
+            margin-bottom: 2rem;
+            overflow: hidden;
+            border: 1px solid #1e3a5f;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4a9eff, #4dd0c4);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        /* Phases */
+        .phase { margin-bottom: 0.5rem; }
+        .phase-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid #1e3a5f;
+            user-select: none;
+            position: relative;
+            z-index: 1;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .phase-header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: var(--bg-url);
+            background-size: cover;
+            background-position: center;
+            image-rendering: pixelated;
+            z-index: -2;
+            opacity: 0.9;
+        }
+        .phase-header::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(90deg, rgba(12,17,25,0.6), rgba(12,17,25,0.75));
+            z-index: -1;
+        }
+        .phase-header:hover::after {
+            background: linear-gradient(90deg, rgba(12,17,25,0.5), rgba(12,17,25,0.65));
+        }
+        .phase-title {
+            font-size: 0.8rem;
+            color: #4a9eff;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+        }
+        .phase-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .phase-count {
+            font-size: 0.55rem;
+            color: #c8d8e8;
+            letter-spacing: 1px;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+        }
+        .phase-toggle {
+            font-size: 0.7rem;
+            color: #c8d8e8;
+            transition: transform 0.2s;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+        }
+        .phase.collapsed .phase-toggle { transform: rotate(-90deg); }
+        .phase-body {
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        .phase.collapsed .phase-body {
+            max-height: 0 !important;
+        }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.5rem 0 1rem;
+        }
+        th {
+            text-align: left;
+            font-size: 0.55rem;
+            color: #6a8aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0.4rem 0.5rem;
+            border-bottom: 1px solid #1e3a5f;
+        }
+        td {
+            padding: 0.4rem 0.5rem;
+            border-bottom: 1px solid #132438;
+            font-size: 0.68rem;
+        }
+        tr:hover { background: #132438; }
+        tr.highlight {
+            background: rgba(74,158,255,0.12) !important;
+            box-shadow: inset 0 0 0 1px rgba(74,158,255,0.3);
+        }
+        tr.highlight td { border-bottom-color: rgba(74,158,255,0.2); }
+        .pokemon-name { color: #e8f0f8; font-weight: 700; }
+        .profit { color: #4dd0c4; }
+        .lv { color: #6a8aaa; font-size: 0.65rem; }
+        .gap { color: #6a8aaa; font-size: 0.6rem; }
+        .sprite { width: 40px; height: 40px; image-rendering: pixelated; vertical-align: middle; }
+        .size-t1 { color: #4a9eff; font-weight: 700; }
+        .size-mid { color: #6ab4ff; }
+        .size-t5 { color: #6a8aaa; }
+        .total-risk { color: #4dd0c4; font-weight: 700; font-size: 0.6rem; }
+
+        /* Notes */
+        .notes {
+            margin-top: 2rem;
+            padding: 1rem 1.5rem;
+            background: #132438;
+            border: 1px solid #1e3a5f;
+            border-radius: 8px;
+            font-size: 0.65rem;
+            color: #6a8aaa;
+            line-height: 1.8;
+        }
+        .notes h3 {
+            color: #4a9eff;
+            margin-bottom: 0.5rem;
+            font-size: 0.75rem;
+        }
+        .notes code {
+            background: #0c1119;
+            color: #4dd0c4;
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 1rem; }
+            h1 { font-size: 1.4rem; }
+            .level-finder { flex-wrap: wrap; }
+            .finder-result { min-width: auto; }
+            td, th { padding: 0.3rem 0.3rem; font-size: 0.58rem; }
+            .sprite { width: 32px; height: 32px; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Crypto Pokemon Scaling Guide</h1>
+    <div class="subtitle">151 LEVELS &middot; 5 TRADES PER SESSION &middot; $0 &mdash; $30,000 PROFIT</div>
+
+    <div class="level-finder">
+        <label>FIND YOUR LEVEL:</label>
+        <input type="number" id="profitInput" placeholder="Enter P&L $" oninput="findLevel()">
+        <div class="finder-result" id="finderResult">Enter your profit to find your Pokemon</div>
+    </div>
+
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+    </div>
+
+    <div id="phases"></div>
+
+    <div class="notes">
+        <h3>How It Works</h3>
+        <p>Your <strong>overall crypto P&L</strong> determines your Pokemon level and trade sizes.</p>
+        <p>Each level unlocks 5 position sizes: <code>T1</code> (lead trade, biggest) through <code>T5</code> (smallest, ~half of T1).</p>
+        <p><strong>Total Risk</strong> = sum of all 5 trade sizes. Stays around 0.5-1% of profit at higher levels.</p>
+        <p>Early levels ($0-$500): fine-grained $25-$50 steps with graduated sizing.</p>
+        <p>Later levels: smooth power curve — sizes grow steadily but with diminishing increments.</p>
+        <p style="margin-top:0.8rem">
+            <strong>Regions map to crypto phases:</strong><br>
+            Pallet Town → Proving &middot;
+            Pewter → Early Scaling &middot;
+            Cerulean/Vermilion → Building &middot;
+            Celadon/Fuchsia → Ramping &middot;
+            Cinnabar → Peak &middot;
+            Indigo Plateau → Tapering
+        </p>
+    </div>
+
+<script>
+    const POKE_SPRITE = id => `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+
+    // Location backgrounds from FireRed/LeafGreen
+    const LOCATION_BG = {
+        pallet:   'https://archives.bulbagarden.net/media/upload/7/77/Pallet_Town_FRLG.png',
+        pewter:   'https://archives.bulbagarden.net/media/upload/c/cf/Pewter_City_FRLG.png',
+        cerulean: 'https://archives.bulbagarden.net/media/upload/0/0b/Cerulean_City_FRLG.png',
+        vermilion:'https://archives.bulbagarden.net/media/upload/8/8d/Vermilion_City_FRLG.png',
+        celadon:  'https://archives.bulbagarden.net/media/upload/e/ee/Celadon_City_FRLG.png',
+        fuchsia:  'https://archives.bulbagarden.net/media/upload/d/d0/Fuchsia_City_FRLG.png',
+        cinnabar: 'https://archives.bulbagarden.net/media/upload/6/65/Cinnabar_Island_FRLG.png',
+        indigo:   'https://archives.bulbagarden.net/media/upload/2/26/Indigo_Plateau_FRLG.png'
+    };
+
+    // 151 Pokemon levels — same thresholds as SPX ($0-$30k)
+    const POKEMON_LEVELS = [
+        { min:     0, pokemon: 'Bulbasaur',   pokeId:   1, location: 'pallet' },
+        { min:     4, pokemon: 'Ivysaur',     pokeId:   2, location: 'pallet' },
+        { min:     7, pokemon: 'Venusaur',    pokeId:   3, location: 'pallet' },
+        { min:    11, pokemon: 'Charmander',  pokeId:   4, location: 'pallet' },
+        { min:    14, pokemon: 'Charmeleon',  pokeId:   5, location: 'pallet' },
+        { min:    20, pokemon: 'Charizard',   pokeId:   6, location: 'pallet' },
+        { min:    27, pokemon: 'Squirtle',    pokeId:   7, location: 'pallet' },
+        { min:    35, pokemon: 'Wartortle',   pokeId:   8, location: 'pallet' },
+        { min:    45, pokemon: 'Blastoise',   pokeId:   9, location: 'pallet' },
+        { min:    57, pokemon: 'Caterpie',    pokeId:  10, location: 'pewter' },
+        { min:    69, pokemon: 'Metapod',     pokeId:  11, location: 'pewter' },
+        { min:    78, pokemon: 'Butterfree',  pokeId:  12, location: 'pewter' },
+        { min:    96, pokemon: 'Weedle',      pokeId:  13, location: 'pewter' },
+        { min:   106, pokemon: 'Kakuna',      pokeId:  14, location: 'pewter' },
+        { min:   128, pokemon: 'Beedrill',    pokeId:  15, location: 'pewter' },
+        { min:   142, pokemon: 'Pidgey',      pokeId:  16, location: 'pewter' },
+        { min:   156, pokemon: 'Pidgeotto',   pokeId:  17, location: 'pewter' },
+        { min:   186, pokemon: 'Pidgeot',     pokeId:  18, location: 'pewter' },
+        { min:   204, pokemon: 'Rattata',     pokeId:  19, location: 'pewter' },
+        { min:   234, pokemon: 'Raticate',    pokeId:  20, location: 'pewter' },
+        { min:   252, pokemon: 'Spearow',     pokeId:  21, location: 'pewter' },
+        { min:   278, pokemon: 'Fearow',      pokeId:  22, location: 'pewter' },
+        { min:   318, pokemon: 'Ekans',       pokeId:  23, location: 'pewter' },
+        { min:   344, pokemon: 'Arbok',       pokeId:  24, location: 'pewter' },
+        { min:   379, pokemon: 'Pikachu',     pokeId:  25, location: 'pewter' },
+        { min:   419, pokemon: 'Raichu',      pokeId:  26, location: 'pewter' },
+        { min:   459, pokemon: 'Sandshrew',   pokeId:  27, location: 'pewter' },
+        { min:   485, pokemon: 'Sandslash',   pokeId:  28, location: 'pewter' },
+        { min:   513, pokemon: 'Nidoran\u2640', pokeId: 29, location: 'pewter' },
+        { min:   548, pokemon: 'Nidorina',    pokeId:  30, location: 'pewter' },
+        { min:   598, pokemon: 'Nidoqueen',   pokeId:  31, location: 'pewter' },
+        { min:   628, pokemon: 'Nidoran\u2642', pokeId: 32, location: 'pewter' },
+        { min:   673, pokemon: 'Nidorino',    pokeId:  33, location: 'pewter' },
+        { min:   738, pokemon: 'Nidoking',    pokeId:  34, location: 'pewter' },
+        { min:   773, pokemon: 'Clefairy',    pokeId:  35, location: 'cerulean' },
+        { min:   853, pokemon: 'Clefable',    pokeId:  36, location: 'cerulean' },
+        { min:   893, pokemon: 'Vulpix',      pokeId:  37, location: 'cerulean' },
+        { min:   943, pokemon: 'Ninetales',   pokeId:  38, location: 'cerulean' },
+        { min:  1028, pokemon: 'Jigglypuff',  pokeId:  39, location: 'cerulean' },
+        { min:  1073, pokemon: 'Wigglytuff',  pokeId:  40, location: 'cerulean' },
+        { min:  1143, pokemon: 'Zubat',       pokeId:  41, location: 'vermilion' },
+        { min:  1203, pokemon: 'Golbat',      pokeId:  42, location: 'vermilion' },
+        { min:  1278, pokemon: 'Oddish',      pokeId:  43, location: 'vermilion' },
+        { min:  1353, pokemon: 'Gloom',       pokeId:  44, location: 'vermilion' },
+        { min:  1443, pokemon: 'Vileplume',   pokeId:  45, location: 'vermilion' },
+        { min:  1533, pokemon: 'Paras',       pokeId:  46, location: 'vermilion' },
+        { min:  1613, pokemon: 'Parasect',    pokeId:  47, location: 'vermilion' },
+        { min:  1678, pokemon: 'Venonat',     pokeId:  48, location: 'vermilion' },
+        { min:  1773, pokemon: 'Venomoth',    pokeId:  49, location: 'vermilion' },
+        { min:  1828, pokemon: 'Diglett',     pokeId:  50, location: 'vermilion' },
+        { min:  1918, pokemon: 'Dugtrio',     pokeId:  51, location: 'vermilion' },
+        { min:  1973, pokemon: 'Meowth',      pokeId:  52, location: 'vermilion' },
+        { min:  2053, pokemon: 'Persian',     pokeId:  53, location: 'vermilion' },
+        { min:  2183, pokemon: 'Psyduck',     pokeId:  54, location: 'vermilion' },
+        { min:  2258, pokemon: 'Golduck',     pokeId:  55, location: 'vermilion' },
+        { min:  2323, pokemon: 'Mankey',      pokeId:  56, location: 'vermilion' },
+        { min:  2423, pokemon: 'Primeape',    pokeId:  57, location: 'vermilion' },
+        { min:  2523, pokemon: 'Growlithe',   pokeId:  58, location: 'vermilion' },
+        { min:  2663, pokemon: 'Arcanine',    pokeId:  59, location: 'vermilion' },
+        { min:  2783, pokemon: 'Poliwag',     pokeId:  60, location: 'vermilion' },
+        { min:  2923, pokemon: 'Poliwhirl',   pokeId:  61, location: 'vermilion' },
+        { min:  3008, pokemon: 'Poliwrath',   pokeId:  62, location: 'vermilion' },
+        { min:  3158, pokemon: 'Abra',        pokeId:  63, location: 'vermilion' },
+        { min:  3298, pokemon: 'Kadabra',     pokeId:  64, location: 'vermilion' },
+        { min:  3448, pokemon: 'Alakazam',    pokeId:  65, location: 'vermilion' },
+        { min:  3618, pokemon: 'Machop',      pokeId:  66, location: 'celadon' },
+        { min:  3768, pokemon: 'Machoke',     pokeId:  67, location: 'celadon' },
+        { min:  3863, pokemon: 'Machamp',     pokeId:  68, location: 'celadon' },
+        { min:  4003, pokemon: 'Bellsprout',  pokeId:  69, location: 'celadon' },
+        { min:  4183, pokemon: 'Weepinbell',  pokeId:  70, location: 'celadon' },
+        { min:  4353, pokemon: 'Victreebel',  pokeId:  71, location: 'celadon' },
+        { min:  4543, pokemon: 'Tentacool',   pokeId:  72, location: 'celadon' },
+        { min:  4633, pokemon: 'Tentacruel',  pokeId:  73, location: 'celadon' },
+        { min:  4743, pokemon: 'Geodude',     pokeId:  74, location: 'celadon' },
+        { min:  4923, pokemon: 'Graveler',    pokeId:  75, location: 'celadon' },
+        { min:  5053, pokemon: 'Golem',       pokeId:  76, location: 'celadon' },
+        { min:  5233, pokemon: 'Ponyta',      pokeId:  77, location: 'celadon' },
+        { min:  5443, pokemon: 'Rapidash',    pokeId:  78, location: 'celadon' },
+        { min:  5653, pokemon: 'Slowpoke',    pokeId:  79, location: 'celadon' },
+        { min:  5793, pokemon: 'Slowbro',     pokeId:  80, location: 'celadon' },
+        { min:  6013, pokemon: 'Magnemite',   pokeId:  81, location: 'fuchsia' },
+        { min:  6233, pokemon: 'Magneton',    pokeId:  82, location: 'fuchsia' },
+        { min:  6473, pokemon: "Farfetch\u2019d", pokeId: 83, location: 'fuchsia' },
+        { min:  6583, pokemon: 'Doduo',       pokeId:  84, location: 'fuchsia' },
+        { min:  6693, pokemon: 'Dodrio',      pokeId:  85, location: 'fuchsia' },
+        { min:  6913, pokemon: 'Seel',        pokeId:  86, location: 'fuchsia' },
+        { min:  7163, pokemon: 'Dewgong',     pokeId:  87, location: 'fuchsia' },
+        { min:  7383, pokemon: 'Grimer',      pokeId:  88, location: 'fuchsia' },
+        { min:  7503, pokemon: 'Muk',         pokeId:  89, location: 'fuchsia' },
+        { min:  7733, pokemon: 'Shellder',    pokeId:  90, location: 'fuchsia' },
+        { min:  7923, pokemon: 'Cloyster',    pokeId:  91, location: 'fuchsia' },
+        { min:  8083, pokemon: 'Gastly',      pokeId:  92, location: 'fuchsia' },
+        { min:  8323, pokemon: 'Haunter',     pokeId:  93, location: 'fuchsia' },
+        { min:  8603, pokemon: 'Gengar',      pokeId:  94, location: 'fuchsia' },
+        { min:  8833, pokemon: 'Onix',        pokeId:  95, location: 'fuchsia' },
+        { min:  8993, pokemon: 'Drowzee',     pokeId:  96, location: 'fuchsia' },
+        { min:  9263, pokemon: 'Hypno',       pokeId:  97, location: 'fuchsia' },
+        { min:  9483, pokemon: 'Krabby',      pokeId:  98, location: 'fuchsia' },
+        { min:  9653, pokemon: 'Kingler',     pokeId:  99, location: 'fuchsia' },
+        { min:  9943, pokemon: 'Voltorb',     pokeId: 100, location: 'cinnabar' },
+        { min: 10103, pokemon: 'Electrode',   pokeId: 101, location: 'cinnabar' },
+        { min: 10373, pokemon: 'Exeggcute',   pokeId: 102, location: 'cinnabar' },
+        { min: 10523, pokemon: 'Exeggutor',   pokeId: 103, location: 'cinnabar' },
+        { min: 10773, pokemon: 'Cubone',      pokeId: 104, location: 'cinnabar' },
+        { min: 10993, pokemon: 'Marowak',     pokeId: 105, location: 'cinnabar' },
+        { min: 11203, pokemon: 'Hitmonlee',   pokeId: 106, location: 'cinnabar' },
+        { min: 11413, pokemon: 'Hitmonchan',  pokeId: 107, location: 'cinnabar' },
+        { min: 11713, pokemon: 'Lickitung',   pokeId: 108, location: 'cinnabar' },
+        { min: 11973, pokemon: 'Koffing',     pokeId: 109, location: 'cinnabar' },
+        { min: 12183, pokemon: 'Weezing',     pokeId: 110, location: 'cinnabar' },
+        { min: 12353, pokemon: 'Rhyhorn',     pokeId: 111, location: 'cinnabar' },
+        { min: 12533, pokemon: 'Rhydon',      pokeId: 112, location: 'cinnabar' },
+        { min: 12883, pokemon: 'Chansey',     pokeId: 113, location: 'cinnabar' },
+        { min: 13073, pokemon: 'Tangela',     pokeId: 114, location: 'cinnabar' },
+        { min: 13343, pokemon: 'Kangaskhan',  pokeId: 115, location: 'cinnabar' },
+        { min: 13613, pokemon: 'Horsea',      pokeId: 116, location: 'cinnabar' },
+        { min: 13893, pokemon: 'Seadra',      pokeId: 117, location: 'cinnabar' },
+        { min: 14123, pokemon: 'Goldeen',     pokeId: 118, location: 'cinnabar' },
+        { min: 14373, pokemon: 'Seaking',     pokeId: 119, location: 'cinnabar' },
+        { min: 14723, pokemon: 'Staryu',      pokeId: 120, location: 'cinnabar' },
+        { min: 14903, pokemon: 'Starmie',     pokeId: 121, location: 'cinnabar' },
+        { min: 15278, pokemon: 'Mr. Mime',    pokeId: 122, location: 'cinnabar' },
+        { min: 15468, pokemon: 'Scyther',     pokeId: 123, location: 'cinnabar' },
+        { min: 15728, pokemon: 'Jynx',        pokeId: 124, location: 'cinnabar' },
+        { min: 15998, pokemon: 'Electabuzz',  pokeId: 125, location: 'cinnabar' },
+        { min: 16268, pokemon: 'Magmar',      pokeId: 126, location: 'cinnabar' },
+        { min: 16668, pokemon: 'Pinsir',      pokeId: 127, location: 'cinnabar' },
+        { min: 17043, pokemon: 'Tauros',      pokeId: 128, location: 'cinnabar' },
+        { min: 17343, pokemon: 'Magikarp',    pokeId: 129, location: 'cinnabar' },
+        { min: 17743, pokemon: 'Gyarados',    pokeId: 130, location: 'cinnabar' },
+        { min: 18193, pokemon: 'Lapras',      pokeId: 131, location: 'indigo' },
+        { min: 18523, pokemon: 'Ditto',       pokeId: 132, location: 'indigo' },
+        { min: 18787, pokemon: 'Eevee',       pokeId: 133, location: 'indigo' },
+        { min: 19227, pokemon: 'Vaporeon',    pokeId: 134, location: 'indigo' },
+        { min: 19694, pokemon: 'Jolteon',     pokeId: 135, location: 'indigo' },
+        { min: 20002, pokemon: 'Flareon',     pokeId: 136, location: 'indigo' },
+        { min: 20310, pokemon: 'Porygon',     pokeId: 137, location: 'indigo' },
+        { min: 20596, pokemon: 'Omanyte',     pokeId: 138, location: 'indigo' },
+        { min: 20827, pokemon: 'Omastar',     pokeId: 139, location: 'indigo' },
+        { min: 21212, pokemon: 'Kabuto',      pokeId: 140, location: 'indigo' },
+        { min: 21679, pokemon: 'Kabutops',    pokeId: 141, location: 'indigo' },
+        { min: 22009, pokemon: 'Aerodactyl',  pokeId: 142, location: 'indigo' },
+        { min: 22421, pokemon: 'Snorlax',     pokeId: 143, location: 'indigo' },
+        { min: 22696, pokemon: 'Articuno',    pokeId: 144, location: 'indigo' },
+        { min: 23219, pokemon: 'Zapdos',      pokeId: 145, location: 'indigo' },
+        { min: 23460, pokemon: 'Moltres',     pokeId: 146, location: 'indigo' },
+        { min: 23873, pokemon: 'Dratini',     pokeId: 147, location: 'indigo' },
+        { min: 24285, pokemon: 'Dragonair',   pokeId: 148, location: 'indigo' },
+        { min: 24643, pokemon: 'Dragonite',   pokeId: 149, location: 'indigo' },
+        { min: 25000, pokemon: 'Mewtwo',      pokeId: 150, location: 'indigo' },
+        { min: 30000, pokemon: 'Mew',         pokeId: 151, location: 'indigo' }
+    ];
+
+    // Sizing lookup for $0-$500 (proven fine-grained progression)
+    const SIZE_TABLE = [
+        [0,   [1,1,1,1,1]],
+        [25,  [2,1,1,1,1]],
+        [50,  [2,2,1,1,1]],
+        [75,  [2,2,2,1,1]],
+        [100, [3,2,2,2,1]],
+        [150, [3,3,2,2,1]],
+        [200, [3,3,3,2,1]],
+        [250, [4,3,3,3,2]],
+        [300, [4,4,3,3,2]],
+        [350, [4,4,4,3,2]],
+        [400, [5,4,4,4,2]],
+        [450, [5,5,4,4,2]],
+        [500, [5,5,5,5,3]]
+    ];
+
+    // Compute 5 trade sizes for any profit level
+    function getCryptoSizes(profit) {
+        const p = Math.max(0, profit);
+
+        // $0-$500: use lookup table
+        if (p <= 500) {
+            let sizes = SIZE_TABLE[0][1];
+            for (const [min, s] of SIZE_TABLE) {
+                if (p >= min) sizes = s;
+            }
+            return sizes.slice();
+        }
+
+        // $500+: smooth formula
+        // base grows as power curve — matches existing system closely
+        // base=5 at $500, ~7 at $1000, ~12 at $5000, ~28 at $30000
+        const base = Math.round(5 + Math.pow((p - 500) / 150, 0.6));
+        const spread = Math.max(1, Math.round(base * 0.05));
+        const t1 = base + spread;
+        const t2 = base;
+        const t3 = base;
+        const t4 = Math.max(1, base - spread);
+        const t5 = Math.max(1, Math.ceil(base / 2));
+        return [t1, t2, t3, t4, t5];
+    }
+
+    // Phase groupings
+    const PHASES = [
+        { name: 'Pallet Town \u2014 Starters', location: 'pallet', start: 1, end: 9 },
+        { name: 'Viridian to Pewter \u2014 Early Routes', location: 'pewter', start: 10, end: 34 },
+        { name: 'Cerulean \u2014 Gym Challenge', location: 'cerulean', start: 35, end: 40 },
+        { name: 'Vermilion \u2014 Building Momentum', location: 'vermilion', start: 41, end: 65 },
+        { name: 'Celadon \u2014 Ramping Up', location: 'celadon', start: 66, end: 80 },
+        { name: 'Fuchsia \u2014 Safari Zone', location: 'fuchsia', start: 81, end: 99 },
+        { name: 'Cinnabar Island \u2014 Peak Power', location: 'cinnabar', start: 100, end: 130 },
+        { name: 'Indigo Plateau \u2014 Pokemon League', location: 'indigo', start: 131, end: 151 }
+    ];
+
+    function buildGuide() {
+        const container = document.getElementById('phases');
+        let html = '';
+
+        for (const phase of PHASES) {
+            const pokemonInPhase = POKEMON_LEVELS.filter((_, i) => (i + 1) >= phase.start && (i + 1) <= phase.end);
+            const profitRange = pokemonInPhase.length > 0
+                ? '$' + pokemonInPhase[0].min.toLocaleString() + ' \u2014 $' + pokemonInPhase[pokemonInPhase.length - 1].min.toLocaleString()
+                : '';
+
+            html += `<div class="phase" id="phase-${phase.location}">`;
+            html += `<div class="phase-header" style="--bg-url: url('${LOCATION_BG[phase.location]}')" onclick="togglePhase(this)">`;
+            html += `<span class="phase-title">${phase.name}</span>`;
+            html += `<div class="phase-meta">`;
+            html += `<span class="phase-count">${pokemonInPhase.length} Pokemon &middot; ${profitRange}</span>`;
+            html += `<span class="phase-toggle">\u25BC</span>`;
+            html += `</div></div>`;
+            html += `<div class="phase-body">`;
+            html += `<table><thead><tr>`;
+            html += `<th>Lv</th><th></th><th>Pokemon</th><th>Profit</th>`;
+            html += `<th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th>`;
+            html += `<th>Total</th><th>Gap</th>`;
+            html += `</tr></thead><tbody>`;
+
+            for (let i = phase.start - 1; i <= phase.end - 1 && i < POKEMON_LEVELS.length; i++) {
+                const lvl = POKEMON_LEVELS[i];
+                const sizes = getCryptoSizes(lvl.min);
+                const total = sizes.reduce((a, b) => a + b, 0);
+                const gap = i > 0 ? lvl.min - POKEMON_LEVELS[i - 1].min : 0;
+                const lv = i + 1;
+
+                html += `<tr id="row-${lv}">`;
+                html += `<td class="lv">${lv}</td>`;
+                html += `<td><img class="sprite" src="${POKE_SPRITE(lvl.pokeId)}" alt="${lvl.pokemon}" loading="lazy"></td>`;
+                html += `<td class="pokemon-name">${lvl.pokemon}</td>`;
+                html += `<td class="profit">$${lvl.min.toLocaleString()}</td>`;
+                html += `<td class="size-t1">$${sizes[0]}</td>`;
+                html += `<td class="size-mid">$${sizes[1]}</td>`;
+                html += `<td class="size-mid">$${sizes[2]}</td>`;
+                html += `<td class="size-mid">$${sizes[3]}</td>`;
+                html += `<td class="size-t5">$${sizes[4]}</td>`;
+                html += `<td class="total-risk">$${total}</td>`;
+                html += `<td class="gap">${gap > 0 ? '+$' + gap.toLocaleString() : '\u2014'}</td>`;
+                html += `</tr>`;
+            }
+
+            html += `</tbody></table></div></div>`;
+        }
+
+        container.innerHTML = html;
+    }
+
+    function togglePhase(header) {
+        header.parentElement.classList.toggle('collapsed');
+    }
+
+    function findLevel() {
+        const input = document.getElementById('profitInput');
+        const result = document.getElementById('finderResult');
+        const progress = document.getElementById('progressFill');
+        const val = parseFloat(input.value) || 0;
+
+        // Find current level
+        let level = POKEMON_LEVELS[0];
+        let levelIdx = 0;
+        for (let i = 0; i < POKEMON_LEVELS.length; i++) {
+            if (val >= POKEMON_LEVELS[i].min) {
+                level = POKEMON_LEVELS[i];
+                levelIdx = i;
+            }
+        }
+
+        const sizes = getCryptoSizes(level.min);
+        const total = sizes.reduce((a, b) => a + b, 0);
+        const sizesStr = sizes.map(s => '$' + s).join(' / ');
+        const next = levelIdx < POKEMON_LEVELS.length - 1 ? POKEMON_LEVELS[levelIdx + 1] : null;
+        const nextStr = next ? ` \u2014 $${(next.min - val).toFixed(0)} to ${next.pokemon}` : ' \u2014 MAX LEVEL!';
+
+        result.innerHTML = `<img src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}"> Lv.${levelIdx + 1} <strong>${level.pokemon}</strong> \u2014 ${sizesStr} = $${total} total${nextStr}`;
+
+        // Progress bar
+        const pct = Math.min(100, (val / 30000) * 100);
+        progress.style.width = pct + '%';
+
+        // Highlight row
+        document.querySelectorAll('tr.highlight').forEach(tr => tr.classList.remove('highlight'));
+        const row = document.getElementById('row-' + (levelIdx + 1));
+        if (row) {
+            row.classList.add('highlight');
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Expand phase if collapsed
+            const phase = row.closest('.phase');
+            if (phase && phase.classList.contains('collapsed')) {
+                phase.classList.remove('collapsed');
+            }
+        }
+    }
+
+    // Build on load
+    buildGuide();
+</script>
+</body>
+</html>
