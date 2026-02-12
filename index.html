@@ -1319,6 +1319,8 @@
             .header-left { flex-direction: row; align-items: center; justify-content: center; gap: 1rem; }
             .header-logo { display: none; }
             .header h1 { font-size: 2rem; }
+            .trade-clock { display: none !important; }
+            .need-2day-btn { display: none !important; }
             .header h1 span { font-size: 1.8rem; }
             .picks-actions-row { grid-template-columns: 1fr; }
             .ticker-grid { grid-template-columns: 1fr; }
@@ -1467,6 +1469,7 @@
             <button class="ot-filter-btn active" data-filter="all" onclick="setOTFilter(this,'all')">All</button>
             <button class="ot-filter-btn" data-filter="no-0x0" onclick="setOTFilter(this,'no-0x0')">No 0x0</button>
             <button class="ot-filter-btn" data-filter="no-tp" onclick="setOTFilter(this,'no-tp')">No TP</button>
+            <button class="ot-filter-btn need-2day-btn" data-filter="need-2day" onclick="setOTFilter(this,'need-2day')" id="need2dayFilter">Need 2 Day</button>
         </div>
         <div class="open-trades-list" id="openTradesList" style="max-height: 480px; overflow-y: auto;"></div>
     </div>
@@ -2035,6 +2038,7 @@
                                 <button class="action-btn won" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Won','${id}')">Hit TP</button>
                                 <button class="action-btn lost" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Lost','${id}','Stopped Out')">Stopped Out</button>
                                 <button class="action-btn skipped" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Closed','${id}','Close')">Closed</button>
+                                <button class="action-btn trade-clock" id="${id}-clock" data-entered="${a.timestamp || ''}" onclick="dismissTradeClock('${id}')"></button>
                             </div>
                         </div>
                         <div class="pnl-display" id="${id}-pnl-display" style="text-align:right;min-width:70px">
@@ -2190,6 +2194,10 @@
             if (otFilterMode === 'no-0x0') matchFilter = status !== '0x0';
             else if (otFilterMode === 'no-tp') matchFilter = status !== 'tp';
             else if (otFilterMode === 'done') matchFilter = status === '0x0' || status === 'tp';
+            else if (otFilterMode === 'need-2day') {
+                const clock = card.querySelector('.trade-clock');
+                matchFilter = clock && clock.classList.contains('overdue');
+            }
             card.style.display = (matchSearch && matchFilter) ? '' : 'none';
         });
     }
