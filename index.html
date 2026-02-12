@@ -1467,7 +1467,6 @@
             <button class="ot-filter-btn active" data-filter="all" onclick="setOTFilter(this,'all')">All</button>
             <button class="ot-filter-btn" data-filter="no-0x0" onclick="setOTFilter(this,'no-0x0')">No 0x0</button>
             <button class="ot-filter-btn" data-filter="no-tp" onclick="setOTFilter(this,'no-tp')">No TP</button>
-            <button class="ot-filter-btn need-2day-btn" data-filter="need-2day" onclick="setOTFilter(this,'need-2day')" id="need2dayFilter">Need 2 Day</button>
         </div>
         <div class="open-trades-list" id="openTradesList" style="max-height: 480px; overflow-y: auto;"></div>
     </div>
@@ -1560,6 +1559,17 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec?action=dashboard';
     const POST_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec';
     const REFRESH_INTERVAL = 60000;
+
+    // Fire-and-forget GET that works on mobile (bypasses CORS redirect issues)
+    function fireGet(url) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = resolve;
+            img.onerror = resolve; // Apps Script returns JSON not an image, so onerror = success
+            setTimeout(() => resolve(), 5000);
+            img.src = url;
+        });
+    }
 
     let refreshTimer = null;
     let allTickers = [];
@@ -2025,7 +2035,6 @@
                                 <button class="action-btn won" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Won','${id}')">Hit TP</button>
                                 <button class="action-btn lost" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Lost','${id}','Stopped Out')">Stopped Out</button>
                                 <button class="action-btn skipped" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Closed','${id}','Close')">Closed</button>
-                                <button class="action-btn trade-clock" id="${id}-clock" data-entered="${a.timestamp || ''}" onclick="dismissTradeClock('${id}')"></button>
                             </div>
                         </div>
                         <div class="pnl-display" id="${id}-pnl-display" style="text-align:right;min-width:70px">
@@ -2181,10 +2190,6 @@
             if (otFilterMode === 'no-0x0') matchFilter = status !== '0x0';
             else if (otFilterMode === 'no-tp') matchFilter = status !== 'tp';
             else if (otFilterMode === 'done') matchFilter = status === '0x0' || status === 'tp';
-            else if (otFilterMode === 'need-2day') {
-                const clock = card.querySelector('.trade-clock');
-                matchFilter = clock && clock.classList.contains('overdue');
-            }
             card.style.display = (matchSearch && matchFilter) ? '' : 'none';
         });
     }
@@ -2589,7 +2594,7 @@
         const params = new URLSearchParams({
             action: 'update', ticker, signal, price, field: 'action', value
         });
-        fetch(POST_URL + '?' + params).then(() => setTimeout(fetchData, 3000));
+        fireGet(POST_URL + '?' + params).then(() => setTimeout(fetchData, 3000));
     }
 
     function confirmOutcome(ticker, signal, price, value, elemId, label) {
@@ -2636,7 +2641,7 @@
             // Save to localStorage + sheet
             saveTradeState(ticker, signal, { status: 'tp', pnl: newTotal });
             const tpParams = new URLSearchParams({ action: 'update', ticker, signal, price, field: 'pnl', profitLocked: newTotal.toFixed(2), tradeStatus: 'tp' });
-            fetch(POST_URL + '?' + tpParams);
+            fireGet(POST_URL + '?' + tpParams);
             if (profitInput) profitInput.value = '';
             return;
 
@@ -2669,7 +2674,7 @@
             // Save to localStorage + sheet
             saveTradeState(ticker, signal, { status: '0x0', pnl: newTotal });
             const zParams = new URLSearchParams({ action: 'update', ticker, signal, price, field: 'pnl', profitLocked: newTotal.toFixed(2), tradeStatus: '0x0' });
-            fetch(POST_URL + '?' + zParams);
+            fireGet(POST_URL + '?' + zParams);
             if (profitInput) profitInput.value = '';
             return;
 
@@ -2687,7 +2692,7 @@
                     field: 'outcome', value: finalValue,
                     profitLocked: grandTotal.toFixed(2)
                 });
-                await fetch(POST_URL + '?' + params);
+                await fireGet(POST_URL + '?' + params);
 
                 // Flash the total before fading
                 const header = el.querySelector('.ticker-header');
@@ -2742,7 +2747,7 @@
         const params2 = new URLSearchParams({
             action: 'update', ticker, signal, price, field: 'action', value
         });
-        fetch(POST_URL + '?' + params2).then(() => setTimeout(fetchData, 3000));
+        fireGet(POST_URL + '?' + params2).then(() => setTimeout(fetchData, 3000));
     }
 
     // ====== EMPTY FALLBACK ======
