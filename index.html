@@ -3181,20 +3181,19 @@
     // Compute 5 trade sizes for any profit level
     function getCryptoSizes(profit) {
         const p = Math.max(0, profit);
-        // $0-$500: fine-grained lookup table
+        // $0-$125: early progression lookup table
         const SIZE_TABLE = [
-            [0,[1,1,1,1,1]], [25,[2,1,1,1,1]], [50,[2,2,1,1,1]], [75,[2,2,2,1,1]],
-            [100,[3,2,2,2,1]], [150,[3,3,2,2,1]], [200,[3,3,3,2,1]], [250,[4,3,3,3,2]],
-            [300,[4,4,3,3,2]], [350,[4,4,4,3,2]], [400,[5,4,4,4,2]], [450,[5,5,4,4,2]],
-            [500,[5,5,5,5,3]]
+            [0,[1,1,1,1,1]], [10,[2,1,1,1,1]], [25,[2,2,2,2,2]],
+            [50,[3,3,2,2,2]], [75,[3,3,3,3,3]], [100,[4,4,4,3,3]],
+            [125,[5,5,5,5,5]]
         ];
-        if (p <= 500) {
+        if (p <= 125) {
             let sizes = SIZE_TABLE[0][1];
             for (const [min, s] of SIZE_TABLE) { if (p >= min) sizes = s; }
             return sizes.slice();
         }
-        // $500+: smooth power curve
-        const base = Math.round(5 + Math.pow((p - 500) / 150, 0.6));
+        // $125+: smooth power curve
+        const base = Math.round(5 + Math.pow((p - 125) / 150, 0.6));
         const spread = Math.max(1, Math.round(base * 0.05));
         const t1 = base + spread;
         const t2 = base;
