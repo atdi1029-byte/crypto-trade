@@ -192,6 +192,9 @@
         .size-mid { color: #6ab4ff; }
         .size-t5 { color: #6a8aaa; }
         .total-risk { color: #4dd0c4; font-weight: 700; font-size: 0.6rem; }
+        .est { color: #6a8aaa; font-size: 0.58rem; }
+        .est-active { color: #4dd0c4; font-weight: 700; font-size: 0.58rem; }
+        .est-past { color: #3a5a3a; font-size: 0.58rem; }
 
         /* Notes */
         .notes {
@@ -231,9 +234,13 @@
     <div class="subtitle">151 LEVELS &middot; 5 TRADES PER SESSION &middot; $0 &mdash; $30,000 PROFIT</div>
 
     <div class="level-finder">
-        <label>FIND YOUR LEVEL:</label>
-        <input type="number" id="profitInput" placeholder="Enter P&L $" oninput="findLevel()">
-        <div class="finder-result" id="finderResult">Enter your profit to find your Pokemon</div>
+        <label>YOUR P&L: $</label>
+        <input type="number" id="profitInput" placeholder="P&L" oninput="updateEstimates()" style="width:80px">
+        <label>TRADES/DAY:</label>
+        <input type="number" id="tradesPerDay" placeholder="4" value="4" min="1" oninput="updateEstimates()" style="width:50px">
+        <label>EDGE %:</label>
+        <input type="number" id="edgePct" placeholder="9" value="9" min="1" max="50" oninput="updateEstimates()" style="width:50px">
+        <div class="finder-result" id="finderResult">Enter your P&L to see estimates</div>
     </div>
 
     <div class="progress-bar">
@@ -514,6 +521,7 @@
             html += `<th>Lv</th><th></th><th>Pokemon</th><th>Profit</th>`;
             html += `<th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th>`;
             html += `<th>Total</th><th>Gap</th>`;
+            html += `<th>Avg $/tr</th><th>Trades</th><th>Est.</th>`;
             html += `</tr></thead><tbody>`;
 
             for (let i = phase.start - 1; i <= phase.end - 1 && i < POKEMON_LEVELS.length; i++) {
@@ -535,6 +543,9 @@
                 html += `<td class="size-t5">$${sizes[4]}</td>`;
                 html += `<td class="total-risk">$${total}</td>`;
                 html += `<td class="gap">${gap > 0 ? '+$' + gap.toLocaleString() : '\u2014'}</td>`;
+                html += `<td class="est" id="est-avg-${lv}">-</td>`;
+                html += `<td class="est" id="est-trades-${lv}">-</td>`;
+                html += `<td class="est" id="est-time-${lv}">-</td>`;
                 html += `</tr>`;
             }
 
@@ -548,11 +559,13 @@
         header.parentElement.classList.toggle('collapsed');
     }
 
-    function findLevel() {
-        const input = document.getElementById('profitInput');
+    function updateEstimates() {
+        const val = parseFloat(document.getElementById('profitInput').value) || 0;
+        const tradesPerDay = parseFloat(document.getElementById('tradesPerDay').value) || 4;
+        const edgePct = parseFloat(document.getElementById('edgePct').value) || 9;
+        const edgeRate = edgePct / 100;
         const result = document.getElementById('finderResult');
         const progress = document.getElementById('progressFill');
-        const val = parseFloat(input.value) || 0;
 
         // Find current level
         let level = POKEMON_LEVELS[0];
@@ -569,7 +582,6 @@
         const sizesStr = sizes.map(s => '$' + s).join(' / ');
         const next = levelIdx < POKEMON_LEVELS.length - 1 ? POKEMON_LEVELS[levelIdx + 1] : null;
         const nextStr = next ? ` \u2014 $${(next.min - val).toFixed(0)} to ${next.pokemon}` : ' \u2014 MAX LEVEL!';
-
         result.innerHTML = `<img src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}"> Lv.${levelIdx + 1} <strong>${level.pokemon}</strong> \u2014 ${sizesStr} = $${total} total${nextStr}`;
 
         // Progress bar
@@ -582,12 +594,62 @@
         if (row) {
             row.classList.add('highlight');
             row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            // Expand phase if collapsed
             const phase = row.closest('.phase');
             if (phase && phase.classList.contains('collapsed')) {
                 phase.classList.remove('collapsed');
             }
         }
+
+        // Simulate progression from current P&L through all levels
+        let simPnl = val;
+        let cumTrades = 0;
+        for (let i = 0; i < POKEMON_LEVELS.length; i++) {
+            const lv = i + 1;
+            const avgEl = document.getElementById('est-avg-' + lv);
+            const trEl = document.getElementById('est-trades-' + lv);
+            const timeEl = document.getElementById('est-time-' + lv);
+            if (!avgEl) continue;
+
+            const lvlMin = POKEMON_LEVELS[i].min;
+            const lvlSizes = getCryptoSizes(lvlMin);
+            const avgSize = lvlSizes.reduce((a, b) => a + b, 0) / lvlSizes.length;
+            const profitPerTrade = avgSize * edgeRate;
+
+            avgEl.textContent = '$' + profitPerTrade.toFixed(2);
+
+            if (lvlMin <= val) {
+                // Already past this level
+                avgEl.className = 'est-past';
+                trEl.className = 'est-past';
+                timeEl.className = 'est-past';
+                trEl.textContent = '\u2713';
+                timeEl.textContent = '\u2713';
+            } else {
+                // How many trades from previous level to this one
+                const gap = i > 0 ? lvlMin - POKEMON_LEVELS[i - 1].min : lvlMin;
+                // Use sizes at the previous level for this segment
+                const prevSizes = i > 0 ? getCryptoSizes(POKEMON_LEVELS[i - 1].min) : getCryptoSizes(0);
+                const prevAvg = prevSizes.reduce((a, b) => a + b, 0) / prevSizes.length;
+                const prevProfit = prevAvg * edgeRate;
+                const tradesToThis = prevProfit > 0 ? Math.ceil(gap / prevProfit) : 9999;
+                cumTrades += tradesToThis;
+                const days = cumTrades / tradesPerDay;
+
+                avgEl.className = i === levelIdx + 1 ? 'est-active' : 'est';
+                trEl.className = i === levelIdx + 1 ? 'est-active' : 'est';
+                timeEl.className = i === levelIdx + 1 ? 'est-active' : 'est';
+                trEl.textContent = cumTrades.toLocaleString();
+                timeEl.textContent = formatTime(days);
+            }
+        }
+    }
+
+    function formatTime(days) {
+        if (days < 1) return '<1d';
+        if (days < 7) return Math.round(days) + 'd';
+        const weeks = days / 7;
+        if (weeks < 52) return weeks.toFixed(1) + 'w';
+        return (weeks / 52).toFixed(1) + 'y';
     }
 
     // Build on load
