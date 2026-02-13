@@ -472,7 +472,7 @@
 
         // $125+: smooth formula
         // base=5 at $125, scales with P&L growth
-        const base = Math.round(5 + Math.pow((p - 125) / 100, 0.75));
+        const base = Math.round(5 + Math.pow((p - 125) / 47, 0.87));
         const spread = Math.max(1, Math.round(base * 0.05));
         const t1 = base + spread;
         const t2 = base;
@@ -569,11 +569,10 @@
             const losses = parseInt(stats.losses) || 0;
             const winRate = stats.winRate || '0%';
 
-            // Calculate edge: avg profit per trade / avg trade size at current level
-            const profitPerTrade = pnl / totalTrades;
-            const curSizes = getCryptoSizes(pnl);
-            const curAvgSize = curSizes.reduce((a, b) => a + b, 0) / curSizes.length;
-            const edgeRate = curAvgSize > 0 ? profitPerTrade / curAvgSize : 0.09;
+            // Calculate edge from win rate (early tiny-trade data skews raw edge too low)
+            // Assumes ~18% avg win and ~10% avg loss (typical crypto TP/SL ratios)
+            const winRateNum = wins / Math.max(1, totalTrades);
+            const edgeRate = Math.max(0.05, winRateNum * 0.18 - (1 - winRateNum) * 0.10);
 
             // Estimate trades per day from data
             // Use first signal timestamp to calculate days active

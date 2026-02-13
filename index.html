@@ -1524,8 +1524,8 @@
 
     <!-- Won / Lost Summary with Capybara -->
     <div class="zen-footer">
-        <div style="display:flex;align-items:center;justify-content:space-between;width:calc(100% + 4rem);margin:0 -2rem 1rem;">
-            <div class="stat-card" style="min-width:auto;padding:0.6rem 1.2rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1rem;">
+            <div class="stat-card" style="flex:1;padding:0.6rem 1.2rem;">
                 <div class="stat-value green" id="statTotalWon" style="font-size:1.4rem;">-</div>
                 <div class="stat-label" style="font-size:0.5rem;">Won</div>
                 <div class="stat-value green" style="font-size:0.65rem;margin-top:0.2rem;" id="statWonDollars">-</div>
@@ -1555,7 +1555,7 @@
                     </g>
                 </svg>
             </div>
-            <div class="stat-card" style="min-width:auto;padding:0.6rem 1.2rem;">
+            <div class="stat-card" style="flex:1;padding:0.6rem 1.2rem;">
                 <div class="stat-value red" id="statTotalLost" style="font-size:1.4rem;">-</div>
                 <div class="stat-label" style="font-size:0.5rem;">Lost</div>
                 <div class="stat-value red" style="font-size:0.65rem;margin-top:0.2rem;" id="statLostDollars">-</div>
@@ -3202,7 +3202,7 @@
             return sizes.slice();
         }
         // $125+: smooth power curve, scales with P&L growth
-        const base = Math.round(5 + Math.pow((p - 125) / 100, 0.75));
+        const base = Math.round(5 + Math.pow((p - 125) / 47, 0.87));
         const spread = Math.max(1, Math.round(base * 0.05));
         const t1 = base + spread;
         const t2 = base;
