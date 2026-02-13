@@ -1525,10 +1525,10 @@
     <!-- Won / Lost Summary with Capybara -->
     <div class="zen-footer">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1rem;">
-            <div class="stat-card" style="flex:1;padding:0.6rem 1.2rem;">
+            <div class="stat-card" style="flex:1;padding:0.6rem 1.2rem;flex-direction:row;align-items:baseline;justify-content:center;gap:0.5rem;">
                 <div class="stat-value green" id="statTotalWon" style="font-size:1.4rem;">-</div>
-                <div class="stat-label" style="font-size:0.5rem;">Won</div>
-                <div class="stat-value green" style="font-size:0.65rem;margin-top:0.2rem;" id="statWonDollars">-</div>
+                <div class="stat-label" style="font-size:0.65rem;">Won</div>
+                <div class="stat-value green" style="font-size:0.85rem;" id="statWonDollars">-</div>
             </div>
             <div class="zen-capybara" id="zenCapybara" title="Click me!" style="margin:0;">
                 <svg viewBox="150 380 550 580" width="140" height="140">
@@ -1555,10 +1555,10 @@
                     </g>
                 </svg>
             </div>
-            <div class="stat-card" style="flex:1;padding:0.6rem 1.2rem;">
+            <div class="stat-card" style="flex:1;padding:0.6rem 1.2rem;flex-direction:row;align-items:baseline;justify-content:center;gap:0.5rem;">
                 <div class="stat-value red" id="statTotalLost" style="font-size:1.4rem;">-</div>
-                <div class="stat-label" style="font-size:0.5rem;">Lost</div>
-                <div class="stat-value red" style="font-size:0.65rem;margin-top:0.2rem;" id="statLostDollars">-</div>
+                <div class="stat-label" style="font-size:0.65rem;">Lost</div>
+                <div class="stat-value red" style="font-size:0.85rem;" id="statLostDollars">-</div>
             </div>
         </div>
         <div id="zenWisdomText" style="font-family:'Noto Serif JP',serif;font-size:0.85rem;font-style:italic;color:white;margin-top:0.5rem;cursor:pointer;max-width:520px;margin-left:auto;margin-right:auto;line-height:1.6;background:rgba(8,12,18,0.92);padding:0.8rem 1.4rem;border-radius:8px;border:1px solid var(--accent-deep);box-shadow:0 0 15px rgba(0,0,0,0.5);transition:opacity 0.3s;text-shadow:0 1px 3px rgba(0,0,0,0.5)" onclick="showZenWisdom()">click the capybara</div>
