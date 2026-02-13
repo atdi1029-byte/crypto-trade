@@ -1524,7 +1524,7 @@
 
     <!-- Won / Lost Summary with Capybara -->
     <div class="zen-footer">
-        <div style="display:flex;align-items:center;justify-content:space-between;width:100%;margin:0 auto 1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;width:calc(100% + 4rem);margin:0 -2rem 1rem;">
             <div class="stat-card" style="min-width:auto;padding:0.6rem 1.2rem;">
                 <div class="stat-value green" id="statTotalWon" style="font-size:1.4rem;">-</div>
                 <div class="stat-label" style="font-size:0.5rem;">Won</div>
@@ -3201,8 +3201,8 @@
             for (const [min, s] of SIZE_TABLE) { if (p >= min) sizes = s; }
             return sizes.slice();
         }
-        // $125+: smooth power curve
-        const base = Math.round(5 + Math.pow((p - 125) / 150, 0.6));
+        // $125+: smooth power curve, scales with P&L growth
+        const base = Math.round(5 + Math.pow((p - 125) / 100, 0.75));
         const spread = Math.max(1, Math.round(base * 0.05));
         const t1 = base + spread;
         const t2 = base;

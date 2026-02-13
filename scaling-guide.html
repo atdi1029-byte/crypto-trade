@@ -471,8 +471,8 @@
         }
 
         // $125+: smooth formula
-        // base=5 at $125, grows via power curve
-        const base = Math.round(5 + Math.pow((p - 125) / 150, 0.6));
+        // base=5 at $125, scales with P&L growth
+        const base = Math.round(5 + Math.pow((p - 125) / 100, 0.75));
         const spread = Math.max(1, Math.round(base * 0.05));
         const t1 = base + spread;
         const t2 = base;
