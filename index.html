@@ -1447,6 +1447,14 @@
             <div class="stat-value" id="statPnL">-</div>
             <div class="stat-label">Total P&L</div>
         </div>
+        <div class="stat-card">
+            <div class="stat-value green" id="statTotalWon">-</div>
+            <div class="stat-label">Total Won</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value red" id="statTotalLost">-</div>
+            <div class="stat-label">Total Lost</div>
+        </div>
     </div>
 
     <!-- Top Picks + Action Needed (two columns) -->
@@ -1779,6 +1787,12 @@
         const pnl = parseFloat(stats.netPnl) || 0;
         pnlEl.textContent = typeof pnl === 'number' ? (pnl >= 0 ? '+$' + pnl : '-$' + Math.abs(pnl)) : pnl;
         pnlEl.className = 'stat-value' + (typeof pnl === 'number' && pnl > 0 ? ' green' : typeof pnl === 'number' && pnl < 0 ? ' red' : '');
+
+        // --- Total Won / Total Lost ---
+        const wins = parseInt(stats.wins) || 0;
+        const losses = parseInt(stats.losses) || 0;
+        document.getElementById('statTotalWon').textContent = wins;
+        document.getElementById('statTotalLost').textContent = losses;
 
         // --- Top Picks (Claude's recommendations) ---
         renderTopPicks(claudePicks || [], scoredSignals, actionNeeded || []);
