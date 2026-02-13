@@ -563,7 +563,7 @@ function serveDashboardJSON_() {
     }
 
     if (action === 'entered') {
-      if (outcome === 'won') {
+      if (outcome === 'won' || outcome === 'closed') {
         tickerMap[sym].totalTrades++;
         tickerMap[sym].wins++;
         tickerMap[sym].totalPnl += Number(pnl) || 0;
@@ -571,6 +571,9 @@ function serveDashboardJSON_() {
         tickerMap[sym].totalTrades++;
         tickerMap[sym].losses++;
         tickerMap[sym].totalPnl += Number(pnl) || 0; // pnl should be negative for losses
+      } else if (outcome === '0x0') {
+        tickerMap[sym].totalTrades++;
+        tickerMap[sym].totalPnl += Number(pnl) || 0;
       } else if (outcome === 'open' || outcome === '') {
         tickerMap[sym].openPositions++;
       }
@@ -715,12 +718,19 @@ function serveDashboardJSON_() {
     } else if (pAction.toLowerCase() === 'entered' && (pOutcome === '' || pOutcome.toLowerCase() === 'open')) {
       var savedPnl = pr[10] || 0;
       var savedStatus = pr[11] || '';
+      var entryTs = pr[0];
+      var entryTsStr = '';
+      if (entryTs instanceof Date) {
+        entryTsStr = entryTs.toISOString();
+      } else {
+        entryTsStr = String(entryTs);
+      }
       actionNeeded.push({
         symbol:    pSymbol,
         signal:    pSignal,
         entry:     pr[3] || 0,
         score:     pr[7] || 0,
-        timestamp: '',
+        timestamp: entryTsStr,
         type:      'mark_outcome',
         realizedPnl: savedPnl ? Number(savedPnl) : 0,
         tradeStatus: String(savedStatus).toLowerCase(),
@@ -736,8 +746,12 @@ function serveDashboardJSON_() {
   var trades = getAllCompletedTrades_();
   var wins   = trades.filter(function(t) { return t.win; });
   var losses = trades.filter(function(t) { return !t.win; });
-  var totalPnl = 0;
-  trades.forEach(function(t) { totalPnl += t.realizedPnl; });
+  var totalPnl = 0, grossWin = 0, grossLoss = 0;
+  trades.forEach(function(t) {
+    totalPnl += t.realizedPnl;
+    if (t.win) grossWin += t.realizedPnl;
+    else grossLoss += t.realizedPnl;
+  });
   var winRate = trades.length > 0 ? (wins.length / trades.length * 100).toFixed(1) : '0.0';
   var streaks = trades.length > 0 ? calcStreaks_(trades) : { bestWin: 0, worstLoss: 0, current: 0 };
 
@@ -762,14 +776,14 @@ function serveDashboardJSON_() {
   // Average score of winning vs losing trades
   var avgWinScore = 0, avgLossScore = 0;
   if (wins.length > 0) {
-    var winScoreSum = 0;
-    wins.forEach(function(t) { winScoreSum += t.score; });
-    avgWinScore = (winScoreSum / wins.length).toFixed(1);
+    var winScoreSum = 0, winScoreCount = 0;
+    wins.forEach(function(t) { if (t.score > 1) { winScoreSum += t.score; winScoreCount++; } });
+    avgWinScore = winScoreCount > 0 ? (winScoreSum / winScoreCount).toFixed(1) : '0.0';
   }
   if (losses.length > 0) {
-    var lossScoreSum = 0;
-    losses.forEach(function(t) { lossScoreSum += t.score; });
-    avgLossScore = (lossScoreSum / losses.length).toFixed(1);
+    var lossScoreSum = 0, lossScoreCount = 0;
+    losses.forEach(function(t) { if (t.score > 1) { lossScoreSum += t.score; lossScoreCount++; } });
+    avgLossScore = lossScoreCount > 0 ? (lossScoreSum / lossScoreCount).toFixed(1) : '0.0';
   }
 
   // Best / worst individual trades by P&L (best must be positive, worst must be negative)
@@ -789,6 +803,8 @@ function serveDashboardJSON_() {
     totalTrades:     trades.length,
     wins:            wins.length,
     losses:          losses.length,
+    grossWin:        grossWin.toFixed(2),
+    grossLoss:       grossLoss.toFixed(2),
     winRate:         winRate + '%',
     netPnl:          totalPnl.toFixed(2),
     openPositions:   totalOpen,
@@ -808,6 +824,7 @@ function serveDashboardJSON_() {
       var buckets = { high: { w:0, t:0 }, mid: { w:0, t:0 }, low: { w:0, t:0 } };
       trades.forEach(function(t) {
         var s = Number(t.score);
+        if (s <= 1) return; // Skip manually added trades (no real score data)
         var b = s >= 5 ? 'high' : s >= 3 ? 'mid' : 'low';
         buckets[b].t++;
         if (t.win) buckets[b].w++;
@@ -930,7 +947,7 @@ function getAllCompletedTrades_() {
 
     // Only include entered trades with a resolved outcome
     if (action !== 'entered') continue;
-    if (outcome !== 'won' && outcome !== 'lost') continue;
+    if (outcome !== 'won' && outcome !== 'lost' && outcome !== 'closed' && outcome !== '0x0') continue;
 
     var symbol = String(posData[j][1]).toUpperCase();
     var signal = String(posData[j][2]).toLowerCase();
@@ -964,7 +981,7 @@ function getAllCompletedTrades_() {
       tp2:         tp2,
       score:       Number(score),
       outcome:     outcome,
-      win:         outcome === 'won',
+      win:         outcome === 'won' || outcome === 'closed',
       realizedPnl: pnl ? Number(pnl) : 0,
       rsi:         rsi !== '' ? Number(rsi) : null,
       timeframe:   timeframe || 'unknown',
