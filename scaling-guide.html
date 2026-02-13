@@ -233,14 +233,9 @@
     <h1>Crypto Pokemon Scaling Guide</h1>
     <div class="subtitle">151 LEVELS &middot; 5 TRADES PER SESSION &middot; $0 &mdash; $30,000 PROFIT</div>
 
-    <div class="level-finder">
-        <label>YOUR P&L: $</label>
-        <input type="number" id="profitInput" placeholder="P&L" oninput="updateEstimates()" style="width:80px">
-        <label>TRADES/DAY:</label>
-        <input type="number" id="tradesPerDay" placeholder="4" value="4" min="1" oninput="updateEstimates()" style="width:50px">
-        <label>EDGE %:</label>
-        <input type="number" id="edgePct" placeholder="9" value="9" min="1" max="50" oninput="updateEstimates()" style="width:50px">
-        <div class="finder-result" id="finderResult">Enter your P&L to see estimates</div>
+    <div class="level-finder" style="flex-wrap:wrap;">
+        <div class="finder-result" id="finderResult" style="width:100%;text-align:center;">Loading stats...</div>
+        <div id="statsInfo" style="width:100%;text-align:center;font-size:0.6rem;color:#6a8aaa;margin-top:0.3rem;"></div>
     </div>
 
     <div class="progress-bar">
@@ -559,11 +554,50 @@
         header.parentElement.classList.toggle('collapsed');
     }
 
-    function updateEstimates() {
-        const val = parseFloat(document.getElementById('profitInput').value) || 0;
-        const tradesPerDay = parseFloat(document.getElementById('tradesPerDay').value) || 4;
-        const edgePct = parseFloat(document.getElementById('edgePct').value) || 9;
-        const edgeRate = edgePct / 100;
+    const API_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec?action=dashboard';
+
+    async function fetchAndEstimate() {
+        const result = document.getElementById('finderResult');
+        const statsInfo = document.getElementById('statsInfo');
+        try {
+            const resp = await fetch(API_URL);
+            const data = await resp.json();
+            const stats = data.stats || {};
+            const pnl = parseFloat(stats.netPnl) || 0;
+            const totalTrades = parseInt(stats.totalTrades) || 1;
+            const wins = parseInt(stats.wins) || 0;
+            const losses = parseInt(stats.losses) || 0;
+            const winRate = stats.winRate || '0%';
+
+            // Calculate edge: avg profit per trade / avg trade size at current level
+            const profitPerTrade = pnl / totalTrades;
+            const curSizes = getCryptoSizes(pnl);
+            const curAvgSize = curSizes.reduce((a, b) => a + b, 0) / curSizes.length;
+            const edgeRate = curAvgSize > 0 ? profitPerTrade / curAvgSize : 0.09;
+
+            // Estimate trades per day from data
+            // Use first signal timestamp to calculate days active
+            let tradesPerDay = 4; // fallback
+            if (data.signals && data.signals.length > 0) {
+                const timestamps = data.signals.map(s => new Date(s.timestamp).getTime()).filter(t => t > 0);
+                if (timestamps.length > 1) {
+                    const earliest = Math.min(...timestamps);
+                    const daysActive = Math.max(1, (Date.now() - earliest) / (1000 * 60 * 60 * 24));
+                    tradesPerDay = Math.max(1, Math.round(totalTrades / daysActive * 10) / 10);
+                }
+            }
+
+            updateEstimates(pnl, tradesPerDay, edgeRate);
+
+            // Show stats summary
+            statsInfo.innerHTML = `${wins}W / ${losses}L (${winRate}) &middot; $${pnl.toFixed(2)} P&L &middot; ${totalTrades} trades &middot; ~${tradesPerDay}/day &middot; ${(edgeRate * 100).toFixed(1)}% edge`;
+        } catch (e) {
+            result.innerHTML = 'Could not load stats \u2014 enter P&L manually below';
+            statsInfo.innerHTML = '';
+        }
+    }
+
+    function updateEstimates(val, tradesPerDay, edgeRate) {
         const result = document.getElementById('finderResult');
         const progress = document.getElementById('progressFill');
 
@@ -601,7 +635,6 @@
         }
 
         // Simulate progression from current P&L through all levels
-        let simPnl = val;
         let cumTrades = 0;
         for (let i = 0; i < POKEMON_LEVELS.length; i++) {
             const lv = i + 1;
@@ -618,16 +651,13 @@
             avgEl.textContent = '$' + profitPerTrade.toFixed(2);
 
             if (lvlMin <= val) {
-                // Already past this level
                 avgEl.className = 'est-past';
                 trEl.className = 'est-past';
                 timeEl.className = 'est-past';
                 trEl.textContent = '\u2713';
                 timeEl.textContent = '\u2713';
             } else {
-                // How many trades from previous level to this one
                 const gap = i > 0 ? lvlMin - POKEMON_LEVELS[i - 1].min : lvlMin;
-                // Use sizes at the previous level for this segment
                 const prevSizes = i > 0 ? getCryptoSizes(POKEMON_LEVELS[i - 1].min) : getCryptoSizes(0);
                 const prevAvg = prevSizes.reduce((a, b) => a + b, 0) / prevSizes.length;
                 const prevProfit = prevAvg * edgeRate;
@@ -652,8 +682,9 @@
         return (weeks / 52).toFixed(1) + 'y';
     }
 
-    // Build on load
+    // Build on load, then fetch live data
     buildGuide();
+    fetchAndEstimate();
 </script>
 </body>
 </html>
