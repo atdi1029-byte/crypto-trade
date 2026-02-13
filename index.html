@@ -1523,16 +1523,33 @@
     </div>
 
     <!-- Won / Lost Summary -->
-    <div class="stats-bar" style="justify-content:center;gap:2rem;margin-bottom:1.5rem;">
-        <div class="stat-card">
-            <div class="stat-value green" id="statTotalWon">-</div>
-            <div class="stat-label">Total Won</div>
-            <div class="stat-value green" style="font-size:0.8rem;margin-top:0.25rem;" id="statWonDollars">-</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:1rem;margin-bottom:1.5rem;">
+        <div class="stat-card" style="min-width:auto;padding:0.6rem 1.2rem;">
+            <div class="stat-value green" id="statTotalWon" style="font-size:1.4rem;">-</div>
+            <div class="stat-label" style="font-size:0.5rem;">Won</div>
+            <div class="stat-value green" style="font-size:0.65rem;margin-top:0.2rem;" id="statWonDollars">-</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-value red" id="statTotalLost">-</div>
-            <div class="stat-label">Total Lost</div>
-            <div class="stat-value red" style="font-size:0.8rem;margin-top:0.25rem;" id="statLostDollars">-</div>
+        <svg viewBox="150 380 550 580" width="70" height="70" style="opacity:0.6;">
+            <g fill="none" stroke="var(--accent-glow)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M180 750 Q150 650 200 580 Q220 550 250 540 Q280 530 320 540 L340 545"/>
+                <path d="M340 545 Q380 500 420 480 Q480 450 540 460 Q600 470 640 510 Q680 550 690 600 Q695 640 680 680 Q660 720 620 740 Q560 770 480 760 Q400 750 340 720 Q300 700 280 680"/>
+                <path d="M380 480 Q370 440 390 410 Q410 385 440 390 Q460 400 455 430 Q450 455 430 470"/>
+                <path d="M540 455 Q550 420 580 400 Q610 385 635 400 Q655 420 645 455 Q635 480 610 490"/>
+                <circle cx="480" cy="540" r="18" fill="var(--accent-deep)"/>
+                <circle cx="485" cy="535" r="6" fill="var(--accent-glow)"/>
+                <ellipse cx="580" cy="580" rx="25" ry="18" fill="var(--accent-deep)"/>
+                <circle cx="570" cy="575" r="4" fill="var(--accent-glow)"/>
+                <circle cx="590" cy="575" r="4" fill="var(--accent-glow)"/>
+                <path d="M560 610 Q580 625 600 610"/>
+                <path d="M620 570 L680 550"/>
+                <path d="M625 590 L690 590"/>
+                <path d="M620 610 L680 630"/>
+            </g>
+        </svg>
+        <div class="stat-card" style="min-width:auto;padding:0.6rem 1.2rem;">
+            <div class="stat-value red" id="statTotalLost" style="font-size:1.4rem;">-</div>
+            <div class="stat-label" style="font-size:0.5rem;">Lost</div>
+            <div class="stat-value red" style="font-size:0.65rem;margin-top:0.2rem;" id="statLostDollars">-</div>
         </div>
     </div>
 
