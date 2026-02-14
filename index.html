@@ -1941,7 +1941,8 @@
             const onerrorAttr = `this.style.display='none';this.nextElementSibling.style.display='flex';${geckoFallback}`;
 
             const signalType = (a.signal || 'buy').toLowerCase();
-            const signalClass = signalType.includes('sell') || signalType.includes('short') ? 'sell' : 'buy';
+            const signalClass = signalType.includes('sell') || signalType.includes('short') || signalType.includes('reduce') ? 'sell' : 'buy';
+            const isDCA = signalType.includes('reduce') || signalType.includes('add');
             const score = a.score || a._score || '-';
 
             // Use RSI/MACD/Vol from action item directly (from Apps Script), fall back to signal match
@@ -1970,7 +1971,7 @@
                                     <div class="ticker-icon-fallback">${fallbackText}</div>
                                     <span class="ticker-badge">${esc(tkr)}</span>
                                     <span class="signal-tag ${signalClass}">${signalType.toUpperCase()}</span>
-                                    <span class="score-tag">Score: ${score}</span>
+                                    ${isDCA ? '' : `<span class="score-tag">Score: ${score}</span>`}
                                 </div>
                                 <div class="meta">@ $${prc}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
                                 <div class="action-buttons">
@@ -1996,7 +1997,7 @@
                                 <div class="ticker-icon-fallback">${fallbackText}</div>
                                 <span class="ticker-badge">${esc(tkr)}</span>
                                 <span class="signal-tag ${signalClass}">${signalType.toUpperCase()}</span>
-                                <span class="score-tag">Score: ${score}</span>
+                                ${isDCA ? '' : `<span class="score-tag">Score: ${score}</span>`}
                             </div>
                             <div class="meta">@ $${prc}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
                             <div class="action-buttons">
@@ -2049,7 +2050,7 @@
             const geckoFallback = sym ? `fetchCoinGeckoIcon('${esc(tkr)}',this,this.nextElementSibling)` : '';
             const onerrorAttr = `this.style.display='none';this.nextElementSibling.style.display='flex';${geckoFallback}`;
             const signalType = (a.signal || 'buy').toLowerCase();
-            const signalClass = signalType.includes('sell') || signalType.includes('short') ? 'sell' : 'buy';
+            const signalClass = signalType.includes('sell') || signalType.includes('short') || signalType.includes('reduce') ? 'sell' : 'buy';
 
             return `
                 <div class="open-trade-item needs-attention" id="${id}" data-status="${apiPnl ? 'has-pnl' : 'active'}" data-ticker="${esc(tkr).toUpperCase()}" data-pnl="${apiPnl}" data-trade-status="${a.tradeStatus || ''}">
