@@ -1312,6 +1312,12 @@
             color: var(--accent-glow); text-shadow: 0 0 8px rgba(106,180,255,0.4);
             font-weight: 700; padding-top: 0.5rem; border-top: 1px solid var(--border);
         }
+        .pokemon-scout-info {
+            text-align: center; margin-top: 0.5rem; font-size: 0.7rem;
+            color: var(--text-dim); letter-spacing: 0.5px;
+        }
+        .pokemon-scout-info .scout-val { color: var(--green-bright); font-weight: 700; }
+        .pokemon-scout-info .scout-warn { color: var(--red-bright); font-weight: 700; }
 
         @media (max-width: 768px) {
             .content { padding: 0.25rem 1rem 1rem; }
@@ -3216,6 +3222,12 @@
         return [t1, t2, t3, t4, t5];
     }
 
+    // Scout trade size — power curve: $1 early, $3-5 mid, $14-16 at Mewtwo/Mew
+    function getScoutSize(profit) {
+        if (profit <= 0) return 1;
+        return Math.max(1, Math.floor(1 + Math.pow(profit / 1200, 0.85)));
+    }
+
     function renderPokemon(stats) {
         const box = document.getElementById('pokemonBox');
         if (!box) return;
@@ -3269,6 +3281,17 @@
             html += `<div class="pokemon-next-evolve">${level.pokemon} evolves at $${nextLevel.min.toLocaleString()} profit \u2014 Total risk: $${totalRisk}</div>`;
         } else {
             html += `<div class="pokemon-next-evolve">MAX LEVEL \u2014 You are the very best!</div>`;
+        }
+
+        // Scout trade info
+        const scoutSz = getScoutSize(pnl);
+        const exposureBudget = Math.floor(pnl * 0.25);
+        const mainExposure = sizes.slice(0, Math.min(openCount, 5)).reduce((a, b) => a + b, 0);
+        const scoutBudget = Math.max(0, exposureBudget - mainExposure);
+        const scoutsAvail = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
+        const scoutClass = scoutsAvail <= 0 ? 'scout-warn' : 'scout-val';
+        if (pnl > 0) {
+            html += `<div class="pokemon-scout-info">Scout: <span class="scout-val">$${scoutSz}</span> &middot; Budget: <span class="scout-val">$${exposureBudget}</span> (25%) &middot; <span class="${scoutClass}">${scoutsAvail} scouts</span> available</div>`;
         }
 
         if (level.location && LOCATION_BG[level.location]) {

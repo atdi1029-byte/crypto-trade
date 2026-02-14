@@ -457,6 +457,12 @@
         [125, [5,5,5,5,5]]
     ];
 
+    // Scout trade size — power curve: $1 early, $3-5 mid, $14-16 at Mewtwo/Mew
+    function getScoutSize(profit) {
+        if (profit <= 0) return 1;
+        return Math.max(1, Math.floor(1 + Math.pow(profit / 1200, 0.85)));
+    }
+
     // Compute 5 trade sizes for any profit level
     function getCryptoSizes(profit) {
         const p = Math.max(0, profit);
@@ -515,7 +521,7 @@
             html += `<table><thead><tr>`;
             html += `<th>Lv</th><th></th><th>Pokemon</th><th>Profit</th>`;
             html += `<th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th>`;
-            html += `<th>Total</th><th>Gap</th>`;
+            html += `<th>Total</th><th>25% Cap</th><th>Scout $</th><th>Max Scouts</th><th>Gap</th>`;
             html += `<th>Avg $/tr</th><th>Trades</th><th>Est.</th>`;
             html += `</tr></thead><tbody>`;
 
@@ -536,7 +542,14 @@
                 html += `<td class="size-mid">$${sizes[2]}</td>`;
                 html += `<td class="size-mid">$${sizes[3]}</td>`;
                 html += `<td class="size-t5">$${sizes[4]}</td>`;
+                const buffer = Math.floor(lvl.min * 0.25);
+                const scoutSz = getScoutSize(lvl.min);
+                const scoutBudget = Math.max(0, buffer - total);
+                const maxScouts = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
                 html += `<td class="total-risk">$${total}</td>`;
+                html += `<td class="profit">$${buffer.toLocaleString()}</td>`;
+                html += `<td class="size-mid">$${scoutSz}</td>`;
+                html += `<td class="size-t1">${lvl.min === 0 ? '—' : maxScouts.toLocaleString()}</td>`;
                 html += `<td class="gap">${gap > 0 ? '+$' + gap.toLocaleString() : '\u2014'}</td>`;
                 html += `<td class="est" id="est-avg-${lv}">-</td>`;
                 html += `<td class="est" id="est-trades-${lv}">-</td>`;
@@ -615,7 +628,11 @@
         const sizesStr = sizes.map(s => '$' + s).join(' / ');
         const next = levelIdx < POKEMON_LEVELS.length - 1 ? POKEMON_LEVELS[levelIdx + 1] : null;
         const nextStr = next ? ` \u2014 $${(next.min - val).toFixed(0)} to ${next.pokemon}` : ' \u2014 MAX LEVEL!';
-        result.innerHTML = `<img src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}"> Lv.${levelIdx + 1} <strong>${level.pokemon}</strong> \u2014 ${sizesStr} = $${total} total${nextStr}`;
+        const buffer = Math.floor(val * 0.25);
+        const scoutSz = getScoutSize(val);
+        const scoutBudget = Math.max(0, buffer - total);
+        const maxScouts = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
+        result.innerHTML = `<img src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}"> Lv.${levelIdx + 1} <strong>${level.pokemon}</strong> \u2014 ${sizesStr} = $${total} total${nextStr}<br><span style="font-size:0.6rem;color:#6a8aaa;">25% Budget: $${buffer} \u2014 Scout: $${scoutSz} \u2014 Max ${maxScouts} scouts after 5 main</span>`;
 
         // Progress bar
         const pct = Math.min(100, (val / 30000) * 100);
