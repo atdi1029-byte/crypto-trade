@@ -674,6 +674,7 @@
         let html = '';
         let lockedAt300 = false;
         let lockProfit = 0;
+        let maxScoutSeen = 0;
         const endProfit = POKEMON_LEVELS[POKEMON_LEVELS.length - 1].min;
 
         for (let pi = 0; pi < PHASES.length; pi++) {
@@ -747,13 +748,14 @@
                     // Lock at 300 scouts, scout $ = remaining budget / 300
                     maxScouts = 300;
                     const scoutBudget = Math.max(0, buffer - total);
-                    effectiveScout = Math.min(500, Math.floor(scoutBudget / 300));
+                    effectiveScout = Math.max(maxScoutSeen, Math.min(500, Math.floor(scoutBudget / 300)));
                 } else {
                     const scoutBudget = Math.max(0, buffer - total);
                     const budgetScouts = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
                     maxScouts = budgetScouts;
                     effectiveScout = scoutSz;
                 }
+                maxScoutSeen = Math.max(maxScoutSeen, effectiveScout);
 
                 html += `<tr id="row-${lv}">`;
                 html += `<td class="lv">${lv}</td>`;
@@ -879,6 +881,7 @@
         let cumTrades = 0;
         let estLockedAt300 = false;
         let estLockProfit = 0;
+        let estMaxScoutSeen = 0;
         const estEndProfit = POKEMON_LEVELS[POKEMON_LEVELS.length - 1].min;
 
         for (let i = 0; i < POKEMON_LEVELS.length; i++) {
@@ -909,6 +912,13 @@
                     estLockedAt300 = true;
                     estLockProfit = lvlMin;
                 }
+                // Track scout $ floor for past levels too
+                if (estLockedAt300) {
+                    const pastScoutEff = Math.min(500, Math.floor(pastScoutBudget / 300));
+                    estMaxScoutSeen = Math.max(estMaxScoutSeen, pastScoutEff);
+                } else {
+                    estMaxScoutSeen = Math.max(estMaxScoutSeen, pastScoutSz);
+                }
             } else {
                 const gap = i > 0 ? lvlMin - POKEMON_LEVELS[i - 1].min : lvlMin;
                 const prevMin = i > 0 ? POKEMON_LEVELS[i - 1].min : 0;
@@ -935,13 +945,14 @@
                     prevTotal = prevSizes.reduce((a, b) => a + b, 0);
                     maxScouts = 300;
                     const scoutBudget = Math.max(0, prevBuffer - prevTotal);
-                    effectiveScoutSz = Math.min(500, scoutBudget / 300);
+                    effectiveScoutSz = Math.max(estMaxScoutSeen, Math.min(500, scoutBudget / 300));
                 } else {
                     const scoutBudget = Math.max(0, prevBuffer - prevTotal);
                     const budgetScouts = prevScoutSz > 0 ? Math.floor(scoutBudget / prevScoutSz) : 0;
                     maxScouts = budgetScouts;
                     effectiveScoutSz = prevScoutSz;
                 }
+                estMaxScoutSeen = Math.max(estMaxScoutSeen, effectiveScoutSz);
 
                 const sessionProfit = (prevTotal + maxScouts * effectiveScoutSz) * edgeRate;
                 const avgPerTrade = sessionProfit / 5;
