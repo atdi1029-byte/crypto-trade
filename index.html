@@ -2326,14 +2326,6 @@
             const fmtAvg = (v) => v >= 0 ? '+$' + v.toFixed(3) : '-$' + Math.abs(v).toFixed(3);
             const avgColor = (v) => v > 0 ? 'var(--green-bright)' : v < 0 ? 'var(--red-bright)' : '';
             perfGrid.innerHTML += `
-                <div class="perf-item" style="grid-column: span 2">
-                    <div class="perf-val" style="color:${dirColor}">${dirIcon} ${trend.direction.toUpperCase()}</div>
-                    <div class="perf-label">7d Trend</div>
-                </div>
-                <div class="perf-item">
-                    <div class="perf-val" style="color:${avgColor(trend.avg7d.pnl)}">${fmtPnl(trend.avg7d.pnl)}</div>
-                    <div class="perf-label">7d P&L (${trend.avg7d.trades} trades)</div>
-                </div>
                 <div class="perf-item">
                     <div class="perf-val" style="color:${avgColor(trend.avg14d.pnl)}">${fmtPnl(trend.avg14d.pnl)}</div>
                     <div class="perf-label">14d P&L (${trend.avg14d.trades} trades)</div>
@@ -2345,6 +2337,10 @@
                 <div class="perf-item">
                     <div class="perf-val" style="color:${avgColor(trend.allTime.avgPerTrade)}">${fmtAvg(trend.allTime.avgPerTrade)}</div>
                     <div class="perf-label">Avg $/Trade</div>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-val" style="color:${dirColor}">${dirIcon} ${trend.direction.toUpperCase()}</div>
+                    <div class="perf-label">14d vs All-Time</div>
                 </div>
             `;
         }
@@ -3302,14 +3298,15 @@
         const xpRange = xpTo - xpFrom;
         const xpProgress = xpRange > 0 ? Math.max(0, Math.min(100, ((pnl - xpFrom) / xpRange) * 100)) : 100;
 
-        // Build size chips with pokeball icons — dim smallest slots first by open count
+        // Build size chips with pokeball icons — dim only matching size slots
         const pokeballSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path class="ball-top" d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle class="ball-center" cx="10" cy="10" r="3"/></svg>`;
         let sizeChips = '';
+        // Dim smallest-size slots based on open count (no overflow into larger slots)
         const usedSlots = new Array(5).fill(false);
+        const minSize = Math.min(...sizes);
         let remaining = openCount;
         for (let i = 4; i >= 0 && remaining > 0; i--) {
-            usedSlots[i] = true;
-            remaining--;
+            if (sizes[i] === minSize) { usedSlots[i] = true; remaining--; }
         }
         for (let i = 0; i < 5; i++) {
             const cls = usedSlots[i] ? 'used' : i === 0 ? 'lead' : i === 4 ? 'half' : 'mid';
