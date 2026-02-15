@@ -820,6 +820,37 @@ function serveDashboardJSON_() {
     bestTradePnl:    bestTrade ? bestTrade.realizedPnl.toFixed(2) : '0.00',
     worstTrade:      worstTrade ? worstTrade.ticker : 'N/A',
     worstTradePnl:   worstTrade ? worstTrade.realizedPnl.toFixed(2) : '0.00',
+    trend: (function() {
+      // Rolling P&L trend: 7d, 14d, 30d averages + per-trade avg
+      var now = new Date();
+      var d7 = new Date(now - 7*86400000), d14 = new Date(now - 14*86400000), d30 = new Date(now - 30*86400000);
+      var pnl7 = 0, cnt7 = 0, pnl14 = 0, cnt14 = 0, pnl30 = 0, cnt30 = 0;
+      var cumulative = [];
+      var runningPnl = 0;
+      // trades are sorted oldest→newest from getAllCompletedTrades_
+      trades.forEach(function(t) {
+        runningPnl += t.realizedPnl;
+        var ts = t.timestamp instanceof Date ? t.timestamp : new Date(t.timestamp);
+        cumulative.push({ date: Utilities.formatDate(ts, Session.getScriptTimeZone(), 'MM/dd'), pnl: Math.round(runningPnl * 100) / 100 });
+        if (ts >= d30) { pnl30 += t.realizedPnl; cnt30++; }
+        if (ts >= d14) { pnl14 += t.realizedPnl; cnt14++; }
+        if (ts >= d7)  { pnl7  += t.realizedPnl; cnt7++;  }
+      });
+      var avg7  = cnt7  > 0 ? pnl7  / cnt7  : 0;
+      var avg14 = cnt14 > 0 ? pnl14 / cnt14 : 0;
+      var avg30 = cnt30 > 0 ? pnl30 / cnt30 : 0;
+      var avgAll = trades.length > 0 ? totalPnl / trades.length : 0;
+      // Trend direction: compare recent (7d) to overall
+      var direction = cnt7 > 0 ? (avg7 > avgAll ? 'improving' : avg7 < avgAll ? 'declining' : 'stable') : 'stable';
+      return {
+        avg7d:  { pnl: Math.round(pnl7 * 100) / 100, trades: cnt7, avgPerTrade: Math.round(avg7 * 1000) / 1000 },
+        avg14d: { pnl: Math.round(pnl14 * 100) / 100, trades: cnt14, avgPerTrade: Math.round(avg14 * 1000) / 1000 },
+        avg30d: { pnl: Math.round(pnl30 * 100) / 100, trades: cnt30, avgPerTrade: Math.round(avg30 * 1000) / 1000 },
+        allTime: { avgPerTrade: Math.round(avgAll * 1000) / 1000 },
+        direction: direction,
+        cumulative: cumulative.slice(-60) // last 60 data points for chart
+      };
+    })(),
     winRateByScore:  (function() {
       var buckets = { high: { w:0, t:0 }, mid: { w:0, t:0 }, low: { w:0, t:0 } };
       trades.forEach(function(t) {

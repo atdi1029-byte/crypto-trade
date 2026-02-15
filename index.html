@@ -2317,6 +2317,37 @@
                 <div class="perf-label">Best Streak</div>
             </div>
         `;
+        // Trend section
+        const trend = stats.trend;
+        if (trend) {
+            const dirIcon = trend.direction === 'improving' ? '&#9650;' : trend.direction === 'declining' ? '&#9660;' : '&#9654;';
+            const dirColor = trend.direction === 'improving' ? 'var(--green-bright)' : trend.direction === 'declining' ? 'var(--red-bright)' : 'var(--accent)';
+            const fmtPnl = (v) => v >= 0 ? '+$' + v.toFixed(2) : '-$' + Math.abs(v).toFixed(2);
+            const fmtAvg = (v) => v >= 0 ? '+$' + v.toFixed(3) : '-$' + Math.abs(v).toFixed(3);
+            const avgColor = (v) => v > 0 ? 'var(--green-bright)' : v < 0 ? 'var(--red-bright)' : '';
+            perfGrid.innerHTML += `
+                <div class="perf-item" style="grid-column: span 2">
+                    <div class="perf-val" style="color:${dirColor}">${dirIcon} ${trend.direction.toUpperCase()}</div>
+                    <div class="perf-label">7d Trend</div>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-val" style="color:${avgColor(trend.avg7d.pnl)}">${fmtPnl(trend.avg7d.pnl)}</div>
+                    <div class="perf-label">7d P&L (${trend.avg7d.trades} trades)</div>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-val" style="color:${avgColor(trend.avg14d.pnl)}">${fmtPnl(trend.avg14d.pnl)}</div>
+                    <div class="perf-label">14d P&L (${trend.avg14d.trades} trades)</div>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-val" style="color:${avgColor(trend.avg30d.pnl)}">${fmtPnl(trend.avg30d.pnl)}</div>
+                    <div class="perf-label">30d P&L (${trend.avg30d.trades} trades)</div>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-val" style="color:${avgColor(trend.allTime.avgPerTrade)}">${fmtAvg(trend.allTime.avgPerTrade)}</div>
+                    <div class="perf-label">Avg $/Trade</div>
+                </div>
+            `;
+        }
     }
 
     // ====== TICKER GRID ======
