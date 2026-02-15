@@ -2278,6 +2278,13 @@
         const gw = parseFloat(stats.grossWin) || 0;
         const gl = parseFloat(stats.grossLoss) || 0;
 
+        const trend = stats.trend;
+        const fmtPnl = (v) => v >= 0 ? '+$' + v.toFixed(2) : '-$' + Math.abs(v).toFixed(2);
+        const fmtAvg = (v) => v >= 0 ? '+$' + v.toFixed(3) : '-$' + Math.abs(v).toFixed(3);
+        const avgColor = (v) => v > 0 ? 'var(--green-bright)' : v < 0 ? 'var(--red-bright)' : '';
+        const dirIcon = trend ? (trend.direction === 'improving' ? '&#9650;' : trend.direction === 'declining' ? '&#9660;' : '&#9654;') : '';
+        const dirColor = trend ? (trend.direction === 'improving' ? 'var(--green-bright)' : trend.direction === 'declining' ? 'var(--red-bright)' : 'var(--accent)') : '';
+
         perfGrid.innerHTML = `
             <div class="perf-item">
                 <div class="perf-val" style="color:var(--green-bright);text-shadow:0 0 15px var(--green-bright),0 0 30px rgba(0,255,136,0.4)">${wins} <span style="font-size:0.7rem;font-weight:400">Won</span></div>
@@ -2286,16 +2293,6 @@
             <div class="perf-item">
                 <div class="perf-val" style="color:var(--red-bright);text-shadow:0 0 15px var(--red-bright),0 0 30px rgba(255,68,68,0.4)">${losses} <span style="font-size:0.7rem;font-weight:400">Lost</span></div>
                 <div class="perf-label" style="color:var(--red-bright)">-$${Math.abs(gl).toFixed(2)}</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:var(--green-bright)">+$${stats.bestTradePnl || '0'}</div>
-                <div class="perf-label">Best Trade</div>
-                <div style="font-size:0.55rem;color:var(--green-bright);margin-top:2px">${stats.bestTrade || '-'}</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:var(--red-bright)">${parseFloat(stats.worstTradePnl || 0) < 0 ? '-$' + Math.abs(parseFloat(stats.worstTradePnl)).toFixed(2) : '$' + (stats.worstTradePnl || '0')}</div>
-                <div class="perf-label">Worst Trade</div>
-                <div style="font-size:0.55rem;color:var(--red-bright);margin-top:2px">${stats.worstTrade || '-'}</div>
             </div>
             <div class="perf-item">
                 <div class="perf-val" style="color:var(--green-bright)">${wrByScore.high || '-'}</div>
@@ -2310,37 +2307,32 @@
                 <div class="perf-label">WR Score 0-2</div>
             </div>
             <div class="perf-item">
-                <div class="perf-val">${stats.bestWinStreak || 0} Wins</div>
-                <div class="perf-label">Best Streak</div>
+                <div class="perf-val" style="color:${dirColor}">${trend ? dirIcon + ' ' + trend.direction.toUpperCase() : '-'}</div>
+                <div class="perf-label">14d vs All-Time</div>
+            </div>
+            <div class="perf-item">
+                <div class="perf-val" style="color:var(--green-bright)">+$${stats.bestTradePnl || '0'}</div>
+                <div class="perf-label">Best Trade</div>
+                <div style="font-size:0.55rem;color:var(--green-bright);margin-top:2px">${stats.bestTrade || '-'}</div>
+            </div>
+            <div class="perf-item">
+                <div class="perf-val" style="color:var(--red-bright)">${parseFloat(stats.worstTradePnl || 0) < 0 ? '-$' + Math.abs(parseFloat(stats.worstTradePnl)).toFixed(2) : '$' + (stats.worstTradePnl || '0')}</div>
+                <div class="perf-label">Worst Trade</div>
+                <div style="font-size:0.55rem;color:var(--red-bright);margin-top:2px">${stats.worstTrade || '-'}</div>
+            </div>
+            <div class="perf-item">
+                <div class="perf-val" style="color:${trend ? avgColor(trend.avg14d.pnl) : ''}">${trend ? fmtPnl(trend.avg14d.pnl) : '-'}</div>
+                <div class="perf-label">14d P&L${trend ? ' (' + trend.avg14d.trades + ')' : ''}</div>
+            </div>
+            <div class="perf-item">
+                <div class="perf-val" style="color:${trend ? avgColor(trend.avg30d.pnl) : ''}">${trend ? fmtPnl(trend.avg30d.pnl) : '-'}</div>
+                <div class="perf-label">30d P&L${trend ? ' (' + trend.avg30d.trades + ')' : ''}</div>
+            </div>
+            <div class="perf-item">
+                <div class="perf-val" style="color:${trend ? avgColor(trend.allTime.avgPerTrade) : ''}">${trend ? fmtAvg(trend.allTime.avgPerTrade) : '-'}</div>
+                <div class="perf-label">Avg $/Trade</div>
             </div>
         `;
-        // Trend section
-        const trend = stats.trend;
-        if (trend) {
-            const dirIcon = trend.direction === 'improving' ? '&#9650;' : trend.direction === 'declining' ? '&#9660;' : '&#9654;';
-            const dirColor = trend.direction === 'improving' ? 'var(--green-bright)' : trend.direction === 'declining' ? 'var(--red-bright)' : 'var(--accent)';
-            const fmtPnl = (v) => v >= 0 ? '+$' + v.toFixed(2) : '-$' + Math.abs(v).toFixed(2);
-            const fmtAvg = (v) => v >= 0 ? '+$' + v.toFixed(3) : '-$' + Math.abs(v).toFixed(3);
-            const avgColor = (v) => v > 0 ? 'var(--green-bright)' : v < 0 ? 'var(--red-bright)' : '';
-            perfGrid.innerHTML += `
-                <div class="perf-item">
-                    <div class="perf-val" style="color:${avgColor(trend.avg14d.pnl)}">${fmtPnl(trend.avg14d.pnl)}</div>
-                    <div class="perf-label">14d P&L (${trend.avg14d.trades} trades)</div>
-                </div>
-                <div class="perf-item">
-                    <div class="perf-val" style="color:${avgColor(trend.avg30d.pnl)}">${fmtPnl(trend.avg30d.pnl)}</div>
-                    <div class="perf-label">30d P&L (${trend.avg30d.trades} trades)</div>
-                </div>
-                <div class="perf-item">
-                    <div class="perf-val" style="color:${avgColor(trend.allTime.avgPerTrade)}">${fmtAvg(trend.allTime.avgPerTrade)}</div>
-                    <div class="perf-label">Avg $/Trade</div>
-                </div>
-                <div class="perf-item">
-                    <div class="perf-val" style="color:${dirColor}">${dirIcon} ${trend.direction.toUpperCase()}</div>
-                    <div class="perf-label">14d vs All-Time</div>
-                </div>
-            `;
-        }
     }
 
     // ====== TICKER GRID ======
