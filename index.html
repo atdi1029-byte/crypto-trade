@@ -1859,6 +1859,12 @@
         grid.innerHTML = picks.map((s, i) => renderPickCard(s, i, false)).join('');
     }
 
+    function signalLabel(s) {
+        const u = s.toUpperCase();
+        if (u === 'REDUCE') return 'DOUBLE TAP';
+        return u;
+    }
+
     function renderPickCard(s, i, isDemo) {
             const tkr = s.symbol || s.ticker || '';
             const prc = s.entry || s.price || 0;
@@ -1880,7 +1886,7 @@
                             <img class="ticker-icon" src="${iconUrl}" alt="" onerror="${onerrorAttr}">
                             <div class="ticker-icon-fallback">${fallbackText}</div>
                             <span class="ticker-badge">${esc(tkr)}</span>
-                            <span class="signal-tag ${signalClass}">${dir.toUpperCase() || 'BUY'}</span>
+                            <span class="signal-tag ${signalClass}">${signalLabel(dir) || 'BUY'}</span>
                             <span class="score-tag">Score: ${score}/7</span>
                         </div>
                         ${analysis ? `<div class="meta" style="margin-top:0.3rem;color:var(--text)">${esc(analysis)}</div>` : ''}
@@ -1948,7 +1954,7 @@
                                     <img class="ticker-icon" src="${iconUrl}" alt="" onerror="${onerrorAttr}">
                                     <div class="ticker-icon-fallback">${fallbackText}</div>
                                     <span class="ticker-badge">${esc(tkr)}</span>
-                                    <span class="signal-tag ${signalClass}">${signalType.toUpperCase()}</span>
+                                    <span class="signal-tag ${signalClass}">${signalLabel(signalType)}</span>
                                     ${isDCA ? '' : `<span class="score-tag">Score: ${score}</span>`}
                                 </div>
                                 <div class="meta">@ $${prc}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
@@ -1974,7 +1980,7 @@
                                 <img class="ticker-icon" src="${iconUrl}" alt="" onerror="${onerrorAttr}">
                                 <div class="ticker-icon-fallback">${fallbackText}</div>
                                 <span class="ticker-badge">${esc(tkr)}</span>
-                                <span class="signal-tag ${signalClass}">${signalType.toUpperCase()}</span>
+                                <span class="signal-tag ${signalClass}">${signalLabel(signalType)}</span>
                                 ${isDCA ? '' : `<span class="score-tag">Score: ${score}</span>`}
                             </div>
                             <div class="meta">@ $${prc}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
@@ -2038,7 +2044,7 @@
                                 <img class="ticker-icon" src="${iconUrl}" alt="" onerror="${onerrorAttr}">
                                 <div class="ticker-icon-fallback">${fallbackText}</div>
                                 <span class="ticker-badge">${esc(tkr)}</span>
-                                <span class="signal-tag ${signalClass}">${signalType.toUpperCase()}</span>
+                                <span class="signal-tag ${signalClass}">${signalLabel(signalType)}</span>
                             </div>
                             <div class="meta" style="font-size:0.6rem">@ $${prc}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
                             <div class="action-buttons">
