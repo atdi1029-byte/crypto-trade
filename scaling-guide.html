@@ -681,7 +681,7 @@
                 const prevScoutSz = getScoutSize(prevMin);
                 const prevBuffer = Math.floor(prevMin * 0.25);
                 const prevScoutBudget = Math.max(0, prevBuffer - prevTotal);
-                const maxScouts = prevScoutSz > 0 ? Math.floor(prevScoutBudget / prevScoutSz) : 0;
+                const maxScouts = prevScoutSz > 0 ? Math.min(5, Math.floor(prevScoutBudget / prevScoutSz)) : 0;
                 const sessionExposure = prevTotal + maxScouts * prevScoutSz;
                 const prevProfit = (sessionExposure / 5) * edgeRate;
                 const tradesToThis = prevProfit > 0 ? Math.ceil(gap / prevProfit) : 9999;
