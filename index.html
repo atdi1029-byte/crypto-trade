@@ -3249,12 +3249,18 @@
         const xpRange = xpTo - xpFrom;
         const xpProgress = xpRange > 0 ? Math.max(0, Math.min(100, ((pnl - xpFrom) / xpRange) * 100)) : 100;
 
-        // Build size chips with pokeball icons — mark used slots as dimmed
+        // Build size chips with pokeball icons — dim smallest slots first (right to left)
         const pokeballSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path class="ball-top" d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle class="ball-center" cx="10" cy="10" r="3"/></svg>`;
         let sizeChips = '';
+        // Mark slots as used from right (smallest) to left (largest)
+        const usedSlots = new Array(5).fill(false);
+        let remaining = openCount;
+        for (let i = 4; i >= 0 && remaining > 0; i--) {
+            usedSlots[i] = true;
+            remaining--;
+        }
         for (let i = 0; i < 5; i++) {
-            const isUsed = i < openCount;
-            const cls = isUsed ? 'used' : i === 0 ? 'lead' : i === 4 ? 'half' : 'mid';
+            const cls = usedSlots[i] ? 'used' : i === 0 ? 'lead' : i === 4 ? 'half' : 'mid';
             sizeChips += `<span class="pokemon-size-chip ${cls}">${pokeballSvg}<span class="ball-amt">$${sizes[i]}</span></span>`;
         }
 
