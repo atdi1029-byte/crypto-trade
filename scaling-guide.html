@@ -584,11 +584,13 @@
         return Math.max(1, Math.floor(1 + Math.pow(profit / 1200, 0.85)));
     }
 
-    // Diminishing cap: 25% → 20% by Mew ($30k), then 20% → 10% by Celebi ($1M)
+    // Diminishing cap: 25% → 20% by Mew ($30k), then 20% → 5% by Celebi ($1M)
+    // Uses linear BUDGET growth so budget never decreases (scout $ always grinds up)
     function getCapPercent(profit) {
         if (profit <= 0) return 0.25;
         if (profit <= 30000) return 0.25 - (profit / 30000) * 0.05;
-        return Math.max(0.10, 0.20 - (profit - 30000) / 970000 * 0.10);
+        // budget = 4639 + 0.04536 * profit → always increasing
+        return Math.max(0.05, (4639 + 0.04536 * profit) / profit);
     }
 
     // Compute 5 trade sizes for any profit level
