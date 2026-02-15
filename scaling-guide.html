@@ -674,9 +674,20 @@
                 timeEl.textContent = '\u2713';
             } else {
                 const gap = i > 0 ? lvlMin - POKEMON_LEVELS[i - 1].min : lvlMin;
-                const prevSizes = i > 0 ? getCryptoSizes(POKEMON_LEVELS[i - 1].min) : getCryptoSizes(0);
-                const prevAvg = prevSizes.reduce((a, b) => a + b, 0) / prevSizes.length;
-                const prevProfit = prevAvg * edgeRate;
+                const prevMin = i > 0 ? POKEMON_LEVELS[i - 1].min : 0;
+                const prevSizes = getCryptoSizes(prevMin);
+                const prevTotal = prevSizes.reduce((a, b) => a + b, 0);
+                const prevAvg = prevTotal / prevSizes.length;
+                // Include scout trades in profit calc
+                const prevScoutSz = getScoutSize(prevMin);
+                const prevBuffer = Math.floor(prevMin * 0.25);
+                const prevScoutBudget = Math.max(0, prevBuffer - prevTotal);
+                const maxScouts = prevScoutSz > 0 ? Math.floor(prevScoutBudget / prevScoutSz) : 0;
+                const scoutAvg = maxScouts > 0 ? prevScoutSz : 0;
+                // Weighted avg: 5 main trades + scouts
+                const totalTradesPerSession = 5 + maxScouts;
+                const sessionAvg = totalTradesPerSession > 0 ? (prevTotal + maxScouts * scoutAvg) / totalTradesPerSession : prevAvg;
+                const prevProfit = sessionAvg * edgeRate;
                 const tradesToThis = prevProfit > 0 ? Math.ceil(gap / prevProfit) : 9999;
                 cumTrades += tradesToThis;
                 const days = cumTrades / tradesPerDay;
