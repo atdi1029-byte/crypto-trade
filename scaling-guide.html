@@ -547,9 +547,11 @@
                 const scoutBudget = Math.max(0, buffer - total);
                 const budgetScouts = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
                 const maxScouts = Math.min(300, budgetScouts);
+                const effectiveScout = maxScouts === 300 && budgetScouts > 300
+                    ? Math.min(Math.floor(scoutBudget / 300), 500) : scoutSz;
                 html += `<td class="total-risk">$${total}</td>`;
                 html += `<td class="profit">$${buffer.toLocaleString()}</td>`;
-                html += `<td class="size-mid">$${scoutSz}</td>`;
+                html += `<td class="size-mid">$${effectiveScout}</td>`;
                 html += `<td class="size-t1">${lvl.min === 0 ? '—' : maxScouts.toLocaleString()}</td>`;
                 html += `<td class="gap">${gap > 0 ? '+$' + gap.toLocaleString() : '\u2014'}</td>`;
                 html += `<td class="est" id="est-avg-${lv}">-</td>`;
@@ -634,7 +636,9 @@
         const scoutBudget = Math.max(0, buffer - total);
         const budgetScouts2 = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
         const maxScouts = Math.min(300, budgetScouts2);
-        result.innerHTML = `<img src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}"> Lv.${levelIdx + 1} <strong>${level.pokemon}</strong> \u2014 ${sizesStr} = $${total} total${nextStr}<br><span style="font-size:0.6rem;color:#6a8aaa;">25% Budget: $${buffer} \u2014 Scout: $${scoutSz} \u2014 Max ${maxScouts} scouts/mo</span>`;
+        const effectiveScout = maxScouts === 300 && budgetScouts2 > 300
+            ? Math.min(Math.floor(scoutBudget / 300), 500) : scoutSz;
+        result.innerHTML = `<img src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}"> Lv.${levelIdx + 1} <strong>${level.pokemon}</strong> \u2014 ${sizesStr} = $${total} total${nextStr}<br><span style="font-size:0.6rem;color:#6a8aaa;">25% Budget: $${buffer} \u2014 Scout: $${effectiveScout} \u2014 Max ${maxScouts} scouts</span>`;
 
         // Progress bar
         const pct = Math.min(100, (val / 30000) * 100);
