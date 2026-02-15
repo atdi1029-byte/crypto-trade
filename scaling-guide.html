@@ -630,9 +630,10 @@
         return Math.max(1, Math.floor(1 + Math.pow(profit / 1200, 0.85)));
     }
 
-    // Diminishing cap: 25% at $0, linearly drops to 10% at $610k
+    // Diminishing cap: 25% → 20% by Cinnabar ($11k), then 20% → 10% by Celebi ($610k)
     function getCapPercent(profit) {
-        return Math.max(0.10, 0.25 - profit / 610000 * 0.15);
+        if (profit <= 11000) return 0.25 - (profit / 11000) * 0.05;
+        return Math.max(0.10, 0.20 - (profit - 11000) / 599000 * 0.10);
     }
 
     // Compute 5 trade sizes for any profit level
