@@ -598,11 +598,11 @@
         // base=5 at $125, scales with P&L growth
         const base = Math.round(5 + Math.pow((p - 125) / 47, 0.87));
         const spread = Math.max(1, Math.round(base * 0.05));
-        const t1 = base + spread;
-        const t2 = base;
-        const t3 = base;
-        const t4 = Math.max(1, base - spread);
-        const t5 = Math.max(1, Math.ceil(base / 2));
+        const t1 = Math.min(500, base + spread);
+        const t2 = Math.min(500, base);
+        const t3 = Math.min(500, base);
+        const t4 = Math.min(500, Math.max(1, base - spread));
+        const t5 = Math.min(250, Math.max(1, Math.ceil(base / 2)));
         return [t1, t2, t3, t4, t5];
     }
 
