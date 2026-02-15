@@ -679,21 +679,18 @@
                 const prevMin = i > 0 ? POKEMON_LEVELS[i - 1].min : 0;
                 const prevSizes = getCryptoSizes(prevMin);
                 const prevTotal = prevSizes.reduce((a, b) => a + b, 0);
-                // Monthly profit = main trades + scouts (capped 300/mo)
+                // Session profit = main trades + scouts (max 300 open positions)
                 const prevScoutSz = getScoutSize(prevMin);
                 const prevBuffer = Math.floor(prevMin * 0.25);
                 const prevScoutBudget = Math.max(0, prevBuffer - prevTotal);
-                const sessionsPerMonth = (tradesPerDay / 5) * 30;
                 const budgetScouts = prevScoutSz > 0 ? Math.floor(prevScoutBudget / prevScoutSz) : 0;
-                const monthlyScouts = Math.min(300, budgetScouts);
-                // If budget allows more than 300, excess grows scout size (up to $500)
-                const effectiveScoutSz = monthlyScouts === 300 && budgetScouts > 300
+                const maxScouts = Math.min(300, budgetScouts);
+                // If capped at 300, excess budget grows scout size (up to $500)
+                const effectiveScoutSz = maxScouts === 300 && budgetScouts > 300
                     ? Math.min(prevScoutBudget / 300, 500) : prevScoutSz;
-                const monthlyMainProfit = sessionsPerMonth * prevTotal * edgeRate;
-                const monthlyScoutProfit = monthlyScouts * effectiveScoutSz * edgeRate;
-                const monthlyProfit = monthlyMainProfit + monthlyScoutProfit;
-                const monthsNeeded = monthlyProfit > 0 ? gap / monthlyProfit : 9999;
-                cumTrades += Math.ceil(monthsNeeded * sessionsPerMonth * 5);
+                const sessionProfit = (prevTotal + maxScouts * effectiveScoutSz) * edgeRate;
+                const sessionsNeeded = sessionProfit > 0 ? Math.ceil(gap / sessionProfit) : 9999;
+                cumTrades += sessionsNeeded * 5;
                 const days = cumTrades / tradesPerDay;
 
                 avgEl.className = i === levelIdx + 1 ? 'est-active' : 'est';
