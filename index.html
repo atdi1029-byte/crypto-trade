@@ -2284,6 +2284,13 @@
         const avgColor = (v) => v > 0 ? 'var(--green-bright)' : v < 0 ? 'var(--red-bright)' : '';
         const dirIcon = trend ? (trend.direction === 'improving' ? '&#9650;' : trend.direction === 'declining' ? '&#9660;' : '&#9654;') : '';
         const dirColor = trend ? (trend.direction === 'improving' ? 'var(--green-bright)' : trend.direction === 'declining' ? 'var(--red-bright)' : 'var(--accent)') : '';
+        let trendPct = '';
+        if (trend && trend.allTime.avgPerTrade !== 0) {
+            const pctDiff = ((trend.avg14d.avgPerTrade - trend.allTime.avgPerTrade) / Math.abs(trend.allTime.avgPerTrade) * 100);
+            trendPct = (pctDiff >= 0 ? '+' : '') + pctDiff.toFixed(0) + '%';
+        } else if (trend) {
+            trendPct = trend.direction.toUpperCase();
+        }
 
         perfGrid.innerHTML = `
             <div class="perf-item">
@@ -2307,7 +2314,7 @@
                 <div class="perf-label">WR Score 0-2</div>
             </div>
             <div class="perf-item">
-                <div class="perf-val" style="color:${dirColor}">${trend ? dirIcon + ' ' + trend.direction.toUpperCase() : '-'}</div>
+                <div class="perf-val" style="color:${dirColor}">${trend ? dirIcon + ' ' + trendPct : '-'}</div>
                 <div class="perf-label">14d vs All-Time</div>
             </div>
             <div class="perf-item">
@@ -2321,19 +2328,19 @@
                 <div style="font-size:0.55rem;color:var(--red-bright);margin-top:2px">${stats.worstTrade || '-'}</div>
             </div>
             <div class="perf-item">
-                <div class="perf-val">${stats.bestWinStreak || 0} Wins</div>
+                <div class="perf-val" style="color:#f9c846">${stats.bestWinStreak || 0} Wins</div>
                 <div class="perf-label">Best Streak</div>
             </div>
             <div class="perf-item">
-                <div class="perf-val" style="color:${trend ? avgColor(trend.avg14d.pnl) : ''}">${trend ? fmtPnl(trend.avg14d.pnl) : '-'}</div>
+                <div class="perf-val" style="color:${trend ? (trend.avg14d.pnl >= 0 ? '#64b5f6' : 'var(--red-bright)') : ''}">${trend ? fmtPnl(trend.avg14d.pnl) : '-'}</div>
                 <div class="perf-label">14d P&L${trend ? ' (' + trend.avg14d.trades + ')' : ''}</div>
             </div>
             <div class="perf-item">
-                <div class="perf-val" style="color:${trend ? avgColor(trend.avg30d.pnl) : ''}">${trend ? fmtPnl(trend.avg30d.pnl) : '-'}</div>
+                <div class="perf-val" style="color:${trend ? (trend.avg30d.pnl >= 0 ? '#b39ddb' : 'var(--red-bright)') : ''}">${trend ? fmtPnl(trend.avg30d.pnl) : '-'}</div>
                 <div class="perf-label">30d P&L${trend ? ' (' + trend.avg30d.trades + ')' : ''}</div>
             </div>
             <div class="perf-item">
-                <div class="perf-val" style="color:${trend ? avgColor(trend.allTime.avgPerTrade) : ''}">${trend ? fmtAvg(trend.allTime.avgPerTrade) : '-'}</div>
+                <div class="perf-val" style="color:${trend ? (trend.allTime.avgPerTrade >= 0 ? '#ffb74d' : 'var(--red-bright)') : ''}">${trend ? fmtAvg(trend.allTime.avgPerTrade) : '-'}</div>
                 <div class="perf-label">Avg $/Trade</div>
             </div>
         `;
