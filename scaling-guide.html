@@ -681,9 +681,9 @@
                 const prevScoutSz = getScoutSize(prevMin);
                 const prevBuffer = Math.floor(prevMin * 0.25);
                 const prevScoutBudget = Math.max(0, prevBuffer - prevTotal);
-                // Cap scouts at 500/month; extra budget increases scout size
+                // Cap scouts at 300/month; extra budget increases scout size
                 const sessionsPerMonth = (tradesPerDay / 5) * 30;
-                const perSessionCap = Math.floor(500 / Math.max(1, sessionsPerMonth));
+                const perSessionCap = Math.floor(300 / Math.max(1, sessionsPerMonth));
                 const budgetScouts = prevScoutSz > 0 ? Math.floor(prevScoutBudget / prevScoutSz) : 0;
                 const maxScouts = Math.min(perSessionCap, budgetScouts);
                 // If capped, spread full budget across capped scouts (bigger size each)
