@@ -102,6 +102,23 @@
             position: relative;
             overflow: hidden;
         }
+        .gen-divider.gen1 {
+            background: linear-gradient(135deg, #1a2a3a, #0f1a3a, #1a1a3a);
+            border-color: #2a3a6a;
+        }
+        .gen-divider.gen1::before {
+            background: linear-gradient(90deg, transparent, rgba(74,158,255,0.08), transparent);
+        }
+        .gen-divider.clickable { cursor: pointer; }
+        .gen-divider.clickable:hover { border-color: #4dd0c4; }
+        .gen-divider .gen-toggle {
+            font-size: 0.7rem;
+            color: #6a9a8a;
+            transition: transform 0.2s;
+        }
+        .gen-divider .gen-toggle.collapsed { transform: rotate(-90deg); }
+        .gen2-content { transition: max-height 0.3s ease; overflow: hidden; }
+        .gen2-content.collapsed { max-height: 0 !important; }
         .gen-divider::before {
             content: '';
             position: absolute;
@@ -680,9 +697,29 @@
         for (let pi = 0; pi < PHASES.length; pi++) {
             const phase = PHASES[pi];
 
+            // Insert Gen 1 banner before first phase
+            if (phase.start === 1) {
+                html += `<div class="gen-divider gen1">`;
+                html += `<div class="gen-starters">`;
+                html += `<img src="${POKE_SPRITE(1)}" alt="Bulbasaur">`;
+                html += `<img src="${POKE_SPRITE(4)}" alt="Charmander">`;
+                html += `<img src="${POKE_SPRITE(7)}" alt="Squirtle">`;
+                html += `</div>`;
+                html += `<div class="gen-text">`;
+                html += `<div class="gen-title" style="color:#4a9eff;text-shadow:0 0 15px rgba(74,158,255,0.4)">Generation I — Kanto</div>`;
+                html += `<div class="gen-sub" style="color:#5a7a9a">$0 → $30,000 · 151 Pokemon · RBY Kanto Dex</div>`;
+                html += `</div>`;
+                html += `<div class="gen-starters">`;
+                html += `<img src="${POKE_SPRITE(144)}" alt="Articuno">`;
+                html += `<img src="${POKE_SPRITE(145)}" alt="Zapdos">`;
+                html += `<img src="${POKE_SPRITE(146)}" alt="Moltres">`;
+                html += `</div>`;
+                html += `</div>`;
+            }
+
             // Insert Gen 2 divider banner before first Johto phase
             if (phase.start === 152) {
-                html += `<div class="gen-divider">`;
+                html += `<div class="gen-divider clickable" onclick="toggleGen2()">`;
                 html += `<div class="gen-starters">`;
                 html += `<img src="${POKE_SPRITE(152)}" alt="Chikorita">`;
                 html += `<img src="${POKE_SPRITE(155)}" alt="Cyndaquil">`;
@@ -697,7 +734,9 @@
                 html += `<img src="${POKE_SPRITE(197)}" alt="Umbreon">`;
                 html += `<img src="${POKE_SPRITE(250)}" alt="Ho-Oh">`;
                 html += `</div>`;
+                html += `<span class="gen-toggle collapsed" id="gen2-toggle">▼</span>`;
                 html += `</div>`;
+                html += `<div class="gen2-content collapsed" id="gen2-content">`;
             }
 
             const pokemonInPhase = POKEMON_LEVELS.filter((_, i) => (i + 1) >= phase.start && (i + 1) <= phase.end);
@@ -782,11 +821,21 @@
             html += `</tbody></table></div></div>`;
         }
 
+        // Close gen2-content wrapper
+        html += `</div>`;
+
         container.innerHTML = html;
     }
 
     function togglePhase(header) {
         header.parentElement.classList.toggle('collapsed');
+    }
+
+    function toggleGen2() {
+        const content = document.getElementById('gen2-content');
+        const toggle = document.getElementById('gen2-toggle');
+        content.classList.toggle('collapsed');
+        toggle.classList.toggle('collapsed');
     }
 
     const API_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec?action=dashboard';
