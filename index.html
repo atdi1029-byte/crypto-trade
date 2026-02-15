@@ -2321,6 +2321,10 @@
                 <div style="font-size:0.55rem;color:var(--red-bright);margin-top:2px">${stats.worstTrade || '-'}</div>
             </div>
             <div class="perf-item">
+                <div class="perf-val">${stats.bestWinStreak || 0} Wins</div>
+                <div class="perf-label">Best Streak</div>
+            </div>
+            <div class="perf-item">
                 <div class="perf-val" style="color:${trend ? avgColor(trend.avg14d.pnl) : ''}">${trend ? fmtPnl(trend.avg14d.pnl) : '-'}</div>
                 <div class="perf-label">14d P&L${trend ? ' (' + trend.avg14d.trades + ')' : ''}</div>
             </div>
