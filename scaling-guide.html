@@ -88,6 +88,55 @@
             transition: width 0.5s ease;
         }
 
+        /* Gen Divider Banner */
+        .gen-divider {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+            padding: 1.2rem 1.5rem;
+            margin: 1.5rem 0;
+            background: linear-gradient(135deg, #1a3a2a, #0f2a3a, #1a2a3a);
+            border: 1px solid #2a5a4a;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        .gen-divider::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(74,200,160,0.08), transparent);
+        }
+        .gen-divider .gen-starters {
+            display: flex;
+            gap: 0.3rem;
+            align-items: center;
+        }
+        .gen-divider .gen-starters img {
+            width: 48px;
+            height: 48px;
+            image-rendering: pixelated;
+            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+        }
+        .gen-divider .gen-text {
+            text-align: center;
+        }
+        .gen-divider .gen-title {
+            font-size: 1rem;
+            color: #4dd0c4;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            text-shadow: 0 0 15px rgba(77,208,196,0.4);
+            font-weight: 700;
+        }
+        .gen-divider .gen-sub {
+            font-size: 0.55rem;
+            color: #6a9a8a;
+            letter-spacing: 2px;
+            margin-top: 0.2rem;
+        }
+
         /* Phases */
         .phase { margin-bottom: 0.5rem; }
         .phase-header {
@@ -581,6 +630,12 @@
         return Math.max(1, Math.floor(1 + Math.pow(profit / 1200, 0.85)));
     }
 
+    // Diminishing cap: 25% at $0-$30k, linearly drops to 10% by $610k
+    function getCapPercent(profit) {
+        if (profit <= 30000) return 0.25;
+        return Math.max(0.10, 0.25 - (profit - 30000) / 580000 * 0.15);
+    }
+
     // Compute 5 trade sizes for any profit level
     function getCryptoSizes(profit) {
         const p = Math.max(0, profit);
@@ -631,7 +686,29 @@
         const container = document.getElementById('phases');
         let html = '';
 
-        for (const phase of PHASES) {
+        for (let pi = 0; pi < PHASES.length; pi++) {
+            const phase = PHASES[pi];
+
+            // Insert Gen 2 divider banner before first Johto phase
+            if (phase.start === 152) {
+                html += `<div class="gen-divider">`;
+                html += `<div class="gen-starters">`;
+                html += `<img src="${POKE_SPRITE(152)}" alt="Chikorita">`;
+                html += `<img src="${POKE_SPRITE(155)}" alt="Cyndaquil">`;
+                html += `<img src="${POKE_SPRITE(158)}" alt="Totodile">`;
+                html += `</div>`;
+                html += `<div class="gen-text">`;
+                html += `<div class="gen-title">Generation II — Johto</div>`;
+                html += `<div class="gen-sub">$30,000+ Profit · 100 New Pokemon</div>`;
+                html += `</div>`;
+                html += `<div class="gen-starters">`;
+                html += `<img src="${POKE_SPRITE(158)}" alt="Totodile">`;
+                html += `<img src="${POKE_SPRITE(155)}" alt="Cyndaquil">`;
+                html += `<img src="${POKE_SPRITE(152)}" alt="Chikorita">`;
+                html += `</div>`;
+                html += `</div>`;
+            }
+
             const pokemonInPhase = POKEMON_LEVELS.filter((_, i) => (i + 1) >= phase.start && (i + 1) <= phase.end);
             const profitRange = pokemonInPhase.length > 0
                 ? '$' + pokemonInPhase[0].min.toLocaleString() + ' \u2014 $' + pokemonInPhase[pokemonInPhase.length - 1].min.toLocaleString()
@@ -648,7 +725,7 @@
             html += `<table><thead><tr>`;
             html += `<th>Lv</th><th></th><th>Pokemon</th><th>Profit</th>`;
             html += `<th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th>`;
-            html += `<th>Total</th><th>25% Cap</th><th>Scout $</th><th>Max Scouts</th><th>Gap</th>`;
+            html += `<th>Total</th><th>Cap %</th><th>Budget</th><th>Scout $</th><th>Max Scouts</th><th>Gap</th>`;
             html += `<th>Avg $/tr</th><th>Trades</th><th>Est.</th>`;
             html += `</tr></thead><tbody>`;
 
@@ -658,6 +735,7 @@
                 const total = sizes.reduce((a, b) => a + b, 0);
                 const gap = i > 0 ? lvl.min - POKEMON_LEVELS[i - 1].min : 0;
                 const lv = i + 1;
+                const capPct = getCapPercent(lvl.min);
 
                 html += `<tr id="row-${lv}">`;
                 html += `<td class="lv">${lv}</td>`;
@@ -669,7 +747,7 @@
                 html += `<td class="size-mid">$${sizes[2]}</td>`;
                 html += `<td class="size-mid">$${sizes[3]}</td>`;
                 html += `<td class="size-t5">$${sizes[4]}</td>`;
-                const buffer = Math.floor(lvl.min * 0.25);
+                const buffer = Math.floor(lvl.min * capPct);
                 const scoutSz = getScoutSize(lvl.min);
                 const scoutBudget = Math.max(0, buffer - total);
                 const budgetScouts = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
@@ -677,6 +755,7 @@
                 const effectiveScout = maxScouts === 300 && budgetScouts > 300
                     ? Math.min(Math.floor(scoutBudget / 300), 500) : scoutSz;
                 html += `<td class="total-risk">$${total}</td>`;
+                html += `<td class="profit">${(capPct * 100).toFixed(0)}%</td>`;
                 html += `<td class="profit">$${buffer.toLocaleString()}</td>`;
                 html += `<td class="size-mid">$${effectiveScout}</td>`;
                 html += `<td class="size-t1">${lvl.min === 0 ? '—' : maxScouts.toLocaleString()}</td>`;
@@ -758,14 +837,15 @@
         const sizesStr = sizes.map(s => '$' + s).join(' / ');
         const next = levelIdx < POKEMON_LEVELS.length - 1 ? POKEMON_LEVELS[levelIdx + 1] : null;
         const nextStr = next ? ` \u2014 $${(next.min - val).toFixed(0)} to ${next.pokemon}` : ' \u2014 MAX LEVEL!';
-        const buffer = Math.floor(val * 0.25);
+        const capPct = getCapPercent(val);
+        const buffer = Math.floor(val * capPct);
         const scoutSz = getScoutSize(val);
         const scoutBudget = Math.max(0, buffer - total);
         const budgetScouts2 = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
         const maxScouts = Math.min(300, budgetScouts2);
         const effectiveScout = maxScouts === 300 && budgetScouts2 > 300
             ? Math.min(Math.floor(scoutBudget / 300), 500) : scoutSz;
-        result.innerHTML = `<img src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}"> Lv.${levelIdx + 1} <strong>${level.pokemon}</strong> \u2014 ${sizesStr} = $${total} total${nextStr}<br><span style="font-size:0.6rem;color:#6a8aaa;">25% Budget: $${buffer} \u2014 Scout: $${effectiveScout} \u2014 Max ${maxScouts} scouts</span>`;
+        result.innerHTML = `<img src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}"> Lv.${levelIdx + 1} <strong>${level.pokemon}</strong> \u2014 ${sizesStr} = $${total} total${nextStr}<br><span style="font-size:0.6rem;color:#6a8aaa;">${(capPct*100).toFixed(0)}% Budget: $${buffer} \u2014 Scout: $${effectiveScout} \u2014 Max ${maxScouts} scouts</span>`;
 
         // Progress bar
         const maxLevel = POKEMON_LEVELS[POKEMON_LEVELS.length - 1].min;
@@ -813,7 +893,7 @@
                 const prevTotal = prevSizes.reduce((a, b) => a + b, 0);
                 // Session profit = main trades + scouts (max 300 open positions)
                 const prevScoutSz = getScoutSize(prevMin);
-                const prevBuffer = Math.floor(prevMin * 0.25);
+                const prevBuffer = Math.floor(prevMin * getCapPercent(prevMin));
                 const prevScoutBudget = Math.max(0, prevBuffer - prevTotal);
                 const budgetScouts = prevScoutSz > 0 ? Math.floor(prevScoutBudget / prevScoutSz) : 0;
                 const maxScouts = Math.min(300, budgetScouts);
