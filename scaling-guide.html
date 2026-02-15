@@ -545,9 +545,8 @@
                 const buffer = Math.floor(lvl.min * 0.25);
                 const scoutSz = getScoutSize(lvl.min);
                 const scoutBudget = Math.max(0, buffer - total);
-                // Cap at 300/month (~12/session assuming ~24 sessions/month)
                 const budgetScouts = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
-                const maxScouts = Math.min(12, budgetScouts);
+                const maxScouts = Math.min(300, budgetScouts);
                 html += `<td class="total-risk">$${total}</td>`;
                 html += `<td class="profit">$${buffer.toLocaleString()}</td>`;
                 html += `<td class="size-mid">$${scoutSz}</td>`;
@@ -634,8 +633,8 @@
         const scoutSz = getScoutSize(val);
         const scoutBudget = Math.max(0, buffer - total);
         const budgetScouts2 = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
-        const maxScouts = Math.min(12, budgetScouts2);
-        result.innerHTML = `<img src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}"> Lv.${levelIdx + 1} <strong>${level.pokemon}</strong> \u2014 ${sizesStr} = $${total} total${nextStr}<br><span style="font-size:0.6rem;color:#6a8aaa;">25% Budget: $${buffer} \u2014 Scout: $${scoutSz} \u2014 Max ${maxScouts} scouts/session</span>`;
+        const maxScouts = Math.min(300, budgetScouts2);
+        result.innerHTML = `<img src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}"> Lv.${levelIdx + 1} <strong>${level.pokemon}</strong> \u2014 ${sizesStr} = $${total} total${nextStr}<br><span style="font-size:0.6rem;color:#6a8aaa;">25% Budget: $${buffer} \u2014 Scout: $${scoutSz} \u2014 Max ${maxScouts} scouts/mo</span>`;
 
         // Progress bar
         const pct = Math.min(100, (val / 30000) * 100);
@@ -680,20 +679,21 @@
                 const prevMin = i > 0 ? POKEMON_LEVELS[i - 1].min : 0;
                 const prevSizes = getCryptoSizes(prevMin);
                 const prevTotal = prevSizes.reduce((a, b) => a + b, 0);
-                // Session profit = 5 main trades + scouts
+                // Monthly profit = main trades + scouts (capped 300/mo)
                 const prevScoutSz = getScoutSize(prevMin);
                 const prevBuffer = Math.floor(prevMin * 0.25);
                 const prevScoutBudget = Math.max(0, prevBuffer - prevTotal);
-                // Cap scouts at 300/month; excess budget grows scout size toward main trade size
                 const sessionsPerMonth = (tradesPerDay / 5) * 30;
-                const perSessionCap = Math.floor(300 / Math.max(1, sessionsPerMonth));
                 const budgetScouts = prevScoutSz > 0 ? Math.floor(prevScoutBudget / prevScoutSz) : 0;
-                const maxScouts = Math.min(perSessionCap, budgetScouts);
-                const effectiveScoutSz = maxScouts > 0 && budgetScouts > perSessionCap
-                    ? Math.min(prevScoutBudget / maxScouts, 500) : prevScoutSz;
-                const sessionProfit = (prevTotal + maxScouts * effectiveScoutSz) * edgeRate;
-                const sessionsNeeded = sessionProfit > 0 ? Math.ceil(gap / sessionProfit) : 9999;
-                cumTrades += sessionsNeeded * 5;
+                const monthlyScouts = Math.min(300, budgetScouts);
+                // If budget allows more than 300, excess grows scout size (up to $500)
+                const effectiveScoutSz = monthlyScouts === 300 && budgetScouts > 300
+                    ? Math.min(prevScoutBudget / 300, 500) : prevScoutSz;
+                const monthlyMainProfit = sessionsPerMonth * prevTotal * edgeRate;
+                const monthlyScoutProfit = monthlyScouts * effectiveScoutSz * edgeRate;
+                const monthlyProfit = monthlyMainProfit + monthlyScoutProfit;
+                const monthsNeeded = monthlyProfit > 0 ? gap / monthlyProfit : 9999;
+                cumTrades += Math.ceil(monthsNeeded * sessionsPerMonth * 5);
                 const days = cumTrades / tradesPerDay;
 
                 avgEl.className = i === levelIdx + 1 ? 'est-active' : 'est';
