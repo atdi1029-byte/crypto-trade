@@ -681,7 +681,10 @@
                 const prevScoutSz = getScoutSize(prevMin);
                 const prevBuffer = Math.floor(prevMin * 0.25);
                 const prevScoutBudget = Math.max(0, prevBuffer - prevTotal);
-                const maxScouts = prevScoutSz > 0 ? Math.floor(prevScoutBudget / prevScoutSz) : 0;
+                // Cap scouts by alert volume: ~550 assets, ~1 tradeable scout/asset/month
+                const sessionsPerMonth = (tradesPerDay / 5) * 30;
+                const perSessionCap = Math.floor(550 / Math.max(1, sessionsPerMonth));
+                const maxScouts = prevScoutSz > 0 ? Math.min(perSessionCap, Math.floor(prevScoutBudget / prevScoutSz)) : 0;
                 const sessionProfit = (prevTotal + maxScouts * prevScoutSz) * edgeRate;
                 const sessionsNeeded = sessionProfit > 0 ? Math.ceil(gap / sessionProfit) : 9999;
                 cumTrades += sessionsNeeded * 5;
