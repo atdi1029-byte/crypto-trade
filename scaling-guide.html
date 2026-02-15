@@ -755,7 +755,7 @@
                 const effectiveScout = maxScouts === 300 && budgetScouts > 300
                     ? Math.min(Math.floor(scoutBudget / 300), 500) : scoutSz;
                 html += `<td class="total-risk">$${total}</td>`;
-                html += `<td class="profit">${(capPct * 100).toFixed(0)}%</td>`;
+                html += `<td class="profit">${(capPct * 100).toFixed(1)}%</td>`;
                 html += `<td class="profit">$${buffer.toLocaleString()}</td>`;
                 html += `<td class="size-mid">$${effectiveScout}</td>`;
                 html += `<td class="size-t1">${lvl.min === 0 ? '—' : maxScouts.toLocaleString()}</td>`;
