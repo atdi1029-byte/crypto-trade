@@ -199,7 +199,8 @@
         }
         .phase.collapsed .phase-toggle { transform: rotate(-90deg); }
         .phase-body {
-            overflow: hidden;
+            overflow-x: auto;
+            overflow-y: hidden;
             transition: max-height 0.3s ease;
         }
         .phase.collapsed .phase-body {
@@ -209,22 +210,25 @@
         /* Table */
         table {
             width: 100%;
+            min-width: 950px;
             border-collapse: collapse;
             margin: 0.5rem 0 1rem;
         }
         th {
             text-align: left;
-            font-size: 0.55rem;
+            font-size: 0.5rem;
             color: #6a8aaa;
             text-transform: uppercase;
             letter-spacing: 1px;
-            padding: 0.4rem 0.5rem;
+            padding: 0.3rem 0.35rem;
             border-bottom: 1px solid #1e3a5f;
+            white-space: nowrap;
         }
         td {
-            padding: 0.4rem 0.5rem;
+            padding: 0.3rem 0.35rem;
             border-bottom: 1px solid #132438;
-            font-size: 0.68rem;
+            font-size: 0.62rem;
+            white-space: nowrap;
         }
         tr:hover { background: #132438; }
         tr.highlight {
@@ -586,11 +590,37 @@
 
     // Diminishing cap: 25% → 20% by Mew ($30k), then 20% → 5% by Celebi ($1M)
     // Uses linear BUDGET growth so budget never decreases (scout $ always grinds up)
-    function getCapPercent(profit) {
-        if (profit <= 0) return 0.25;
-        if (profit <= 30000) return 0.25 - (profit / 30000) * 0.05;
-        // budget = 4639 + 0.04536 * profit → always increasing
-        return Math.max(0.05, (4639 + 0.04536 * profit) / profit);
+    function getCapPercent(level) {
+        // Anchor points: [level, cap%] — linear interpolation between each pair
+        const anchors = [
+            [1, 0.25],   [9, 0.25],    // Pallet: 25%
+            [10, 0.25],  [25, 0.24],   // Viridian-Pewter: 25→24%
+            [26, 0.24],  [45, 0.24],   // Cerulean: 24%
+            [46, 0.24],  [65, 0.23],   // Vermilion: 24→23%
+            [66, 0.23],  [85, 0.23],   // Celadon: 23%
+            [86, 0.22],  [105, 0.22],  // Fuchsia: 22%
+            [106, 0.21], [130, 0.21],  // Cinnabar: 21%
+            [131, 0.20], [151, 0.20],  // Indigo: 20%
+            [152, 0.19], [183, 0.18],  // New Bark: 19→18%
+            [184, 0.18], [214, 0.17],  // Route 29: 18→17%
+            [215, 0.16], [245, 0.15],  // Azalea: 16→15%
+            [246, 0.14], [277, 0.13],  // Goldenrod: 14→13%
+            [278, 0.12], [308, 0.11],  // Ecruteak: 12→11%
+            [309, 0.10], [339, 0.09],  // Olivine: 10→9%
+            [340, 0.08], [371, 0.07],  // Mahogany: 8→7%
+            [372, 0.06], [402, 0.05],  // Indigo Johto: 6→5%
+        ];
+        if (level <= 1) return 0.25;
+        if (level >= 402) return 0.05;
+        for (let i = 0; i < anchors.length - 1; i++) {
+            if (level >= anchors[i][0] && level <= anchors[i + 1][0]) {
+                const [l1, c1] = anchors[i];
+                const [l2, c2] = anchors[i + 1];
+                if (l1 === l2) return c1;
+                return c1 + (c2 - c1) * (level - l1) / (l2 - l1);
+            }
+        }
+        return 0.05;
     }
 
     // Compute 5 trade sizes for any profit level
@@ -695,7 +725,7 @@
                 let total = sizes.reduce((a, b) => a + b, 0);
                 const gap = i > 0 ? lvl.min - POKEMON_LEVELS[i - 1].min : 0;
                 const lv = i + 1;
-                const capPct = getCapPercent(lvl.min);
+                const capPct = getCapPercent(lv);
                 const buffer = Math.floor(lvl.min * capPct);
                 const scoutSz = getScoutSize(lvl.min);
 
@@ -818,7 +848,7 @@
         const sizesStr = sizes.map(s => '$' + s).join(' / ');
         const next = levelIdx < POKEMON_LEVELS.length - 1 ? POKEMON_LEVELS[levelIdx + 1] : null;
         const nextStr = next ? ` \u2014 $${(next.min - val).toFixed(0)} to ${next.pokemon}` : ' \u2014 MAX LEVEL!';
-        const capPct = getCapPercent(val);
+        const capPct = getCapPercent(levelIdx + 1);
         const buffer = Math.floor(val * capPct);
         const scoutSz = getScoutSize(val);
         const scoutBudget = Math.max(0, buffer - total);
@@ -869,7 +899,7 @@
                 trEl.textContent = '\u2713';
                 timeEl.textContent = '\u2713';
                 // Track 300-lock for past levels too
-                const pastCapPct = getCapPercent(lvlMin);
+                const pastCapPct = getCapPercent(lv);
                 const pastBuffer = Math.floor(lvlMin * pastCapPct);
                 const pastTotal = lvlSizes.reduce((a, b) => a + b, 0);
                 const pastScoutSz = getScoutSize(lvlMin);
@@ -885,7 +915,7 @@
                 const prevSizes = getCryptoSizes(prevMin);
                 let prevTotal = prevSizes.reduce((a, b) => a + b, 0);
                 const prevScoutSz = getScoutSize(prevMin);
-                const prevCapPct = getCapPercent(prevMin);
+                const prevCapPct = getCapPercent(i > 0 ? i : 1);
                 const prevBuffer = Math.floor(prevMin * prevCapPct);
 
                 // Check 300 lock
