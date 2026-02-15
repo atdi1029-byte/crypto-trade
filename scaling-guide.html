@@ -545,7 +545,9 @@
                 const buffer = Math.floor(lvl.min * 0.25);
                 const scoutSz = getScoutSize(lvl.min);
                 const scoutBudget = Math.max(0, buffer - total);
-                const maxScouts = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
+                // Cap at 300/month (~12/session assuming ~24 sessions/month)
+                const budgetScouts = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
+                const maxScouts = Math.min(12, budgetScouts);
                 html += `<td class="total-risk">$${total}</td>`;
                 html += `<td class="profit">$${buffer.toLocaleString()}</td>`;
                 html += `<td class="size-mid">$${scoutSz}</td>`;
@@ -631,8 +633,9 @@
         const buffer = Math.floor(val * 0.25);
         const scoutSz = getScoutSize(val);
         const scoutBudget = Math.max(0, buffer - total);
-        const maxScouts = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
-        result.innerHTML = `<img src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}"> Lv.${levelIdx + 1} <strong>${level.pokemon}</strong> \u2014 ${sizesStr} = $${total} total${nextStr}<br><span style="font-size:0.6rem;color:#6a8aaa;">25% Budget: $${buffer} \u2014 Scout: $${scoutSz} \u2014 Max ${maxScouts} scouts after 5 main</span>`;
+        const budgetScouts2 = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
+        const maxScouts = Math.min(12, budgetScouts2);
+        result.innerHTML = `<img src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}"> Lv.${levelIdx + 1} <strong>${level.pokemon}</strong> \u2014 ${sizesStr} = $${total} total${nextStr}<br><span style="font-size:0.6rem;color:#6a8aaa;">25% Budget: $${buffer} \u2014 Scout: $${scoutSz} \u2014 Max ${maxScouts} scouts/session</span>`;
 
         // Progress bar
         const pct = Math.min(100, (val / 30000) * 100);
