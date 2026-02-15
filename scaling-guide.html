@@ -904,15 +904,12 @@
 
             const lvlMin = POKEMON_LEVELS[i].min;
             const lvlSizes = getCryptoSizes(lvlMin);
-            const avgSize = lvlSizes.reduce((a, b) => a + b, 0) / lvlSizes.length;
-            const profitPerTrade = avgSize * edgeRate;
-
-            avgEl.textContent = '$' + profitPerTrade.toFixed(2);
 
             if (lvlMin <= val) {
                 avgEl.className = 'est-past';
                 trEl.className = 'est-past';
                 timeEl.className = 'est-past';
+                avgEl.textContent = '\u2713';
                 trEl.textContent = '\u2713';
                 timeEl.textContent = '\u2713';
                 // Track 300-lock for past levels too
@@ -961,10 +958,12 @@
                 }
 
                 const sessionProfit = (prevTotal + maxScouts * effectiveScoutSz) * edgeRate;
+                const avgPerTrade = sessionProfit / 5;
                 const sessionsNeeded = sessionProfit > 0 ? Math.ceil(gap / sessionProfit) : 9999;
                 cumTrades += sessionsNeeded * 5;
                 const days = cumTrades / tradesPerDay;
 
+                avgEl.textContent = '$' + avgPerTrade.toFixed(2);
                 avgEl.className = i === levelIdx + 1 ? 'est-active' : 'est';
                 trEl.className = i === levelIdx + 1 ? 'est-active' : 'est';
                 timeEl.className = i === levelIdx + 1 ? 'est-active' : 'est';
