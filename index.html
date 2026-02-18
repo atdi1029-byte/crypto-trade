@@ -1584,6 +1584,580 @@
         }
     }
 
+
+    // ====== BACKTEST DATA (Feb 17, 2026 — 529 crypto tickers) ======
+    const BT_DEFAULTS = { buy: { sl:14.5, tp:15, halfTp:7 }, sell: { sl:20, tp:13, halfTp:7 } };
+const BACKTEST = {
+  '0GUSDT': { buyWr:null, sellWr:0, reduceWr:null, note:'Bad buy' },
+  '1000CATUSDT': { buyWr:null, sellWr:40, reduceWr:0, note:'Bad buy' },
+  '1INCHUSDT': { buyWr:26, sellWr:23.1, reduceWr:41.7, note:null },
+  '2ZUSDC': { buyWr:0, sellWr:100, reduceWr:null, note:null },
+  '4USDT.P': { buyWr:40, sellWr:null, reduceWr:null, note:null },
+  'A2ZUSDT': { buyWr:33.3, sellWr:0, reduceWr:null, note:null },
+  'AAVEUSDT': { buyWr:21.5, sellWr:35.7, reduceWr:38.5, note:'Strong both' },
+  'ACEUSDT.P': { buyWr:25, sellWr:33.3, reduceWr:25, note:null },
+  'ACHUSDT': { buyWr:22, sellWr:20, reduceWr:0, note:null },
+  'ACTUSDT': { buyWr:null, sellWr:25, reduceWr:50, note:'Bad buy' },
+  'ACUUSDT.P': { buyWr:50, sellWr:null, reduceWr:null, note:null },
+  'ACXUSD': { buyWr:26.7, sellWr:20, reduceWr:75, note:null },
+  'ADAUSDT': { buyWr:null, sellWr:22.2, reduceWr:26.7, note:'Bad buy' },
+  'AERGOUSDT': { buyWr:52.3, sellWr:22.2, reduceWr:12.5, note:'Strong buy' },
+  'AEROUSD': { buyWr:25.8, sellWr:18.2, reduceWr:42.9, note:null },
+  'AEVOUSDT': { buyWr:23.1, sellWr:50, reduceWr:33.3, note:'Strong sell' },
+  'AGLDUSDT.P': { buyWr:29.2, sellWr:31.3, reduceWr:55.6, note:'Strong sell' },
+  'AIAUSDT': { buyWr:66.7, sellWr:null, reduceWr:0, note:'Never short' },
+  'AINUSDT.P': { buyWr:16.7, sellWr:66.7, reduceWr:50, note:'Strong sell' },
+  'AIOTUSDT.P': { buyWr:33.3, sellWr:null, reduceWr:100, note:'Never short' },
+  'AIOUSDT.P': { buyWr:0, sellWr:50, reduceWr:0, note:null },
+  'AIUSDT': { buyWr:27.3, sellWr:21.4, reduceWr:33.3, note:null },
+  'AIXBTUSDT.P': { buyWr:22.7, sellWr:20, reduceWr:33.3, note:'Avoid sells' },
+  'AKEUSD': { buyWr:16.7, sellWr:0, reduceWr:100, note:null },
+  'ALCHUSD': { buyWr:25, sellWr:33.3, reduceWr:100, note:null },
+  'ALGOUSDT': { buyWr:23.4, sellWr:30, reduceWr:23.5, note:null },
+  'ALICEUSDT': { buyWr:25, sellWr:27.6, reduceWr:26.3, note:null },
+  'ALLOUSDT': { buyWr:33.3, sellWr:null, reduceWr:null, note:null },
+  'ALPINEUSDT': { buyWr:30, sellWr:0, reduceWr:100, note:null },
+  'ALTUSDT': { buyWr:25, sellWr:22.2, reduceWr:20, note:null },
+  'ANIMEUSDT': { buyWr:18.2, sellWr:33.3, reduceWr:50, note:null },
+  'ANKRUSD': { buyWr:null, sellWr:34.4, reduceWr:50, note:'Bad buy / Strong both' },
+  'APEUSDT': { buyWr:20.5, sellWr:33.3, reduceWr:0, note:null },
+  'APEXUSDT': { buyWr:35.7, sellWr:45.5, reduceWr:42.9, note:'Strong buy' },
+  'API3USDT.P': { buyWr:28.3, sellWr:26.3, reduceWr:40, note:null },
+  'APRUSDT.P': { buyWr:0, sellWr:100, reduceWr:null, note:null },
+  'APTUSD': { buyWr:31.3, sellWr:20, reduceWr:20, note:null },
+  'ARBUSDT': { buyWr:25.9, sellWr:33.3, reduceWr:42.9, note:'Strong sell' },
+  'ARIAUSDT.P': { buyWr:null, sellWr:null, reduceWr:null, note:'Bad buy' },
+  'ARKMUSDT.P': { buyWr:22.6, sellWr:43.8, reduceWr:60, note:'Strong sell' },
+  'ARKUSDT': { buyWr:41.7, sellWr:37.5, reduceWr:50, note:'Strong both' },
+  'ARPAUSDT': { buyWr:35.8, sellWr:18.8, reduceWr:14.3, note:'Strong both' },
+  'ARUSDT': { buyWr:22.2, sellWr:8.3, reduceWr:36.4, note:'Avoid sells' },
+  'ASRUSDT.P': { buyWr:50, sellWr:50, reduceWr:100, note:'Strong both' },
+  'ASTERUSDT': { buyWr:null, sellWr:0, reduceWr:100, note:'Bad buy' },
+  'ASTRUSDT': { buyWr:34.1, sellWr:25, reduceWr:33.3, note:null },
+  'ATHUSD': { buyWr:null, sellWr:0, reduceWr:null, note:'Bad both' },
+  'ATOMUSDT': { buyWr:31.7, sellWr:20.7, reduceWr:9.1, note:null },
+  'ATUSDT.P': { buyWr:100, sellWr:0, reduceWr:null, note:null },
+  'AUCTIONUSDT.P': { buyWr:52, sellWr:10, reduceWr:100, note:'Strong buy' },
+  'AUSDT': { buyWr:null, sellWr:0, reduceWr:null, note:'Bad buy' },
+  'AVAAIUSDT.P': { buyWr:27.3, sellWr:25, reduceWr:25, note:null },
+  'AVAUSDT.P': { buyWr:null, sellWr:0, reduceWr:100, note:'Bad buy' },
+  'AVAXUSDT': { buyWr:28.1, sellWr:23.1, reduceWr:40, note:null },
+  'AVNTUSDT': { buyWr:null, sellWr:0, reduceWr:50, note:'Bad both' },
+  'AWEUSDT': { buyWr:50, sellWr:25, reduceWr:100, note:'Strong buy' },
+  'AXLUSDT': { buyWr:37, sellWr:28.6, reduceWr:40, note:'Strong buy' },
+  'AXSUSDT': { buyWr:32.1, sellWr:30, reduceWr:50, note:'Strong buy' },
+  'AZTECUSDT.P': { buyWr:null, sellWr:null, reduceWr:null, note:null },
+  'B2USD': { buyWr:50, sellWr:100, reduceWr:0, note:'Strong buy' },
+  'B3USDT.P': { buyWr:44.4, sellWr:50, reduceWr:0, note:'Strong both' },
+  'BABYUSDT': { buyWr:41.7, sellWr:50, reduceWr:33.3, note:'Strong both' },
+  'BANANAS31USDT': { buyWr:40, sellWr:0, reduceWr:0, note:'Strong buy' },
+  'BANANAUSDT': { buyWr:30.4, sellWr:22.2, reduceWr:50, note:null },
+  'BANDUSDT': { buyWr:33.3, sellWr:30.4, reduceWr:35, note:null },
+  'BANKUSDT': { buyWr:50, sellWr:null, reduceWr:null, note:null },
+  'BANUSDT.P': { buyWr:44.4, sellWr:40, reduceWr:0, note:'Strong buy' },
+  'BARDUSDT': { buyWr:75, sellWr:0, reduceWr:null, note:'Strong buy' },
+  'BASUSDT.P': { buyWr:25, sellWr:null, reduceWr:0, note:'Never short' },
+  'BATUSD': { buyWr:30.6, sellWr:22.2, reduceWr:28.6, note:null },
+  'BBUSDT': { buyWr:20, sellWr:25, reduceWr:33.3, note:null },
+  'BCHUSDT': { buyWr:26.8, sellWr:15.4, reduceWr:0, note:'Bad sell' },
+  'BDXNUSDT': { buyWr:66.7, sellWr:0, reduceWr:null, note:null },
+  'BEAMXUSDT': { buyWr:27.3, sellWr:22.2, reduceWr:50, note:null },
+  'BEATUSDT.P': { buyWr:50, sellWr:0, reduceWr:null, note:null },
+  'BERAUSDT': { buyWr:26.3, sellWr:16.7, reduceWr:50, note:null },
+  'BICOUSDT': { buyWr:19, sellWr:26.3, reduceWr:16.7, note:null },
+  'BIGTIMEUSDT.P': { buyWr:22.2, sellWr:53.3, reduceWr:25, note:'Strong sell' },
+  'BIOUSDT': { buyWr:29.4, sellWr:75, reduceWr:66.7, note:'Strong sell' },
+  'BLESSUSDT.P': { buyWr:66.7, sellWr:0, reduceWr:null, note:null },
+  'BLUAIUSDT.P': { buyWr:null, sellWr:null, reduceWr:null, note:'Bad buy' },
+  'BLURUSDT.P': { buyWr:26.9, sellWr:20, reduceWr:40, note:null },
+  'BMTUSDT.P': { buyWr:33.3, sellWr:50, reduceWr:0, note:null },
+  'BNBUSDT': { buyWr:28.8, sellWr:12.8, reduceWr:44.4, note:'Bad sell' },
+  'BNTUSDT': { buyWr:24, sellWr:29.2, reduceWr:44.4, note:null },
+  'BOBBOBUSDC': { buyWr:25, sellWr:null, reduceWr:null, note:null },
+  'BOMEUSDT.P': { buyWr:31.8, sellWr:33.3, reduceWr:60, note:'Strong sell' },
+  'BONKUSDT': { buyWr:37.2, sellWr:20, reduceWr:60, note:'Strong buy' },
+  'BRETTUSDT': { buyWr:37, sellWr:40, reduceWr:66.7, note:'Strong both' },
+  'BREVUSDT': { buyWr:null, sellWr:null, reduceWr:null, note:null },
+  'BROCCOLI714USDC': { buyWr:null, sellWr:0, reduceWr:100, note:'Bad both' },
+  'BRUSDT.P': { buyWr:40, sellWr:50, reduceWr:0, note:null },
+  'BSVUSDT': { buyWr:38.7, sellWr:16.7, reduceWr:33.3, note:'Strong buy' },
+  'BTCUSDT': { buyWr:32.4, sellWr:16.7, reduceWr:40, note:'Bad sell' },
+  'BTRUSDT.P': { buyWr:37.5, sellWr:null, reduceWr:100, note:'Never short' },
+  'BUSDT.P': { buyWr:50, sellWr:75, reduceWr:33.3, note:'Strong both' },
+  'C98USDT': { buyWr:30.6, sellWr:33.3, reduceWr:50, note:'Strong sell' },
+  'CAKEUSDT': { buyWr:42.2, sellWr:13.3, reduceWr:28.6, note:'Bad sell / Strong both' },
+  'CARVEUR': { buyWr:27.3, sellWr:0, reduceWr:0, note:null },
+  'CATIUSDC.P': { buyWr:22.2, sellWr:20, reduceWr:0, note:null },
+  'CCUSDT': { buyWr:66.7, sellWr:50, reduceWr:100, note:'Strong both' },
+  'CELOUSDT': { buyWr:21.2, sellWr:25, reduceWr:33.3, note:null },
+  'CELRUSD': { buyWr:24.1, sellWr:21.6, reduceWr:23.1, note:null },
+  'CETUSUSDC': { buyWr:25, sellWr:0, reduceWr:0, note:'Bad sell' },
+  'CFXUSDT': { buyWr:44, sellWr:24, reduceWr:50, note:'Strong buy' },
+  'CGPTUSDC': { buyWr:21.4, sellWr:100, reduceWr:0, note:null },
+  'CHEEMSUSDT': { buyWr:33.3, sellWr:20, reduceWr:50, note:null },
+  'CHESSUSDT': { buyWr:31.6, sellWr:20, reduceWr:27.3, note:null },
+  'CHILLGUYUSDT.P': { buyWr:null, sellWr:0, reduceWr:50, note:'Bad both' },
+  'CHRUSDT': { buyWr:27.8, sellWr:33.3, reduceWr:35.7, note:null },
+  'CHZUSD': { buyWr:29.6, sellWr:0, reduceWr:16.7, note:'Bad sell' },
+  'CKBUSDC': { buyWr:33.3, sellWr:22.2, reduceWr:40, note:null },
+  'CLANKERUSDT.P': { buyWr:25, sellWr:33.3, reduceWr:25, note:null },
+  'CLOUSDT.P': { buyWr:null, sellWr:null, reduceWr:null, note:'Never short' },
+  'COAIUSDT.P': { buyWr:null, sellWr:0, reduceWr:null, note:'Bad buy' },
+  'COLLECTUSDT.P': { buyWr:0, sellWr:null, reduceWr:null, note:null },
+  'COMMONUSDT': { buyWr:20, sellWr:null, reduceWr:null, note:null },
+  'COMPUSD': { buyWr:31.6, sellWr:32.3, reduceWr:35.3, note:null },
+  'COOKIEUSD': { buyWr:33.3, sellWr:25, reduceWr:50, note:null },
+  'COREUSDT': { buyWr:26.5, sellWr:50, reduceWr:57.1, note:'Strong sell' },
+  'COSUSDT.P': { buyWr:25, sellWr:33.3, reduceWr:50, note:null },
+  'COTIUSDT': { buyWr:30.3, sellWr:26.2, reduceWr:11.8, note:null },
+  'COWUSD': { buyWr:44.4, sellWr:20, reduceWr:0, note:'Strong buy' },
+  'CROSSUSDT.P': { buyWr:20, sellWr:0, reduceWr:0, note:null },
+  'CRVUSDT': { buyWr:29.5, sellWr:23.5, reduceWr:42.9, note:null },
+  'CTKUSDT.P': { buyWr:29.6, sellWr:6.7, reduceWr:28.6, note:'Bad sell' },
+  'CTSIUSD': { buyWr:22.6, sellWr:13.3, reduceWr:50, note:'Bad sell' },
+  'CUDISUSDT': { buyWr:42.9, sellWr:33.3, reduceWr:0, note:null },
+  'CUSDT.P': { buyWr:22.2, sellWr:100, reduceWr:0, note:'Strong sell' },
+  'CVCUSD': { buyWr:25, sellWr:23.1, reduceWr:33.3, note:null },
+  'CVXUSDT': { buyWr:27.5, sellWr:22.2, reduceWr:100, note:'Strong sell' },
+  'CYBERUSDT': { buyWr:28, sellWr:25, reduceWr:57.1, note:null },
+  'CYSUSDT': { buyWr:null, sellWr:0, reduceWr:0, note:'Bad both' },
+  'DCRUSDT': { buyWr:41.8, sellWr:13, reduceWr:33.3, note:'Strong both' },
+  'DEEPUSD': { buyWr:null, sellWr:0, reduceWr:null, note:'Bad both' },
+  'DEGOUSDT.P': { buyWr:null, sellWr:0, reduceWr:0, note:'Bad both' },
+  'DENTUSDT.P': { buyWr:null, sellWr:36.4, reduceWr:36.4, note:'Bad buy' },
+  'DEXEUSDT': { buyWr:36.7, sellWr:20, reduceWr:0, note:'Bad sell' },
+  'DIAUSD': { buyWr:40.6, sellWr:12.5, reduceWr:33.3, note:'Strong buy' },
+  'DNUSDT': { buyWr:null, sellWr:null, reduceWr:null, note:null },
+  'DOGEUSDT': { buyWr:20.9, sellWr:29.3, reduceWr:30.8, note:null },
+  'DOGSUSDT': { buyWr:null, sellWr:28.6, reduceWr:25, note:'Bad buy' },
+  'DOGUSDT': { buyWr:23.3, sellWr:30.8, reduceWr:50, note:'Strong sell' },
+  'DOLOUSDT': { buyWr:28.6, sellWr:null, reduceWr:null, note:null },
+  'DOODUSDT.P': { buyWr:55.6, sellWr:0, reduceWr:100, note:'Strong buy' },
+  'DOTUSDT.P': { buyWr:20.8, sellWr:11.1, reduceWr:60, note:'Strong both' },
+  'DRIFTUSD': { buyWr:17.6, sellWr:16.7, reduceWr:50, note:null },
+  'DUSKUSDT': { buyWr:37.3, sellWr:12.8, reduceWr:37.5, note:'Strong buy' },
+  'DYDXUSDT': { buyWr:25.5, sellWr:21.1, reduceWr:40, note:null },
+  'DYMUSDT.P': { buyWr:14.7, sellWr:42.9, reduceWr:40, note:'Strong both' },
+  'EDENUSDT': { buyWr:null, sellWr:null, reduceWr:null, note:'Bad buy' },
+  'EDUUSDT': { buyWr:29.2, sellWr:33.3, reduceWr:50, note:null },
+  'EGLDUSDT': { buyWr:30, sellWr:27.6, reduceWr:30.8, note:null },
+  'EIGENUSDT': { buyWr:28.6, sellWr:11.1, reduceWr:100, note:'Bad sell' },
+  'ELSAUSDT.P': { buyWr:null, sellWr:null, reduceWr:null, note:null },
+  'ENAUSDT': { buyWr:39.1, sellWr:66.7, reduceWr:62.5, note:'Strong both' },
+  'ENJUSDT': { buyWr:24.7, sellWr:26.8, reduceWr:23.1, note:null },
+  'ENSOUSDT': { buyWr:100, sellWr:null, reduceWr:0, note:'Never short' },
+  'ENSOUSDT.P': { buyWr:100, sellWr:null, reduceWr:0, note:'Never short' },
+  'EPICUSDT.P': { buyWr:27.3, sellWr:33.3, reduceWr:0, note:null },
+  'EPTUSDT': { buyWr:null, sellWr:16.7, reduceWr:20, note:'Bad overall' },
+  'ERAUSDT.P': { buyWr:25, sellWr:100, reduceWr:100, note:'Strong sell' },
+  'ESPORTSUSD': { buyWr:0, sellWr:null, reduceWr:null, note:null },
+  'ESPUSDT.P': { buyWr:null, sellWr:null, reduceWr:null, note:null },
+  'ETCUSDT': { buyWr:23.1, sellWr:28.3, reduceWr:17.6, note:null },
+  'ETHFIUSDT': { buyWr:32.1, sellWr:40, reduceWr:16.7, note:null },
+  'ETHUSDT': { buyWr:24.6, sellWr:22, reduceWr:33.3, note:null },
+  'ETHWUSDT.P': { buyWr:42.1, sellWr:50, reduceWr:25, note:'Strong both' },
+  'EULUSD': { buyWr:null, sellWr:0, reduceWr:100, note:'Bad buy' },
+  'EVAAUSDT': { buyWr:40, sellWr:null, reduceWr:null, note:'Never short' },
+  'FARTCOINUSDT': { buyWr:30.4, sellWr:18.2, reduceWr:20, note:null },
+  'FETUSDT': { buyWr:32.1, sellWr:23.1, reduceWr:25, note:null },
+  'FFUSDT': { buyWr:50, sellWr:100, reduceWr:0, note:null },
+  'FHEUSDT.P': { buyWr:50, sellWr:33.3, reduceWr:0, note:null },
+  'FIDAUSDT.P': { buyWr:29.4, sellWr:14.3, reduceWr:0, note:'Bad sell' },
+  'FILUSDT': { buyWr:25.5, sellWr:26.1, reduceWr:45.5, note:null },
+  'FIOUSDT': { buyWr:39.1, sellWr:6.3, reduceWr:42.9, note:'Bad sell / Strong both' },
+  'FLOCKUSDC': { buyWr:66.7, sellWr:0, reduceWr:0, note:'Strong buy' },
+  'FLOKIUSDT': { buyWr:27.8, sellWr:42.9, reduceWr:33.3, note:'Strong sell' },
+  'FLOWUSDT': { buyWr:null, sellWr:23.8, reduceWr:37.5, note:'Bad buy' },
+  'FLRUSD': { buyWr:20, sellWr:9.1, reduceWr:50, note:'Bad sell' },
+  'FLUIDUSDT': { buyWr:58.3, sellWr:25, reduceWr:100, note:'Strong sell' },
+  'FOGOUSDT': { buyWr:0, sellWr:null, reduceWr:null, note:null },
+  'FOLKSUSDT.P': { buyWr:0, sellWr:null, reduceWr:null, note:null },
+  'FORMUSDT': { buyWr:22.2, sellWr:0, reduceWr:100, note:null },
+  'FORTHUSD': { buyWr:27.3, sellWr:16.7, reduceWr:50, note:null },
+  'FUNUSDT': { buyWr:27.8, sellWr:null, reduceWr:28.6, note:'Never short' },
+  'FUSDT.P': { buyWr:60, sellWr:0, reduceWr:0, note:'Strong buy' },
+  'GALAUSDT': { buyWr:31.7, sellWr:23.8, reduceWr:30.8, note:null },
+  'GASUSDT': { buyWr:34.6, sellWr:33.3, reduceWr:50, note:null },
+  'GHSTUSD': { buyWr:25, sellWr:22.2, reduceWr:40, note:null },
+  'GIGGLEUSDT': { buyWr:40, sellWr:100, reduceWr:50, note:'Strong both' },
+  'GLMUSDT': { buyWr:29.8, sellWr:18.2, reduceWr:75, note:null },
+  'GMTUSDT': { buyWr:24.3, sellWr:30.8, reduceWr:50, note:null },
+  'GMXUSDT': { buyWr:30.8, sellWr:33.3, reduceWr:23.1, note:null },
+  'GOATUSDT.P': { buyWr:26.7, sellWr:33.3, reduceWr:75, note:'Strong sell' },
+  'GPSUSDT': { buyWr:41.2, sellWr:30, reduceWr:0, note:null },
+  'GRASSUSDT.P': { buyWr:null, sellWr:0, reduceWr:50, note:'Bad buy' },
+  'GRIFFAINUSDT.P': { buyWr:21.1, sellWr:33.3, reduceWr:50, note:null },
+  'GRTUSDT': { buyWr:42.9, sellWr:39.1, reduceWr:50, note:'Strong both' },
+  'GTCUSDT.P': { buyWr:null, sellWr:18.5, reduceWr:44.4, note:'Bad buy' },
+  'GTUSDT.P': { buyWr:null, sellWr:0, reduceWr:50, note:'Flagged' },
+  'GUAUSDT': { buyWr:null, sellWr:null, reduceWr:null, note:'Never short' },
+  'GUNUSDT': { buyWr:36.4, sellWr:null, reduceWr:0, note:'Never short' },
+  'GUSDT.P': { buyWr:33.3, sellWr:0, reduceWr:100, note:null },
+  'GWEIUSDT.P': { buyWr:null, sellWr:null, reduceWr:null, note:null },
+  'HAEDALUSDC': { buyWr:40, sellWr:0, reduceWr:100, note:null },
+  'HANAUSDT.P': { buyWr:20, sellWr:null, reduceWr:null, note:null },
+  'HBARUSDT': { buyWr:40.5, sellWr:60, reduceWr:56.3, note:null },
+  'HEIUSDT': { buyWr:25, sellWr:100, reduceWr:null, note:null },
+  'HEMIUSDT.P': { buyWr:33.3, sellWr:100, reduceWr:100, note:null },
+  'HFTUSDT.P': { buyWr:46.2, sellWr:61.5, reduceWr:60, note:null },
+  'HIGHUSDT': { buyWr:45.9, sellWr:39.1, reduceWr:25, note:null },
+  'HIPPOUSDT.P': { buyWr:50, sellWr:71.4, reduceWr:75, note:null },
+  'HIVEUSDT': { buyWr:58.1, sellWr:31.8, reduceWr:33.3, note:null },
+  'HMSTRUSDC.P': { buyWr:25, sellWr:50, reduceWr:0, note:null },
+  'HOLOUSDT': { buyWr:50, sellWr:100, reduceWr:100, note:null },
+  'HOMEUSD': { buyWr:50, sellWr:20, reduceWr:100, note:null },
+  'HOOKUSDT.P': { buyWr:44, sellWr:69.2, reduceWr:50, note:null },
+  'HOTUSDT': { buyWr:37.7, sellWr:44, reduceWr:41.7, note:null },
+  'HUMAUSDT': { buyWr:28.6, sellWr:40, reduceWr:66.7, note:null },
+  'HUSD': { buyWr:50, sellWr:0, reduceWr:0, note:null },
+  'HYPERUSDC': { buyWr:0, sellWr:100, reduceWr:null, note:null },
+  'HYPEUSDT.P': { buyWr:66.7, sellWr:100, reduceWr:100, note:null },
+  'ICNTUSDT.P': { buyWr:88.9, sellWr:100, reduceWr:null, note:'Strong buy' },
+  'ICPUSDT': { buyWr:26.5, sellWr:52, reduceWr:75, note:'Bad buy' },
+  'ICXUSDT': { buyWr:44.4, sellWr:44.4, reduceWr:100, note:null },
+  'IDOLUSDT.P': { buyWr:42.9, sellWr:100, reduceWr:null, note:null },
+  'IDUSDT': { buyWr:39.1, sellWr:58.3, reduceWr:75, note:'Strong both' },
+  'ILVUSDT.P': { buyWr:41.7, sellWr:72.7, reduceWr:62.5, note:'Strong both' },
+  'INITUSD': { buyWr:42.9, sellWr:75, reduceWr:100, note:null },
+  'INITUSDT': { buyWr:60, sellWr:50, reduceWr:100, note:null },
+  'INJUSDT': { buyWr:54.5, sellWr:39.4, reduceWr:77.8, note:'Strong sell' },
+  'INUSDT.P': { buyWr:50, sellWr:0, reduceWr:0, note:null },
+  'INXUSDC.P': { buyWr:null, sellWr:null, reduceWr:null, note:null },
+  'IOSTUSDT': { buyWr:42.6, sellWr:43.6, reduceWr:64.7, note:'Strong both' },
+  'IOTAUSDT': { buyWr:36.4, sellWr:46.7, reduceWr:66.7, note:null },
+  'IOTXUSDT.P': { buyWr:50, sellWr:55.6, reduceWr:45.5, note:'Strong both' },
+  'IOUSDT.P': { buyWr:42.9, sellWr:58.3, reduceWr:71.4, note:'Strong sell' },
+  'IPUSD': { buyWr:38.5, sellWr:75, reduceWr:100, note:null },
+  'IRUSDT.P': { buyWr:0, sellWr:null, reduceWr:null, note:null },
+  'IRYSUSDC': { buyWr:100, sellWr:0, reduceWr:null, note:null },
+  'JASMYUSDT': { buyWr:45.7, sellWr:52.6, reduceWr:60, note:null },
+  'JCTUSDT.P': { buyWr:null, sellWr:null, reduceWr:null, note:'Bad buy' },
+  'JELLYJELLYUSDT.P': { buyWr:50, sellWr:null, reduceWr:0, note:'Never short' },
+  'JOEUSDT': { buyWr:55, sellWr:44.4, reduceWr:50, note:'Strong buy' },
+  'JSTUSDT': { buyWr:41.9, sellWr:42.9, reduceWr:40, note:null },
+  'JTOUSDT': { buyWr:56, sellWr:60, reduceWr:40, note:'Strong both' },
+  'JUPUSDT': { buyWr:40, sellWr:58.3, reduceWr:55.6, note:'Strong sell' },
+  'KAIAUSDT': { buyWr:45.5, sellWr:null, reduceWr:100, note:'Never short' },
+  'KAITOUSDT.P': { buyWr:44.4, sellWr:50, reduceWr:null, note:null },
+  'KASUSDT': { buyWr:59, sellWr:63.6, reduceWr:83.3, note:'Strong both' },
+  'KAVAUSDT': { buyWr:45.3, sellWr:52, reduceWr:54.5, note:null },
+  'KERNELUSDT.P': { buyWr:37.5, sellWr:100, reduceWr:75, note:'Strong sell' },
+  'KGENUSDT.P': { buyWr:null, sellWr:0, reduceWr:null, note:'Bad both' },
+  'KITEUSDT': { buyWr:0, sellWr:null, reduceWr:null, note:null },
+  'KITEUSDT.P': { buyWr:0, sellWr:null, reduceWr:null, note:null },
+  'KMNOUSDC': { buyWr:66.7, sellWr:66.7, reduceWr:0, note:'Strong buy' },
+  'KNCUSD': { buyWr:50, sellWr:72, reduceWr:33.3, note:'Strong both' },
+  'KOMAUSDT': { buyWr:33.3, sellWr:50, reduceWr:50, note:'Bad buy' },
+  'KSMUSDT': { buyWr:50, sellWr:50, reduceWr:60, note:null },
+  'LABUSDT.P': { buyWr:33.3, sellWr:0, reduceWr:null, note:null },
+  'LAUSD': { buyWr:33.3, sellWr:50, reduceWr:0, note:null },
+  'LAYERUSD': { buyWr:33.3, sellWr:null, reduceWr:null, note:null },
+  'LDOUSD': { buyWr:63.3, sellWr:58.3, reduceWr:100, note:'Strong both' },
+  'LIGHTUSDT.P': { buyWr:100, sellWr:null, reduceWr:null, note:null },
+  'LINEAUSDT': { buyWr:57.1, sellWr:0, reduceWr:100, note:null },
+  'LINKUSDT': { buyWr:63.5, sellWr:56.3, reduceWr:91.7, note:'Strong both' },
+  'LISTAUSDT': { buyWr:41.7, sellWr:75, reduceWr:100, note:null },
+  'LITUSDT': { buyWr:50, sellWr:null, reduceWr:null, note:null },
+  'LPTUSDT': { buyWr:43.9, sellWr:58.8, reduceWr:66.7, note:null },
+  'LQTYUSDT': { buyWr:65, sellWr:53.8, reduceWr:100, note:'Strong sell' },
+  'LRCUSDC': { buyWr:39.1, sellWr:54.2, reduceWr:50, note:null },
+  'LSKUSDT.P': { buyWr:39.1, sellWr:66.7, reduceWr:100, note:null },
+  'LTCUSDT.P': { buyWr:63, sellWr:43.5, reduceWr:33.3, note:'Strong buy' },
+  'LUMIAUSDT': { buyWr:40, sellWr:100, reduceWr:100, note:null },
+  'LUNA2USD': { buyWr:43.8, sellWr:33.3, reduceWr:75, note:'Bad sell' },
+  'LUNAUSDT': { buyWr:44.7, sellWr:43.8, reduceWr:100, note:null },
+  'LUNCUSDT': { buyWr:47.6, sellWr:50, reduceWr:100, note:null },
+  'LYNUSDT': { buyWr:100, sellWr:50, reduceWr:0, note:null },
+  'MAGICUSDT': { buyWr:48.5, sellWr:50, reduceWr:75, note:null },
+  'MAGMAUSDT.P': { buyWr:null, sellWr:null, reduceWr:null, note:'Bad buy' },
+  'MANAUSDT': { buyWr:39, sellWr:68, reduceWr:71.4, note:null },
+  'MANTAUSDT': { buyWr:25.9, sellWr:75, reduceWr:100, note:'Bad buy' },
+  'MASKUSDT': { buyWr:53.3, sellWr:55.6, reduceWr:33.3, note:null },
+  'MAVIAUSDT.P': { buyWr:42.1, sellWr:28.6, reduceWr:66.7, note:null },
+  'MAVUSDT': { buyWr:59.3, sellWr:50, reduceWr:40, note:null },
+  'MEGAUSDT.P': { buyWr:null, sellWr:null, reduceWr:null, note:null },
+  'MELANIAUSDT.P': { buyWr:71.4, sellWr:40, reduceWr:100, note:null },
+  'MEMEUSDT': { buyWr:54.2, sellWr:36.4, reduceWr:100, note:null },
+  'MERLUSDT.P': { buyWr:50, sellWr:100, reduceWr:100, note:null },
+  'METISUSDC': { buyWr:46.7, sellWr:77.8, reduceWr:90, note:'Strong sell' },
+  'METUSD': { buyWr:100, sellWr:100, reduceWr:0, note:null },
+  'MEUSDT': { buyWr:null, sellWr:100, reduceWr:100, note:'Bad buy' },
+  'MEWUSDT': { buyWr:54.5, sellWr:75, reduceWr:50, note:null },
+  'MINAUSD': { buyWr:56.4, sellWr:55, reduceWr:60, note:'Strong buy' },
+  'MIRAUSDT': { buyWr:40, sellWr:0, reduceWr:null, note:null },
+  'MITOUSDT': { buyWr:null, sellWr:100, reduceWr:100, note:'Bad buy' },
+  'MLNUSDT.P': { buyWr:40, sellWr:100, reduceWr:0, note:null },
+  'MMTUSDT.P': { buyWr:66.7, sellWr:0, reduceWr:null, note:null },
+  'MOCAUSDT': { buyWr:null, sellWr:81.8, reduceWr:50, note:'Bad buy' },
+  'MOGUSDT': { buyWr:59.1, sellWr:57.1, reduceWr:25, note:null },
+  'MONUSD': { buyWr:50, sellWr:null, reduceWr:null, note:null },
+  'MOODENGUSDT.P': { buyWr:60, sellWr:44.4, reduceWr:50, note:null },
+  'MORPHOUSDT': { buyWr:73.3, sellWr:100, reduceWr:60, note:'Strong both' },
+  'MOVEUSD': { buyWr:70, sellWr:100, reduceWr:50, note:'Strong both' },
+  'MOVRUSDT': { buyWr:37.8, sellWr:70, reduceWr:85.7, note:null },
+  'MTLUSDT.P': { buyWr:59.1, sellWr:75, reduceWr:66.7, note:'Strong both' },
+  'MUBARAKUSDT': { buyWr:70, sellWr:0, reduceWr:0, note:'Strong buy' },
+  'MUSDT': { buyWr:50, sellWr:null, reduceWr:0, note:'Never short' },
+  'MYXUSDT.P': { buyWr:100, sellWr:null, reduceWr:null, note:'Never short' },
+  'NAORISUSDT.P': { buyWr:0, sellWr:null, reduceWr:100, note:'Never short' },
+  'NEARUSDT': { buyWr:41.7, sellWr:64.1, reduceWr:64.7, note:null },
+  'NEOUSD': { buyWr:45.2, sellWr:56, reduceWr:80, note:null },
+  'NEWTUSD': { buyWr:33.3, sellWr:100, reduceWr:100, note:null },
+  'NEXOUSDT': { buyWr:40, sellWr:50, reduceWr:66.7, note:null },
+  'NFPUSDT': { buyWr:33.3, sellWr:70, reduceWr:100, note:'Strong sell' },
+  'NIGHTUSD': { buyWr:0, sellWr:null, reduceWr:null, note:'Too few signals' },
+  'NILUSDC.P': { buyWr:80, sellWr:80, reduceWr:100, note:'Strong both' },
+  'NMRUSDC': { buyWr:100, sellWr:100, reduceWr:null, note:'Strong both' },
+  'NOMUSDT': { buyWr:66.7, sellWr:null, reduceWr:null, note:null },
+  'NOTUSDT': { buyWr:52.6, sellWr:80, reduceWr:100, note:'Strong both' },
+  'NTRNUSD': { buyWr:40, sellWr:100, reduceWr:100, note:'Strong sell' },
+  'NXPCUSDC': { buyWr:null, sellWr:100, reduceWr:50, note:'Bad buy' },
+  'OGNUSD': { buyWr:63.3, sellWr:62.5, reduceWr:100, note:'Strong both' },
+  'OGUSDT.P': { buyWr:50, sellWr:100, reduceWr:50, note:null },
+  'OKBUSDT': { buyWr:51.1, sellWr:35.3, reduceWr:55.6, note:'Bad sell' },
+  'OLUSDT.P': { buyWr:60, sellWr:100, reduceWr:100, note:null },
+  'OMUSDT': { buyWr:42.5, sellWr:70, reduceWr:57.1, note:null },
+  'ONDOUSDT': { buyWr:36, sellWr:76.9, reduceWr:100, note:'Strong sell' },
+  'ONEUSDT': { buyWr:38.5, sellWr:54.1, reduceWr:76.9, note:null },
+  'ONGUSDT.P': { buyWr:47.4, sellWr:66.7, reduceWr:0, note:null },
+  'ONTUSDT': { buyWr:46.6, sellWr:48.6, reduceWr:53.8, note:null },
+  'ONUSDT.P': { buyWr:33.3, sellWr:null, reduceWr:null, note:null },
+  'OPENUSD': { buyWr:66.7, sellWr:50, reduceWr:100, note:null },
+  'OPUSDT': { buyWr:40, sellWr:61.5, reduceWr:80, note:null },
+  'ORCAUSDT': { buyWr:35.7, sellWr:75, reduceWr:100, note:null },
+  'ORDERUSD': { buyWr:66.7, sellWr:50, reduceWr:100, note:null },
+  'ORDIUSDT': { buyWr:50, sellWr:54.5, reduceWr:85.7, note:'Strong sell' },
+  'OREUSDT': { buyWr:null, sellWr:null, reduceWr:null, note:'Bad buy' },
+  'OXTUSDT.P': { buyWr:52.9, sellWr:85.7, reduceWr:100, note:'Strong both' },
+  'PARTIUSD': { buyWr:66.7, sellWr:66.7, reduceWr:50, note:null },
+  'PENDLEUSDT': { buyWr:51.4, sellWr:33.3, reduceWr:100, note:null },
+  'PENGUINUSDT': { buyWr:0, sellWr:null, reduceWr:null, note:'Too few signals' },
+  'PENGUUSDT': { buyWr:null, sellWr:66.7, reduceWr:66.7, note:'Bad buy' },
+  'PEOPLEUSDT': { buyWr:45.7, sellWr:48, reduceWr:60, note:null },
+  'PEPEUSDT': { buyWr:44, sellWr:66.7, reduceWr:72.7, note:'Strong sell' },
+  'PHBUSDT': { buyWr:42.4, sellWr:42.9, reduceWr:33.3, note:null },
+  'PIEVERSEUSDT.P': { buyWr:100, sellWr:66.7, reduceWr:0, note:null },
+  'PIPPINUSDT.P': { buyWr:50, sellWr:100, reduceWr:100, note:null },
+  'PIUSDT': { buyWr:62.5, sellWr:100, reduceWr:0, note:'Strong both' },
+  'PIXELUSDT': { buyWr:38.5, sellWr:100, reduceWr:100, note:'Strong sell' },
+  'PLUMEUSDT': { buyWr:40, sellWr:100, reduceWr:100, note:null },
+  'PNUTUSDT': { buyWr:30.8, sellWr:25, reduceWr:100, note:'Bad both' },
+  'POLUSDT': { buyWr:36.4, sellWr:100, reduceWr:100, note:'Strong sell' },
+  'POLYXUSDT': { buyWr:41.9, sellWr:77.8, reduceWr:25, note:null },
+  'PORTALUSDT': { buyWr:29, sellWr:71.4, reduceWr:75, note:'Bad buy' },
+  'POWERUSDT': { buyWr:50, sellWr:100, reduceWr:0, note:null },
+  'POWRUSD': { buyWr:68.2, sellWr:60, reduceWr:80, note:'Strong both' },
+  'PROMPTUSDT.P': { buyWr:72.7, sellWr:100, reduceWr:66.7, note:'Strong both' },
+  'PROMUSDT': { buyWr:69.2, sellWr:25, reduceWr:33.3, note:null },
+  'PROVEUSDT': { buyWr:33.3, sellWr:0, reduceWr:0, note:null },
+  'PTBUSDT.P': { buyWr:62.5, sellWr:100, reduceWr:100, note:null },
+  'PUFFERUSD': { buyWr:null, sellWr:50, reduceWr:33.3, note:'Bad buy' },
+  'PUMPBTCUSDT.P': { buyWr:55.6, sellWr:50, reduceWr:100, note:null },
+  'PUMPUSDT.P': { buyWr:50, sellWr:50, reduceWr:66.7, note:null },
+  'PUNDIXUSDT': { buyWr:55.9, sellWr:33.3, reduceWr:66.7, note:'Strong buy' },
+  'PYTHUSDT': { buyWr:44, sellWr:60, reduceWr:100, note:null },
+  'QNTUSDT': { buyWr:50, sellWr:40, reduceWr:50, note:null },
+  'QTUMUSDT': { buyWr:39.1, sellWr:42.9, reduceWr:64.7, note:null },
+  'QUSD': { buyWr:50, sellWr:null, reduceWr:null, note:'Never short' },
+  'RATSUSDT': { buyWr:65.2, sellWr:36.4, reduceWr:71.4, note:null },
+  'RAYUSDT': { buyWr:55.1, sellWr:40.9, reduceWr:75, note:null },
+  'RDNTUSDT.P': { buyWr:51.6, sellWr:80, reduceWr:75, note:'Strong sell' },
+  'RECALLUSDT.P': { buyWr:42.9, sellWr:null, reduceWr:null, note:null },
+  'REDUSDT': { buyWr:60, sellWr:100, reduceWr:100, note:null },
+  'RENDERUSDT': { buyWr:48, sellWr:70, reduceWr:75, note:'Strong sell' },
+  'RESOLVUSDT.P': { buyWr:80, sellWr:100, reduceWr:null, note:null },
+  'REZUSDC': { buyWr:null, sellWr:100, reduceWr:0, note:'Bad buy' },
+  'RIFUSDT': { buyWr:44.4, sellWr:44.4, reduceWr:50, note:null },
+  'RIVERUSDT.P': { buyWr:0, sellWr:null, reduceWr:100, note:'Never short' },
+  'RLCUSD': { buyWr:57.9, sellWr:55.6, reduceWr:100, note:'Strong sell' },
+  'RLSUSD': { buyWr:0, sellWr:100, reduceWr:null, note:null },
+  'ROSEUSDT': { buyWr:27.8, sellWr:44, reduceWr:83.3, note:'Bad buy' },
+  'RPLUSDT': { buyWr:32.4, sellWr:75, reduceWr:57.1, note:null },
+  'RSCUSD': { buyWr:50, sellWr:66.7, reduceWr:100, note:null },
+  'RSRUSDT': { buyWr:58.9, sellWr:57.1, reduceWr:73.3, note:'Strong both' },
+  'RUNEUSDT': { buyWr:43.3, sellWr:66.7, reduceWr:81.3, note:'Strong sell' },
+  'RVNUSDT': { buyWr:40.8, sellWr:41.7, reduceWr:60, note:null },
+  'RVVUSDT': { buyWr:66.7, sellWr:100, reduceWr:0, note:null },
+  'SAFEUSD': { buyWr:57.1, sellWr:57.1, reduceWr:50, note:null },
+  'SAGAUSDT.P': { buyWr:35.7, sellWr:83.3, reduceWr:100, note:null },
+  'SAHARAUSDT': { buyWr:50, sellWr:100, reduceWr:100, note:null },
+  'SANDUSDT': { buyWr:36.8, sellWr:75, reduceWr:66.7, note:'Strong sell' },
+  'SAPIENUSDC': { buyWr:66.7, sellWr:100, reduceWr:100, note:null },
+  'SCRUSDT': { buyWr:null, sellWr:66.7, reduceWr:0, note:'Bad buy' },
+  'SEIUSDT': { buyWr:36.7, sellWr:60, reduceWr:66.7, note:null },
+  'SENTUSD': { buyWr:null, sellWr:null, reduceWr:null, note:null },
+  'SFPUSDT': { buyWr:41.5, sellWr:36.4, reduceWr:80, note:null },
+  'SHELLUSDT': { buyWr:50, sellWr:25, reduceWr:100, note:null },
+  'SHIBUSD': { buyWr:56.7, sellWr:59.1, reduceWr:90, note:'Strong both' },
+  'SIGNBNB': { buyWr:66.7, sellWr:0, reduceWr:0, note:null },
+  'SIRENUSDT.P': { buyWr:83.3, sellWr:100, reduceWr:50, note:'Strong both' },
+  'SKLUSDC': { buyWr:80, sellWr:null, reduceWr:null, note:null },
+  'SKRUSD': { buyWr:null, sellWr:null, reduceWr:null, note:null },
+  'SKYAIUSDT.P': { buyWr:55.6, sellWr:100, reduceWr:100, note:null },
+  'SKYUSDT': { buyWr:100, sellWr:100, reduceWr:0, note:null },
+  'SLPUSDT': { buyWr:43.2, sellWr:58.8, reduceWr:87.5, note:null },
+  'SNXUSDT': { buyWr:45, sellWr:55.6, reduceWr:33.3, note:null },
+  'SOLUSD': { buyWr:55.6, sellWr:38.9, reduceWr:71.4, note:null },
+  'SOLVUSDC': { buyWr:0, sellWr:100, reduceWr:100, note:null },
+  'SOMIUSDT': { buyWr:33.3, sellWr:0, reduceWr:100, note:null },
+  'SONICUSDT.P': { buyWr:57.1, sellWr:66.7, reduceWr:66.7, note:null },
+  'SOONUSD': { buyWr:25, sellWr:0, reduceWr:null, note:null },
+  'SOPHUSDT': { buyWr:83.3, sellWr:50, reduceWr:50, note:null },
+  'SPACEUSDT.P': { buyWr:null, sellWr:null, reduceWr:null, note:null },
+  'SPELLUSDC': { buyWr:50, sellWr:66.7, reduceWr:50, note:null },
+  'SPKUSDT': { buyWr:37.5, sellWr:100, reduceWr:100, note:null },
+  'SPORTFUNUSDT.P': { buyWr:null, sellWr:null, reduceWr:null, note:null },
+  'SPXUSDT': { buyWr:69.6, sellWr:44.4, reduceWr:75, note:'Strong sell' },
+  'SQDUSDT.P': { buyWr:null, sellWr:50, reduceWr:100, note:'Bad buy' },
+  'SSVUSDT': { buyWr:60, sellWr:46.7, reduceWr:75, note:null },
+  'STABLEUSDT': { buyWr:100, sellWr:100, reduceWr:null, note:null },
+  'STBLUSDT.P': { buyWr:75, sellWr:0, reduceWr:100, note:null },
+  'STEEMUSDT': { buyWr:54.8, sellWr:88.9, reduceWr:80, note:'Strong both' },
+  'STGUSDT': { buyWr:50, sellWr:78.6, reduceWr:60, note:'Strong both' },
+  'STORJUSDT': { buyWr:35.4, sellWr:35.3, reduceWr:77.8, note:null },
+  'STOUSDT': { buyWr:20, sellWr:100, reduceWr:100, note:null },
+  'STRKUSDT': { buyWr:40.7, sellWr:100, reduceWr:100, note:'Strong sell' },
+  'STXUSDT': { buyWr:48, sellWr:63.3, reduceWr:81.3, note:'Strong sell' },
+  'SUIUSDT': { buyWr:39.1, sellWr:37.5, reduceWr:66.7, note:null },
+  'SUNUSDT': { buyWr:41.9, sellWr:69.2, reduceWr:50, note:null },
+  'SUPERUSD': { buyWr:57.5, sellWr:54.5, reduceWr:100, note:'Strong both' },
+  'SUSDT': { buyWr:41.7, sellWr:60, reduceWr:100, note:null },
+  'SUSHIUSDT': { buyWr:46.2, sellWr:53.3, reduceWr:55.6, note:null },
+  'SWARMSUSDT.P': { buyWr:33.3, sellWr:100, reduceWr:50, note:null },
+  'SXTUSDT': { buyWr:50, sellWr:100, reduceWr:100, note:null },
+  'SYNUSDT.P': { buyWr:81, sellWr:null, reduceWr:null, note:'Never short / Strong buy' },
+  'SYRUPUSDT': { buyWr:71.4, sellWr:100, reduceWr:100, note:null },
+  'TACUSDT.P': { buyWr:83.3, sellWr:null, reduceWr:null, note:null },
+  'TAGUSDT.P': { buyWr:25, sellWr:100, reduceWr:100, note:null },
+  'TAIKOUSDT.P': { buyWr:37.5, sellWr:50, reduceWr:0, note:null },
+  'TAKEUSDT': { buyWr:0, sellWr:0, reduceWr:0, note:null },
+  'TAOUSDT': { buyWr:45, sellWr:80, reduceWr:66.7, note:'Strong sell' },
+  'TAUSDT.P': { buyWr:37.5, sellWr:null, reduceWr:null, note:'Never short' },
+  'THETAUSDT': { buyWr:39.2, sellWr:44.7, reduceWr:80, note:null },
+  'THEUSDT': { buyWr:66.7, sellWr:66.7, reduceWr:100, note:'Strong both' },
+  'TIAUSD': { buyWr:46.7, sellWr:50, reduceWr:100, note:null },
+  'TLMUSDT.P': { buyWr:38.7, sellWr:43.8, reduceWr:75, note:null },
+  'TNSRUSDT': { buyWr:34.8, sellWr:33.3, reduceWr:75, note:null },
+  'TONUSDT': { buyWr:50, sellWr:50, reduceWr:100, note:null },
+  'TOSHIUSD': { buyWr:50, sellWr:60, reduceWr:75, note:null },
+  'TOWNSUSDC': { buyWr:40, sellWr:0, reduceWr:100, note:null },
+  'TRADOORUSDT.P': { buyWr:50, sellWr:0, reduceWr:0, note:null },
+  'TRBUSDT': { buyWr:49, sellWr:53.8, reduceWr:69.2, note:null },
+  'TREEUSDC': { buyWr:80, sellWr:100, reduceWr:100, note:null },
+  'TRIAUSD': { buyWr:null, sellWr:null, reduceWr:null, note:null },
+  'TRUMPUSDT': { buyWr:44.4, sellWr:75, reduceWr:100, note:'Strong sell' },
+  'TRUSTUSD': { buyWr:20, sellWr:null, reduceWr:null, note:null },
+  'TRUTHUSDT.P': { buyWr:null, sellWr:100, reduceWr:null, note:null },
+  'TRUUSDT.P': { buyWr:68.8, sellWr:57.1, reduceWr:83.3, note:'Strong both' },
+  'TRXUSDT': { buyWr:43.3, sellWr:81.1, reduceWr:53.8, note:'Strong sell' },
+  'TSTUSDT': { buyWr:62.5, sellWr:null, reduceWr:0, note:'Never short' },
+  'TURBOUSDC': { buyWr:53.3, sellWr:50, reduceWr:100, note:null },
+  'TURTLEUSDT.P': { buyWr:null, sellWr:null, reduceWr:null, note:'Bad buy' },
+  'TUSDT': { buyWr:43.5, sellWr:72.7, reduceWr:80, note:'Strong sell' },
+  'TUTUSDC': { buyWr:40, sellWr:0, reduceWr:null, note:null },
+  'TWTUSDT': { buyWr:41.9, sellWr:66.7, reduceWr:100, note:'Strong sell' },
+  'UAIUSDT.P': { buyWr:50, sellWr:null, reduceWr:null, note:null },
+  'UBUSDT.P': { buyWr:66.7, sellWr:null, reduceWr:null, note:null },
+  'UMAUSD': { buyWr:51, sellWr:65.4, reduceWr:46.2, note:null },
+  'UNIUSDT': { buyWr:50, sellWr:56, reduceWr:75, note:'Strong both' },
+  'USELESSUSDT': { buyWr:40, sellWr:100, reduceWr:null, note:null },
+  'USTCUSDT.P': { buyWr:61.1, sellWr:100, reduceWr:100, note:'Strong sell' },
+  'USUALUSDT': { buyWr:52.6, sellWr:83.3, reduceWr:100, note:'Strong sell' },
+  'USUSD': { buyWr:null, sellWr:100, reduceWr:100, note:null },
+  'VANAUSDC': { buyWr:null, sellWr:0, reduceWr:0, note:'Bad buy' },
+  'VANRYUSDT': { buyWr:50, sellWr:70, reduceWr:100, note:'Strong sell' },
+  'VELOUSDC': { buyWr:50, sellWr:60, reduceWr:100, note:null },
+  'VELVETUSDT.P': { buyWr:33.3, sellWr:null, reduceWr:0, note:'Never short' },
+  'VETUSDT': { buyWr:33.3, sellWr:56.8, reduceWr:70.6, note:'Bad buy' },
+  'VFYUSDT.P': { buyWr:40, sellWr:100, reduceWr:100, note:null },
+  'VICUSDT.P': { buyWr:62.5, sellWr:100, reduceWr:100, note:'Strong both' },
+  'VINEUSD': { buyWr:53.3, sellWr:null, reduceWr:100, note:'Never short' },
+  'VIRTUALUSDT': { buyWr:44.4, sellWr:100, reduceWr:100, note:'Strong sell' },
+  'VTHOUSDT': { buyWr:44.1, sellWr:33.3, reduceWr:60, note:'Bad sell' },
+  'VVVUSD': { buyWr:36.4, sellWr:57.1, reduceWr:66.7, note:'Bad buy' },
+  'WALUSDT': { buyWr:null, sellWr:0, reduceWr:null, note:'Bad both' },
+  'WAXPUSDT.P': { buyWr:26.3, sellWr:100, reduceWr:40, note:'Bad buy / Strong both' },
+  'WCTUSDC': { buyWr:50, sellWr:60, reduceWr:0, note:null },
+  'WETUSDT.P': { buyWr:null, sellWr:100, reduceWr:null, note:'Bad buy' },
+  'WIFUSDT': { buyWr:55, sellWr:66.7, reduceWr:80, note:'Strong both' },
+  'WLDUSDT': { buyWr:43.8, sellWr:40, reduceWr:25, note:'Bad sell' },
+  'WLFIUSDT': { buyWr:75, sellWr:0, reduceWr:0, note:null },
+  'WOOUSDT': { buyWr:47.2, sellWr:57.9, reduceWr:40, note:null },
+  'WUSDT': { buyWr:34.5, sellWr:30, reduceWr:100, note:'Bad both' },
+  'XAIUSDT': { buyWr:42.3, sellWr:57.1, reduceWr:80, note:null },
+  'XANUSD': { buyWr:null, sellWr:100, reduceWr:0, note:'Bad buy' },
+  'XAUTUST': { buyWr:0, sellWr:100, reduceWr:0, note:'AVOID' },
+  'XDCUSD': { buyWr:25, sellWr:40, reduceWr:0, note:'Bad overall' },
+  'XLMUSDT': { buyWr:47.9, sellWr:53.6, reduceWr:16.7, note:null },
+  'XNOUSDT': { buyWr:57.8, sellWr:55.6, reduceWr:50, note:'Strong both' },
+  'XNYUSDT.P': { buyWr:85.7, sellWr:50, reduceWr:100, note:'Strong buy' },
+  'XPINUSDT.P': { buyWr:null, sellWr:100, reduceWr:null, note:'Bad buy' },
+  'XPLUSDT': { buyWr:57.1, sellWr:0, reduceWr:100, note:null },
+  'XPTUSDT.P': { buyWr:null, sellWr:100, reduceWr:null, note:null },
+  'XRPUSDT.P': { buyWr:41.9, sellWr:65.4, reduceWr:66.7, note:'Strong sell' },
+  'XTZUSD': { buyWr:50, sellWr:62.5, reduceWr:72.7, note:'Strong both' },
+  'XVSUSDT': { buyWr:51.9, sellWr:58.6, reduceWr:66.7, note:'Strong both' },
+  'YALAUSDT': { buyWr:null, sellWr:null, reduceWr:0, note:'Never short' },
+  'YBUSDT': { buyWr:40, sellWr:0, reduceWr:0, note:null },
+  'YFIUSDT': { buyWr:42.4, sellWr:50, reduceWr:50, note:null },
+  'YGGUSDT.P': { buyWr:44.2, sellWr:55.6, reduceWr:64.3, note:null },
+  'ZAMAUSDT.P': { buyWr:null, sellWr:null, reduceWr:null, note:null },
+  'ZBCNUSDT': { buyWr:69.6, sellWr:82.4, reduceWr:27.3, note:'Strong both' },
+  'ZBTUSDT.P': { buyWr:100, sellWr:null, reduceWr:null, note:null },
+  'ZENUSDT': { buyWr:49.1, sellWr:65.4, reduceWr:83.3, note:'Strong sell' },
+  'ZEREBROUSDT.P': { buyWr:60, sellWr:50, reduceWr:100, note:null },
+  'ZETAUSDT.P': { buyWr:30, sellWr:75, reduceWr:50, note:'Bad buy / Strong both' },
+  'ZILUSDT': { buyWr:36.2, sellWr:58.8, reduceWr:66.7, note:'Bad buy' },
+  'ZKCUSDT.P': { buyWr:42.9, sellWr:0, reduceWr:null, note:null },
+  'ZKJUSDT.P': { buyWr:25, sellWr:0, reduceWr:null, note:'Bad buy' },
+  'ZKPUSDT.P': { buyWr:0, sellWr:null, reduceWr:null, note:null },
+  'ZKUSD': { buyWr:53.3, sellWr:66.7, reduceWr:75, note:'Strong both' },
+  'ZORAUSD': { buyWr:50, sellWr:100, reduceWr:100, note:null },
+  'ZROUSDT': { buyWr:58.8, sellWr:33.3, reduceWr:66.7, note:'Bad sell' },
+  'ZRXUSD': { buyWr:54.8, sellWr:77.3, reduceWr:71.4, note:'Strong both' },
+  'ZTCUSDT.P': { buyWr:null, sellWr:null, reduceWr:null, note:null },
+  'DFUSDT': { buyWr:54.3, sellWr:55.6, reduceWr:100, note:'Strong both' }
+};
+
+    function getBacktest(ticker, signalType) {
+        const t = ticker.toUpperCase();
+        const entry = BACKTEST[t];
+        if (!entry) return null;
+        const st = signalType.toLowerCase();
+        let wr, side;
+        if (st.includes('reduce') || st.includes('add') || st.includes('double')) {
+            side = 'sell'; wr = entry.reduceWr;
+        } else if (st.includes('sell') || st.includes('short')) {
+            side = 'sell'; wr = entry.sellWr;
+        } else {
+            side = 'buy'; wr = entry.buyWr;
+        }
+        if (wr === null) return null;
+        const d = BT_DEFAULTS[side];
+        return { sl: d.sl, tp: d.tp, halfTp: d.halfTp, wr: wr };
+    }
+
+    function recalcLevels(actionId) {
+        const input = document.getElementById(actionId + '-entry');
+        if (!input) return;
+        const card = input.closest('.action-item');
+        const levelsEl = card.querySelector('.bt-levels');
+        if (!levelsEl) return;
+        const p = parseFloat(input.value.replace(/,/g, ''));
+        if (!p || p <= 0) return;
+        const sl = parseFloat(levelsEl.dataset.sl);
+        const tp = parseFloat(levelsEl.dataset.tp);
+        const half = parseFloat(levelsEl.dataset.half);
+        const isBuy = levelsEl.dataset.side === 'buy';
+        const slP = isBuy ? p * (1 - sl / 100) : p * (1 + sl / 100);
+        const tpP = isBuy ? p * (1 + tp / 100) : p * (1 - tp / 100);
+        const halfP = isBuy ? p * (1 + half / 100) : p * (1 - half / 100);
+        const fmt = v => v >= 100 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v >= 0.01 ? v.toFixed(4) : v.toPrecision(4);
+        levelsEl.querySelector('.bt-sl').textContent = fmt(slP);
+        levelsEl.querySelector('.bt-tp').textContent = fmt(tpP);
+        levelsEl.querySelector('.bt-half').textContent = fmt(halfP);
+    }
+
     let refreshTimer = null;
     let allTickers = [];
     let allSignals = [];
@@ -1878,10 +2452,29 @@
             const geckoFallback = sym ? `fetchCoinGeckoIcon('${esc(tkr)}',this,this.nextElementSibling)` : '';
             const onerrorAttr = `this.style.display='none';this.nextElementSibling.style.display='flex';${geckoFallback}`;
             const dir = (s.signal || s.direction || '').toLowerCase();
-            const signalClass = dir === 'short' || dir === 'sell' ? 'sell' : 'buy';
+            const signalClass = dir === 'short' || dir === 'sell' || dir === 'reduce' ? 'sell' : 'buy';
             const score = s.score || s._score || 0;
             const analysis = s.analysis || '';
             const pickId = 'pick-' + i;
+
+            // Backtest lookup
+            const isBuy = signalClass === 'buy';
+            const bt = getBacktest(tkr, dir || 'buy');
+            const btEntry = BACKTEST[tkr.toUpperCase()];
+            const btNote = btEntry ? btEntry.note : null;
+            const p = Number(String(prc).replace(/,/g, ''));
+            const noteHtml = btNote ? `<span style="color:#ffa726;font-weight:700">${esc(btNote)}</span>` : '';
+            const wrHtml = bt ? `<span style="color:var(--accent);font-weight:700">WR ${bt.wr}%</span>` : '';
+            const btSide = isBuy ? 'buy' : 'sell';
+            const btDataAttr = bt ? `data-sl="${bt.sl}" data-tp="${bt.tp}" data-half="${bt.halfTp}" data-side="${btSide}"` : '';
+            let btHtml = '';
+            if (bt && p > 0) {
+                const slPrice = isBuy ? p * (1 - bt.sl / 100) : p * (1 + bt.sl / 100);
+                const tpPrice = isBuy ? p * (1 + bt.tp / 100) : p * (1 - bt.tp / 100);
+                const halfPrice = isBuy ? p * (1 + bt.halfTp / 100) : p * (1 - bt.halfTp / 100);
+                const fmt = v => v >= 100 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v >= 0.01 ? v.toFixed(4) : v.toPrecision(4);
+                btHtml = `<div class="meta" style="margin-top:0.2rem"><span class="bt-levels" ${btDataAttr}><span style="color:var(--red-bright)">SL $<span class="bt-sl">${fmt(slPrice)}</span> <span style="opacity:0.6;font-size:0.55rem">(${bt.sl}%)</span></span> &middot; <span style="color:var(--green-bright)">TP $<span class="bt-tp">${fmt(tpPrice)}</span> <span style="opacity:0.6;font-size:0.55rem">(${bt.tp}%)</span></span> &middot; <span style="color:var(--text-dim)">Half $<span class="bt-half">${fmt(halfPrice)}</span></span></span></div>`;
+            }
 
             return `
                 <div class="action-item ${isDemo ? 'pick-demo' : 'pick-glow'}" id="${pickId}">
@@ -1892,11 +2485,15 @@
                             <span class="ticker-badge">${esc(tkr)}</span>
                             <span class="signal-tag ${signalClass}">${signalLabel(dir) || 'BUY'}</span>
                             <span class="score-tag">Score: ${score}/7</span>
+                            ${wrHtml}
                         </div>
+                        ${noteHtml ? `<div class="meta" style="margin-top:0.15rem">${noteHtml}</div>` : ''}
                         ${analysis ? `<div class="meta" style="margin-top:0.3rem;color:var(--text)">${esc(analysis)}</div>` : ''}
-                        <div class="meta">@ $${prc}${s.sl ? ' &middot; SL: $' + s.sl : ''}${s.tp1 ? ' &middot; TP: $' + s.tp1 : ''}</div>
+                        <div class="meta">@ $${prc}</div>
+                        ${btHtml}
                         <div class="action-buttons">
                             <input type="text" class="entry-input" placeholder="Size $" id="${pickId}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
+                            ${bt ? `<input type="text" class="entry-input" placeholder="Entry $" id="${pickId}-entry" value="${p}" style="width:80px" oninput="recalcLevels('${pickId}')">` : ''}
                             <button class="action-btn entered" onclick="markPickAction('${esc(tkr)}','${esc(s.signal || s.direction)}',${prc},'Entered','${pickId}')">Entered</button>
                             <button class="action-btn skipped" onclick="markPickAction('${esc(tkr)}','${esc(s.signal || s.direction)}',${prc},'Skipped','${pickId}')">Skipped</button>
                         </div>
@@ -1950,6 +2547,24 @@
             const levelsStr = (sl ? 'SL: $' + sl : '') + (tp1 ? ' · TP: $' + tp1 : '');
 
             if (a.type === 'mark_action') {
+                // Backtest lookup
+                const isBuy = signalClass === 'buy';
+                const bt = getBacktest(tkr, signalType);
+                const btEntry = BACKTEST[tkr.toUpperCase()];
+                const btNote = btEntry ? btEntry.note : null;
+                const p = Number(String(prc).replace(/,/g, ''));
+                const noteHtml = btNote ? `<span style="color:#ffa726;font-weight:700">${esc(btNote)}</span>` : '';
+                const wrHtml = bt ? `<span style="color:var(--accent);font-weight:700">WR ${bt.wr}%</span>` : '';
+                const btSide = isBuy ? 'buy' : 'sell';
+                const btDataAttr = bt ? `data-sl="${bt.sl}" data-tp="${bt.tp}" data-half="${bt.halfTp}" data-side="${btSide}"` : '';
+                let btHtml = '';
+                if (bt && p > 0) {
+                    const slPrice = isBuy ? p * (1 - bt.sl / 100) : p * (1 + bt.sl / 100);
+                    const tpPrice = isBuy ? p * (1 + bt.tp / 100) : p * (1 - bt.tp / 100);
+                    const halfPrice = isBuy ? p * (1 + bt.halfTp / 100) : p * (1 - bt.halfTp / 100);
+                    const fmt = v => v >= 100 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v >= 0.01 ? v.toFixed(4) : v.toPrecision(4);
+                    btHtml = `<div class="meta" style="margin-top:0.2rem"><span class="bt-levels" ${btDataAttr}><span style="color:var(--red-bright)">SL $<span class="bt-sl">${fmt(slPrice)}</span> <span style="opacity:0.6;font-size:0.55rem">(${bt.sl}%)</span></span> &middot; <span style="color:var(--green-bright)">TP $<span class="bt-tp">${fmt(tpPrice)}</span> <span style="opacity:0.6;font-size:0.55rem">(${bt.tp}%)</span></span> &middot; <span style="color:var(--text-dim)">Half $<span class="bt-half">${fmt(halfPrice)}</span></span></span></div>`;
+                }
                 return `
                     <div class="action-item" id="${id}">
                         <div style="display:flex;justify-content:space-between;gap:1rem;width:100%">
@@ -1960,10 +2575,14 @@
                                     <span class="ticker-badge">${esc(tkr)}</span>
                                     <span class="signal-tag ${signalClass}">${signalLabel(signalType)}</span>
                                     ${isDCA ? '' : `<span class="score-tag">Score: ${score}</span>`}
+                                    ${wrHtml}
                                 </div>
+                                ${noteHtml ? `<div class="meta" style="margin-top:0.15rem">${noteHtml}</div>` : ''}
                                 <div class="meta">@ $${prc}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
+                                ${btHtml}
                                 <div class="action-buttons">
                                     <input type="text" class="entry-input" placeholder="Size $" id="${id}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
+                                    ${bt ? `<input type="text" class="entry-input" placeholder="Entry $" id="${id}-entry" value="${p}" style="width:80px" oninput="recalcLevels('${id}')">` : ''}
                                     <button class="action-btn entered" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Entered','${id}')">Entered</button>
                                     <button class="action-btn skipped" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Skipped','${id}')">Skipped</button>
                                 </div>
