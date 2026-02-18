@@ -2373,7 +2373,13 @@ const BACKTEST = {
         const allActions = actionNeeded || [];
         const newSignals = allActions.filter(a => a.type === 'mark_action');
         const openTrades = allActions.filter(a => a.type === 'mark_outcome');
-        renderActions(newSignals, scoredSignals);
+        // DEMO: inject fake signals to preview backtest display (REMOVE AFTER TESTING)
+        const demoSignals = [
+            { type: 'mark_action', ticker: 'BTCUSDT', signal: 'buy', price: 96500, score: 6, timestamp: 'DEMO', rsi: 28, macd: 'rising', volume: 'above' },
+            { type: 'mark_action', ticker: 'LINKUSDT', signal: 'sell', price: 18.45, score: 5, timestamp: 'DEMO', rsi: 72, macd: 'falling', volume: 'above' },
+            { type: 'mark_action', ticker: 'PEPEUSDT', signal: 'reduce', price: 0.00001234, score: 4, timestamp: 'DEMO' },
+        ];
+        renderActions([...demoSignals, ...newSignals], scoredSignals);
         renderOpenTrades(openTrades);
 
         // --- Ticker Grid (sorted by most recent signal first) ---
