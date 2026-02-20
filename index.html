@@ -2544,7 +2544,9 @@ const BACKTEST = {
             if (macd) detailParts.push('MACD: ' + macd);
             if (vol) detailParts.push('Vol: ' + vol);
             const detailStr = detailParts.join(' · ');
-            const levelsStr = (sl ? 'SL: $' + sl : '') + (tp1 ? ' · TP: $' + tp1 : '');
+            const fmtLvl = v => { v = Number(v); return v >= 100 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v >= 0.01 ? v.toFixed(4) : v.toPrecision(4); };
+            const tp2 = matched ? matched.tp2 : '';
+            const levelsStr = (sl ? '<span style="color:var(--red-bright)">SL $' + fmtLvl(sl) + '</span>' : '') + (tp1 ? ' · <span style="color:var(--green-bright)">TP $' + fmtLvl(tp1) + '</span>' : '') + (tp2 ? ' · <span style="color:var(--green-bright)">TP2 $' + fmtLvl(tp2) + '</span>' : '');
 
             if (a.type === 'mark_action') {
                 // Backtest lookup
@@ -2579,6 +2581,7 @@ const BACKTEST = {
                                 </div>
                                 ${noteHtml ? `<div class="meta" style="margin-top:0.15rem">${noteHtml}</div>` : ''}
                                 <div class="meta">@ $${prc}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
+                                ${levelsStr ? `<div class="meta" style="margin-top:0.15rem;font-size:0.7rem">${levelsStr}</div>` : ''}
                                 ${btHtml}
                                 <div class="action-buttons">
                                     <input type="text" class="entry-input" placeholder="Size $" id="${id}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
