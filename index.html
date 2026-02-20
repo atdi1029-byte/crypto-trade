@@ -2581,7 +2581,7 @@ const BACKTEST = {
                                 </div>
                                 ${noteHtml ? `<div class="meta" style="margin-top:0.15rem">${noteHtml}</div>` : ''}
                                 <div class="meta">@ $${prc}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
-                                ${levelsStr ? `<div class="meta" style="margin-top:0.15rem;font-size:0.7rem">${levelsStr}</div>` : ''}
+                                ${!bt && levelsStr ? `<div class="meta" style="margin-top:0.15rem;font-size:0.7rem">${levelsStr}</div>` : ''}
                                 ${btHtml}
                                 <div class="action-buttons">
                                     <input type="text" class="entry-input" placeholder="Size $" id="${id}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
