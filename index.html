@@ -702,6 +702,8 @@
         }
         .action-item .message { display: none; }
         .action-item .meta { font-size: 0.7rem; color: var(--text-dim); margin-top: 0.25rem; }
+        .tap-copy { cursor: pointer; padding: 1px 4px; border-radius: 3px; -webkit-tap-highlight-color: transparent; }
+        .tap-copy:active { background: var(--green-dim); }
         .action-buttons {
             display: flex;
             gap: 0.4rem;
@@ -2473,7 +2475,7 @@ const BACKTEST = {
                 const tpPrice = isBuy ? p * (1 + bt.tp / 100) : p * (1 - bt.tp / 100);
                 const halfPrice = isBuy ? p * (1 + bt.halfTp / 100) : p * (1 - bt.halfTp / 100);
                 const fmt = v => v >= 100 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v >= 0.01 ? v.toFixed(4) : v.toPrecision(4);
-                btHtml = `<div class="meta" style="margin-top:0.2rem"><span class="bt-levels" ${btDataAttr}><span style="color:var(--red-bright)">SL $<span class="bt-sl">${fmt(slPrice)}</span> <span style="opacity:0.6;font-size:0.55rem">(${bt.sl}%)</span></span> &middot; <span style="color:var(--green-bright)">TP $<span class="bt-tp">${fmt(tpPrice)}</span> <span style="opacity:0.6;font-size:0.55rem">(${bt.tp}%)</span></span> &middot; <span style="color:var(--text-dim)">Half $<span class="bt-half">${fmt(halfPrice)}</span></span></span></div>`;
+                btHtml = `<div class="meta" style="margin-top:0.2rem"><span class="bt-levels" ${btDataAttr}><span style="color:var(--red-bright)">SL <span class="bt-sl tap-copy" onclick="copyVal(this)">${fmt(slPrice)}</span> <span style="opacity:0.6;font-size:0.55rem">(${bt.sl}%)</span></span> &middot; <span style="color:var(--green-bright)">TP <span class="bt-tp tap-copy" onclick="copyVal(this)">${fmt(tpPrice)}</span> <span style="opacity:0.6;font-size:0.55rem">(${bt.tp}%)</span></span> &middot; <span style="color:var(--text-dim)">Half <span class="bt-half tap-copy" onclick="copyVal(this)">${fmt(halfPrice)}</span></span></span></div>`;
             }
 
             return `
@@ -2546,7 +2548,7 @@ const BACKTEST = {
             const detailStr = detailParts.join(' · ');
             const fmtLvl = v => { v = Number(v); return v >= 100 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v >= 0.01 ? v.toFixed(4) : v.toPrecision(4); };
             const tp2 = matched ? matched.tp2 : '';
-            const levelsStr = (sl ? '<span style="color:var(--red-bright)">SL $' + fmtLvl(sl) + '</span>' : '') + (tp1 ? ' · <span style="color:var(--green-bright)">TP $' + fmtLvl(tp1) + '</span>' : '') + (tp2 ? ' · <span style="color:var(--green-bright)">TP2 $' + fmtLvl(tp2) + '</span>' : '');
+            const levelsStr = (sl ? '<span style="color:var(--red-bright)">SL <span class="tap-copy" onclick="copyVal(this)">' + fmtLvl(sl) + '</span></span>' : '') + (tp1 ? ' · <span style="color:var(--green-bright)">TP <span class="tap-copy" onclick="copyVal(this)">' + fmtLvl(tp1) + '</span></span>' : '') + (tp2 ? ' · <span style="color:var(--green-bright)">TP2 <span class="tap-copy" onclick="copyVal(this)">' + fmtLvl(tp2) + '</span></span>' : '');
 
             if (a.type === 'mark_action') {
                 // Backtest lookup
@@ -2565,7 +2567,7 @@ const BACKTEST = {
                     const tpPrice = isBuy ? p * (1 + bt.tp / 100) : p * (1 - bt.tp / 100);
                     const halfPrice = isBuy ? p * (1 + bt.halfTp / 100) : p * (1 - bt.halfTp / 100);
                     const fmt = v => v >= 100 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v >= 0.01 ? v.toFixed(4) : v.toPrecision(4);
-                    btHtml = `<div class="meta" style="margin-top:0.2rem"><span class="bt-levels" ${btDataAttr}><span style="color:var(--red-bright)">SL $<span class="bt-sl">${fmt(slPrice)}</span> <span style="opacity:0.6;font-size:0.55rem">(${bt.sl}%)</span></span> &middot; <span style="color:var(--green-bright)">TP $<span class="bt-tp">${fmt(tpPrice)}</span> <span style="opacity:0.6;font-size:0.55rem">(${bt.tp}%)</span></span> &middot; <span style="color:var(--text-dim)">Half $<span class="bt-half">${fmt(halfPrice)}</span></span></span></div>`;
+                    btHtml = `<div class="meta" style="margin-top:0.2rem"><span class="bt-levels" ${btDataAttr}><span style="color:var(--red-bright)">SL <span class="bt-sl tap-copy" onclick="copyVal(this)">${fmt(slPrice)}</span> <span style="opacity:0.6;font-size:0.55rem">(${bt.sl}%)</span></span> &middot; <span style="color:var(--green-bright)">TP <span class="bt-tp tap-copy" onclick="copyVal(this)">${fmt(tpPrice)}</span> <span style="opacity:0.6;font-size:0.55rem">(${bt.tp}%)</span></span> &middot; <span style="color:var(--text-dim)">Half <span class="bt-half tap-copy" onclick="copyVal(this)">${fmt(halfPrice)}</span></span></span></div>`;
                 }
                 return `
                     <div class="action-item" id="${id}">
@@ -3081,6 +3083,21 @@ const BACKTEST = {
     }
 
     // ====== HELPERS ======
+    function copyVal(el) {
+        const v = el.textContent.trim();
+        navigator.clipboard.writeText(v).then(() => {
+            const orig = el.style.cssText;
+            el.style.cssText += 'background:var(--green-dim);border-radius:4px;transition:background 0.2s';
+            const lbl = el.parentElement;
+            const tag = document.createElement('span');
+            tag.textContent = ' Copied!';
+            tag.style.cssText = 'color:var(--green-bright);font-size:0.6rem;opacity:1;transition:opacity 0.3s';
+            lbl.appendChild(tag);
+            setTimeout(() => { tag.style.opacity = '0'; }, 600);
+            setTimeout(() => { el.style.cssText = orig; tag.remove(); }, 900);
+        });
+    }
+
     function esc(str) {
         const d = document.createElement('div');
         d.textContent = str || '';
