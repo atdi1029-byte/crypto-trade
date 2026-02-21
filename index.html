@@ -2648,7 +2648,7 @@ const BACKTEST = {
         }
 
         list.innerHTML = deduped.map((a, i) => renderOpenTradeCard(a, i)).join('');
-        setTimeout(() => { restoreOpenTradeStates(); cleanupOrphanedSizeKeys(); updateTradeClocks(); }, 50);
+        setTimeout(() => { restoreOpenTradeStates(); updateTradeClocks(); }, 50);
     }
 
     function renderOpenTradeCard(a, i) {
@@ -2758,36 +2758,16 @@ const BACKTEST = {
     }
     function clearTradeState(ticker, signal) {
         localStorage.removeItem(tradeStateKey(ticker, signal));
-        clearTradeSize(ticker, signal);
     }
 
-    // ====== TRADE SIZE TRACKING (for pokeball slot dimming) ======
-    function tradeSizeKey(ticker, signal) { return 'sz_' + ticker.toUpperCase() + '_' + signal.toLowerCase(); }
-    function saveTradeSize(ticker, signal, size) { localStorage.setItem(tradeSizeKey(ticker, signal), String(size)); }
-    function clearTradeSize(ticker, signal) { localStorage.removeItem(tradeSizeKey(ticker, signal)); }
-    function getOpenTradeSizes() {
-        const sizes = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('sz_')) sizes.push(parseFloat(localStorage.getItem(key)) || 1);
-        }
-        return sizes;
-    }
-
-    // Clean up orphaned sz_ keys (trades already closed but size never cleared)
-    function cleanupOrphanedSizeKeys() {
-        const openTickers = new Set();
-        document.querySelectorAll('.open-trade-item').forEach(el => {
-            const t = (el.dataset.ticker || '').toUpperCase();
-            const s = (el.querySelector('.signal-tag')?.textContent || '').toLowerCase();
-            if (t) openTickers.add('sz_' + t + '_' + s);
-        });
-        const toRemove = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('sz_') && !openTickers.has(key)) toRemove.push(key);
-        }
-        toRemove.forEach(k => localStorage.removeItem(k));
+    // ====== POKEBALL TOGGLE (click to mark used/available) ======
+    function togglePokeball(idx) {
+        const used = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false,false]');
+        used[idx] = !used[idx];
+        localStorage.setItem('pokeball_used', JSON.stringify(used));
+        // Re-render the pokemon section
+        const pokemonEl = document.getElementById('pokemonSection');
+        if (pokemonEl && window._lastStats) renderPokemon(window._lastStats);
     }
 
     // Restore saved state after rendering open trade cards
@@ -3326,9 +3306,6 @@ const BACKTEST = {
             window.open(DEFAULT_BX(ticker), '_blank');
             // Set clock start to now (not signal time)
             localStorage.setItem('clock_' + ticker.toUpperCase() + '_' + signal.toLowerCase(), String(Date.now()));
-            // Save trade size for pokeball slot tracking
-            const sz = parseFloat(entrySize) || 1;
-            saveTradeSize(ticker, signal, sz);
         }
         // Hide immediately
         el.style.transition = 'opacity 0.3s';
@@ -3427,7 +3404,6 @@ const BACKTEST = {
             const grandTotal = prevTotal + inputVal;
             const finalValue = value === 'Lost' ? 'Lost' : 'Closed';
             clearTradeState(ticker, signal);
-            clearTradeSize(ticker, signal);
 
             el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
 
@@ -3483,9 +3459,6 @@ const BACKTEST = {
             window.open(DEFAULT_BX(ticker), '_blank');
             // Set clock start to now (not signal time)
             localStorage.setItem('clock_' + ticker.toUpperCase() + '_' + signal.toLowerCase(), String(Date.now()));
-            // Save trade size for pokeball slot tracking
-            const sz = parseFloat(entrySize) || 1;
-            saveTradeSize(ticker, signal, sz);
         }
         // Hide immediately
         el.style.transition = 'opacity 0.3s';
@@ -3939,6 +3912,7 @@ const BACKTEST = {
     }
 
     function renderPokemon(stats) {
+        window._lastStats = stats;
         const box = document.getElementById('pokemonBox');
         if (!box) return;
         const pnl = parseFloat(stats.netPnl) || 0;
@@ -3958,26 +3932,13 @@ const BACKTEST = {
         const xpRange = xpTo - xpFrom;
         const xpProgress = xpRange > 0 ? Math.max(0, Math.min(100, ((pnl - xpFrom) / xpRange) * 100)) : 100;
 
-        // Build size chips with pokeball icons — dim slots matching actual open trade sizes
+        // Build size chips with pokeball icons — click to toggle used/available
         const pokeballSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path class="ball-top" d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle class="ball-center" cx="10" cy="10" r="3"/></svg>`;
         let sizeChips = '';
-        // Match actual open trade sizes to pokeball slots
-        const usedSlots = new Array(5).fill(false);
-        const openSizes = getOpenTradeSizes();
-        const availSlots = sizes.map((s, i) => ({ size: s, idx: i, used: false }));
-        openSizes.forEach(tradeSize => {
-            // Find closest unused slot matching this trade size
-            let best = -1, bestDiff = Infinity;
-            for (let i = 0; i < 5; i++) {
-                if (usedSlots[i]) continue;
-                const diff = Math.abs(sizes[i] - tradeSize);
-                if (diff < bestDiff) { bestDiff = diff; best = i; }
-            }
-            if (best >= 0) usedSlots[best] = true;
-        });
+        const usedSlots = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false,false]');
         for (let i = 0; i < 5; i++) {
             const cls = usedSlots[i] ? 'used' : i === 0 ? 'lead' : i === 4 ? 'half' : 'mid';
-            sizeChips += `<span class="pokemon-size-chip ${cls}">${pokeballSvg}<span class="ball-amt">$${sizes[i]}</span></span>`;
+            sizeChips += `<span class="pokemon-size-chip ${cls}" onclick="togglePokeball(${i})" style="cursor:pointer">${pokeballSvg}<span class="ball-amt">$${sizes[i]}</span></span>`;
         }
 
         const needStr = nextLevel ? '$' + (nextLevel.min - pnl).toFixed(2) + ' to Evolve' : '';
