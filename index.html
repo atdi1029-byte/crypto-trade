@@ -2629,6 +2629,16 @@ const BACKTEST = {
         const list = document.getElementById('openTradesList');
         const countEl = document.getElementById('openTradesCount');
 
+        // Save any typed P&L input values before re-render
+        const savedInputs = {};
+        list.querySelectorAll('.open-trade-item').forEach(el => {
+            const ticker = (el.dataset.ticker || '').toUpperCase();
+            const input = el.querySelector('.entry-input');
+            if (input && input.value.trim()) {
+                savedInputs[ticker] = input.value;
+            }
+        });
+
         // Deduplicate by ticker — keep most recent entry per ticker
         const seen = {};
         const deduped = [];
@@ -2648,7 +2658,18 @@ const BACKTEST = {
         }
 
         list.innerHTML = deduped.map((a, i) => renderOpenTradeCard(a, i)).join('');
-        setTimeout(() => { restoreOpenTradeStates(); updateTradeClocks(); }, 50);
+        setTimeout(() => {
+            restoreOpenTradeStates();
+            updateTradeClocks();
+            // Restore saved P&L input values after re-render
+            list.querySelectorAll('.open-trade-item').forEach(el => {
+                const ticker = (el.dataset.ticker || '').toUpperCase();
+                if (savedInputs[ticker]) {
+                    const input = el.querySelector('.entry-input');
+                    if (input) input.value = savedInputs[ticker];
+                }
+            });
+        }, 50);
     }
 
     function renderOpenTradeCard(a, i) {
@@ -3401,7 +3422,13 @@ const BACKTEST = {
 
         } else {
             // Closed or Stopped Out — finalize and send total to sheet
-            const grandTotal = prevTotal + inputVal;
+            let grandTotal = prevTotal + inputVal;
+            // Safety net: if P&L is $0, prompt user to enter it
+            if (grandTotal === 0) {
+                const entered = prompt('P&L for ' + ticker + '? (negative for loss, blank to skip)');
+                if (entered === null) return; // cancelled
+                if (entered.trim() !== '') grandTotal = parseFloat(entered) || 0;
+            }
             const finalValue = value === 'Lost' ? 'Lost' : 'Closed';
             clearTradeState(ticker, signal);
 
