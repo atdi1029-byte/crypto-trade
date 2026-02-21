@@ -769,7 +769,9 @@
                 const lv = i + 1;
                 const capPct = getCapPercent(lv);
                 const rawBuffer = Math.floor(lvl.min * capPct);
-                const buffer = Math.max(maxBudgetSeen, rawBuffer);
+                // Force budget +$500/level minimum once budget is above $10k — never stalls
+                const minBump = maxBudgetSeen >= 10000 ? 500 : 0;
+                const buffer = Math.max(maxBudgetSeen + minBump, rawBuffer);
                 maxBudgetSeen = buffer;
                 const scoutSz = getScoutSize(lvl.min);
 
