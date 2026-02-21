@@ -35,7 +35,7 @@ var MIN_PICK_RR      = 1.4; // Minimum R:R ratio to auto-add
 // ---------------------------------------------------------------
 function doPost(e) {
   var lock = LockService.getScriptLock();
-  lock.waitLock(30000);
+  lock.waitLock(120000);
   try {
     var ss   = SpreadsheetApp.getActiveSpreadsheet();
     var raw  = e.postData.contents;
@@ -51,6 +51,11 @@ function doPost(e) {
     // --- Claude analysis push ---
     if (data.action === 'claude_analysis') {
       return saveClaudeAnalysis_(ss, data);
+    }
+
+    // --- Manual trade add (for trades entered directly on Bitunix) ---
+    if (data.action === 'add_trade') {
+      return addTrade_(ss, data);
     }
 
     // --- Normal webhook flow ---
@@ -303,6 +308,19 @@ function updatePosition_(ss, data) {
     }
   }
 
+  // Fallback: if no open/empty outcome match, try any entered row (allows re-updating outcomes)
+  if (matchRows.length === 0 && (field === 'outcome' || field === 'pnl')) {
+    for (var f = posData.length - 1; f >= 1; f--) {
+      var fSymbol = String(posData[f][1]).toUpperCase();
+      var fSignal = String(posData[f][2]).toLowerCase();
+      var fAction = String(posData[f][8] || '').trim().toLowerCase();
+      if (fSymbol === symbol && fSignal === signal && fAction === 'entered') {
+        matchRows.push(f + 1);
+        break; // most recent match only
+      }
+    }
+  }
+
   if (matchRows.length === 0) {
     return ContentService
       .createTextOutput(JSON.stringify({ status: 'error', message: 'No matching row found' }))
@@ -402,6 +420,49 @@ function saveClaudeAnalysis_(ss, data) {
 }
 
 // ---------------------------------------------------------------
+// addTrade_ — Manually add a completed trade to Positions sheet
+// For trades entered directly on exchange (not via dashboard)
+// Payload: { action: "add_trade", symbol, signal, entry, close_price,
+//            outcome: "won"|"lost", realized_pnl, sl, tp1, tp2, score }
+// ---------------------------------------------------------------
+function addTrade_(ss, data) {
+  var symbol     = (data.symbol || '').toUpperCase();
+  var signal     = (data.signal || '').toLowerCase();
+  var entry      = data.entry || '';
+  var sl         = data.sl || '';
+  var tp1        = data.tp1 || '';
+  var tp2        = data.tp2 || '';
+  var score      = data.score || '';
+  var outcome    = (data.outcome || '').toLowerCase();
+  var realizedPnl = data.realized_pnl || data.realizedPnl || '';
+
+  if (!symbol || !signal || !outcome) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'error', message: 'Missing required fields: symbol, signal, outcome' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  var posSheet = ss.getSheetByName(POSITIONS);
+  posSheet.appendRow([
+    new Date(),   // Timestamp
+    symbol,       // Symbol
+    signal,       // Signal (buy/short)
+    entry,        // Entry price
+    sl,           // SL
+    tp1,          // TP1
+    tp2,          // TP2
+    score,        // Score
+    'Entered',    // Action
+    outcome,      // Outcome (won/lost)
+    realizedPnl   // Realized P&L
+  ]);
+
+  return ContentService
+    .createTextOutput(JSON.stringify({ status: 'ok', symbol: symbol, outcome: outcome }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---------------------------------------------------------------
 // doGet — Health check + Dashboard JSON API
 // ?action=dashboard returns full dashboard data
 // ---------------------------------------------------------------
@@ -441,6 +502,14 @@ function doGet(e) {
     var bal = (e && e.parameter && e.parameter.value) || '';
     if (bal) return recordBalance_(Number(bal));
     return getBalanceHistory_();
+  }
+
+  if (action === 'update_pokeballs') {
+    var state = e.parameter.state || '[false,false,false,false,false]';
+    setConfig_('pokeball_used', state);
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'ok' }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 
   return ContentService
@@ -745,14 +814,15 @@ function serveDashboardJSON_() {
   // --- Overall stats ---
   var trades = getAllCompletedTrades_();
   var wins   = trades.filter(function(t) { return t.win; });
-  var losses = trades.filter(function(t) { return !t.win; });
+  var losses = trades.filter(function(t) { return !t.win && t.outcome === 'lost'; });
   var totalPnl = 0, grossWin = 0, grossLoss = 0;
   trades.forEach(function(t) {
     totalPnl += t.realizedPnl;
     if (t.win) grossWin += t.realizedPnl;
-    else grossLoss += t.realizedPnl;
+    else if (t.outcome === 'lost') grossLoss += t.realizedPnl;
   });
-  var winRate = trades.length > 0 ? (wins.length / trades.length * 100).toFixed(1) : '0.0';
+  var decided = wins.length + losses.length;
+  var winRate = decided > 0 ? (wins.length / decided * 100).toFixed(1) : '0.0';
   var streaks = trades.length > 0 ? calcStreaks_(trades) : { bestWin: 0, worstLoss: 0, current: 0 };
 
   // Today's signals count
@@ -907,6 +977,13 @@ function serveDashboardJSON_() {
     }
   }
 
+  // --- Pokeball state from Config tab ---
+  var pokeballRaw = getConfig_('pokeball_used');
+  var pokeballUsed = [false,false,false,false,false];
+  if (pokeballRaw) {
+    try { pokeballUsed = JSON.parse(pokeballRaw); } catch(e) {}
+  }
+
   var payload = {
     status:        'ok',
     timestamp:     new Date().toISOString(),
@@ -915,7 +992,8 @@ function serveDashboardJSON_() {
     topPicks:      topPicks,
     claudePicks:   claudePicks,
     actionNeeded:  actionNeeded,
-    stats:         stats
+    stats:         stats,
+    pokeballUsed:  pokeballUsed
   };
 
   return ContentService
@@ -935,6 +1013,24 @@ function getConfig_(label) {
     if (String(data[i][0]).toLowerCase() === label.toLowerCase()) return data[i][1];
   }
   return null;
+}
+
+// ---------------------------------------------------------------
+// Helper: set config value by label (upsert)
+// Config tab layout: Column A = label, Column B = value
+// ---------------------------------------------------------------
+function setConfig_(label, value) {
+  var ss    = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(CONFIG);
+  var data  = sheet.getDataRange().getValues();
+  for (var i = 0; i < data.length; i++) {
+    if (String(data[i][0]).toLowerCase() === label.toLowerCase()) {
+      sheet.getRange(i + 1, 2).setValue(value);
+      return;
+    }
+  }
+  // Not found — append new row
+  sheet.appendRow([label, value]);
 }
 
 // ---------------------------------------------------------------

@@ -1351,7 +1351,9 @@
             .pokemon-sprite { width: 180px; height: 180px; margin: -1rem 0 -2rem; }
             .pokemon-level-name { font-size: 1.2rem; }
             .pokemon-xp-bar { max-width: 100%; }
-            .pokemon-sizes { display: none !important; }
+            .pokemon-sizes { gap: 0.3rem; overflow-x: auto; -webkit-overflow-scrolling: touch; justify-content: flex-start; padding: 0 0.2rem; }
+            .pokemon-size-chip { padding: 0.2rem 0.5rem 0.2rem 0.3rem; font-size: 0.65rem; }
+            .pokeball-svg { width: 24px; height: 24px; }
             .weekly-tasks { display: none !important; }
             .two-day-btn { display: none !important; }
         }
@@ -2344,6 +2346,11 @@ const BACKTEST = {
     function renderDashboard(data) {
         const { tickers, recentSignals, actionNeeded, stats, claudePicks } = data;
 
+        // Sync pokeball state from API → localStorage cache
+        if (data.pokeballUsed) {
+            localStorage.setItem('pokeball_used', JSON.stringify(data.pokeballUsed));
+        }
+
         // Score all signals
         const scoredSignals = (recentSignals || []).map(s => {
             s._score = Math.max(scoreSignal(s), s.score || 0);
@@ -2789,6 +2796,8 @@ const BACKTEST = {
         // Re-render the pokemon section
         const pokemonEl = document.getElementById('pokemonSection');
         if (pokemonEl && window._lastStats) renderPokemon(window._lastStats);
+        // Sync to Google Sheet (fire and forget)
+        fireGet(POST_URL + '?action=update_pokeballs&state=' + encodeURIComponent(JSON.stringify(used)));
     }
 
     // Restore saved state after rendering open trade cards
