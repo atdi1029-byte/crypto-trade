@@ -689,9 +689,11 @@
     function buildGuide() {
         const container = document.getElementById('phases');
         let html = '';
-        let lockedAt300 = false;
+        let lockedAt225 = false;
         let lockProfit = 0;
         let maxScoutSeen = 0;
+        let maxScoutCount = 0;
+        let maxBudgetSeen = 0;
         const endProfit = POKEMON_LEVELS[POKEMON_LEVELS.length - 1].min;
 
         for (let pi = 0; pi < PHASES.length; pi++) {
@@ -756,7 +758,7 @@
             html += `<th>Lv</th><th></th><th>Pokemon</th><th>Profit</th>`;
             html += `<th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th>`;
             html += `<th>Total</th><th>Cap %</th><th>Budget</th><th>Scout $</th><th>Max Scouts</th><th>Gap</th>`;
-            html += `<th>Avg $/tr</th><th>Trades</th><th>Est.</th>`;
+            html += `<th>Wk Edge</th><th>Weeks</th><th>Est.</th>`;
             html += `</tr></thead><tbody>`;
 
             for (let i = phase.start - 1; i <= phase.end - 1 && i < POKEMON_LEVELS.length; i++) {
@@ -766,34 +768,40 @@
                 const gap = i > 0 ? lvl.min - POKEMON_LEVELS[i - 1].min : 0;
                 const lv = i + 1;
                 const capPct = getCapPercent(lv);
-                const buffer = Math.floor(lvl.min * capPct);
+                const rawBuffer = Math.floor(lvl.min * capPct);
+                const buffer = Math.max(maxBudgetSeen, rawBuffer);
+                maxBudgetSeen = buffer;
                 const scoutSz = getScoutSize(lvl.min);
 
-                // Check if 300 scouts is first reached
+                // Check if 225 scouts is first reached
                 const rawScoutBudget = Math.max(0, buffer - total);
                 const rawBudgetScouts = scoutSz > 0 ? Math.floor(rawScoutBudget / scoutSz) : 0;
-                if (!lockedAt300 && rawBudgetScouts >= 300) {
-                    lockedAt300 = true;
+                if (!lockedAt225 && rawBudgetScouts >= 225) {
+                    lockedAt225 = true;
                     lockProfit = lvl.min;
                 }
 
                 let maxScouts, effectiveScout;
-                if (lockedAt300) {
+                if (lockedAt225) {
                     // T5 grows from 250 toward 500 after lock
                     const t5Progress = lockProfit < endProfit
                         ? Math.min(1, (lvl.min - lockProfit) / (endProfit - lockProfit)) : 0;
                     sizes[4] = Math.min(500, Math.round(250 + t5Progress * 250));
                     total = sizes.reduce((a, b) => a + b, 0);
-                    // Lock at 300 scouts, scout $ = remaining budget / 300
-                    maxScouts = 300;
+                    // Lock at 225 scouts, scout $ = remaining budget / 225
+                    maxScouts = 225;
                     const scoutBudget = Math.max(0, buffer - total);
-                    effectiveScout = Math.max(maxScoutSeen, Math.min(500, Math.floor(scoutBudget / 300)));
+                    effectiveScout = Math.max(maxScoutSeen, Math.min(500, Math.floor(scoutBudget / 225)));
                 } else {
                     const scoutBudget = Math.max(0, buffer - total);
                     const budgetScouts = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
-                    maxScouts = budgetScouts;
-                    effectiveScout = scoutSz;
+                    // Ratchet: scout count never drops
+                    maxScouts = Math.max(maxScoutCount, budgetScouts);
+                    effectiveScout = maxScouts > 0 ? Math.max(1, Math.floor(scoutBudget / maxScouts)) : scoutSz;
                 }
+                maxScoutCount = Math.max(maxScoutCount, maxScouts);
+                // Force +$1 minimum per level — scouts never stall
+                effectiveScout = Math.max(effectiveScout, maxScoutSeen + 1);
                 maxScoutSeen = Math.max(maxScoutSeen, effectiveScout);
 
                 html += `<tr id="row-${lv}">`;
@@ -899,14 +907,17 @@
         const sizesStr = sizes.map(s => '$' + s).join(' / ');
         const next = levelIdx < POKEMON_LEVELS.length - 1 ? POKEMON_LEVELS[levelIdx + 1] : null;
         const nextStr = next ? ` \u2014 $${(next.min - val).toFixed(0)} to ${next.pokemon}` : ' \u2014 MAX LEVEL!';
-        const capPct = getCapPercent(levelIdx + 1);
+        const lv = levelIdx + 1;
+        const capPct = getCapPercent(lv);
         const buffer = Math.floor(val * capPct);
         const scoutSz = getScoutSize(val);
         const scoutBudget = Math.max(0, buffer - total);
         const budgetScouts2 = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
-        const maxScouts = Math.min(300, budgetScouts2);
-        const effectiveScout = maxScouts === 300 && budgetScouts2 > 300
-            ? Math.min(Math.floor(scoutBudget / 300), 500) : scoutSz;
+        const maxScouts = Math.min(225, budgetScouts2);
+        let effectiveScout = maxScouts === 225 && budgetScouts2 > 225
+            ? Math.min(Math.floor(scoutBudget / 225), 500) : scoutSz;
+        // Force +$1/level — scouts always progress
+        effectiveScout = Math.max(effectiveScout, lv);
         result.innerHTML = `<img src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}"> Lv.${levelIdx + 1} <strong>${level.pokemon}</strong> \u2014 ${sizesStr} = $${total} total${nextStr}<br><span style="font-size:0.6rem;color:#6a8aaa;">${(capPct*100).toFixed(0)}% Budget: $${buffer} \u2014 Scout: $${effectiveScout} \u2014 Max ${maxScouts} scouts</span>`;
 
         // Progress bar
@@ -926,12 +937,13 @@
             }
         }
 
-        // Simulate progression from current P&L through all levels
-        let cumTrades = 0;
-        let estLockedAt300 = false;
-        let estLockProfit = 0;
-        let estMaxScoutSeen = 0;
-        const estEndProfit = POKEMON_LEVELS[POKEMON_LEVELS.length - 1].min;
+        // Weekly estimation: how many weeks to reach each level
+        // Daily main profit = tradesPerDay × avgMainSize × edgeRate
+        // Daily scout profit = (numScouts / avgScoutDuration) × scoutSize × edgeRate
+        // Assume scouts turn over every ~5 days on average
+        const scoutTurnoverDays = 5;
+        let cumWeeks = 0;
+        let estMaxBudget = 0;
 
         for (let i = 0; i < POKEMON_LEVELS.length; i++) {
             const lv = i + 1;
@@ -941,7 +953,6 @@
             if (!avgEl) continue;
 
             const lvlMin = POKEMON_LEVELS[i].min;
-            const lvlSizes = getCryptoSizes(lvlMin);
 
             if (lvlMin <= val) {
                 avgEl.className = 'est-past';
@@ -950,71 +961,37 @@
                 avgEl.textContent = '\u2713';
                 trEl.textContent = '\u2713';
                 timeEl.textContent = '\u2713';
-                // Track 300-lock for past levels too
-                const pastCapPct = getCapPercent(lv);
-                const pastBuffer = Math.floor(lvlMin * pastCapPct);
-                const pastTotal = lvlSizes.reduce((a, b) => a + b, 0);
-                const pastScoutSz = getScoutSize(lvlMin);
-                const pastScoutBudget = Math.max(0, pastBuffer - pastTotal);
-                const pastBudgetScouts = pastScoutSz > 0 ? Math.floor(pastScoutBudget / pastScoutSz) : 0;
-                if (!estLockedAt300 && pastBudgetScouts >= 300) {
-                    estLockedAt300 = true;
-                    estLockProfit = lvlMin;
-                }
-                // Track scout $ floor for past levels too
-                if (estLockedAt300) {
-                    const pastScoutEff = Math.min(500, Math.floor(pastScoutBudget / 300));
-                    estMaxScoutSeen = Math.max(estMaxScoutSeen, pastScoutEff);
-                } else {
-                    estMaxScoutSeen = Math.max(estMaxScoutSeen, pastScoutSz);
-                }
             } else {
                 const gap = i > 0 ? lvlMin - POKEMON_LEVELS[i - 1].min : lvlMin;
                 const prevMin = i > 0 ? POKEMON_LEVELS[i - 1].min : 0;
                 const prevSizes = getCryptoSizes(prevMin);
-                let prevTotal = prevSizes.reduce((a, b) => a + b, 0);
-                const prevScoutSz = getScoutSize(prevMin);
+                const prevTotal = prevSizes.reduce((a, b) => a + b, 0);
+                const avgMainSize = prevTotal / 5;
+
+                // Get scout info from the displayed row (uses ratcheted budget)
                 const prevCapPct = getCapPercent(i > 0 ? i : 1);
-                const prevBuffer = Math.floor(prevMin * prevCapPct);
+                const prevRawBuf = Math.floor(prevMin * prevCapPct);
+                const prevBuffer = Math.max(estMaxBudget, prevRawBuf);
+                estMaxBudget = prevBuffer;
+                const prevScoutBudget = Math.max(0, prevBuffer - prevTotal);
+                const numScouts = Math.min(225, prevScoutBudget > 0 ? 225 : 0);
+                const scoutSz = numScouts > 0 ? Math.max(1, Math.floor(prevScoutBudget / numScouts)) : 0;
 
-                // Check 300 lock
-                const rawScoutBudget = Math.max(0, prevBuffer - prevTotal);
-                const rawBudgetScouts = prevScoutSz > 0 ? Math.floor(rawScoutBudget / prevScoutSz) : 0;
-                if (!estLockedAt300 && rawBudgetScouts >= 300) {
-                    estLockedAt300 = true;
-                    estLockProfit = prevMin;
-                }
+                // Daily profit from main trades
+                const dailyMain = tradesPerDay * avgMainSize * edgeRate;
+                // Daily profit from scouts (turnover every ~5 days)
+                const dailyScout = numScouts > 0 ? (numScouts / scoutTurnoverDays) * scoutSz * edgeRate : 0;
+                const weeklyEdge = (dailyMain + dailyScout) * 7;
 
-                let maxScouts, effectiveScoutSz;
-                if (estLockedAt300) {
-                    // T5 grows after lock
-                    const t5Prog = estLockProfit < estEndProfit
-                        ? Math.min(1, (prevMin - estLockProfit) / (estEndProfit - estLockProfit)) : 0;
-                    prevSizes[4] = Math.min(500, Math.round(250 + t5Prog * 250));
-                    prevTotal = prevSizes.reduce((a, b) => a + b, 0);
-                    maxScouts = 300;
-                    const scoutBudget = Math.max(0, prevBuffer - prevTotal);
-                    effectiveScoutSz = Math.max(estMaxScoutSeen, Math.min(500, scoutBudget / 300));
-                } else {
-                    const scoutBudget = Math.max(0, prevBuffer - prevTotal);
-                    const budgetScouts = prevScoutSz > 0 ? Math.floor(scoutBudget / prevScoutSz) : 0;
-                    maxScouts = budgetScouts;
-                    effectiveScoutSz = prevScoutSz;
-                }
-                estMaxScoutSeen = Math.max(estMaxScoutSeen, effectiveScoutSz);
+                const weeksNeeded = weeklyEdge > 0 ? gap / weeklyEdge : 9999;
+                cumWeeks += weeksNeeded;
 
-                const sessionProfit = (prevTotal + maxScouts * effectiveScoutSz) * edgeRate;
-                const avgPerTrade = sessionProfit / 5;
-                const sessionsNeeded = sessionProfit > 0 ? Math.ceil(gap / sessionProfit) : 9999;
-                cumTrades += sessionsNeeded * 5;
-                const days = cumTrades / tradesPerDay;
-
-                avgEl.textContent = '$' + avgPerTrade.toFixed(2);
+                avgEl.textContent = '$' + Math.round(weeklyEdge).toLocaleString();
                 avgEl.className = i === levelIdx + 1 ? 'est-active' : 'est';
                 trEl.className = i === levelIdx + 1 ? 'est-active' : 'est';
                 timeEl.className = i === levelIdx + 1 ? 'est-active' : 'est';
-                trEl.textContent = cumTrades.toLocaleString();
-                timeEl.textContent = formatTime(days);
+                trEl.textContent = cumWeeks < 10 ? cumWeeks.toFixed(1) : Math.round(cumWeeks).toLocaleString();
+                timeEl.textContent = formatTime(cumWeeks * 7);
             }
         }
     }
