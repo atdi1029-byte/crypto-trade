@@ -2648,7 +2648,7 @@ const BACKTEST = {
         }
 
         list.innerHTML = deduped.map((a, i) => renderOpenTradeCard(a, i)).join('');
-        setTimeout(() => { restoreOpenTradeStates(); updateTradeClocks(); }, 50);
+        setTimeout(() => { restoreOpenTradeStates(); cleanupOrphanedSizeKeys(); updateTradeClocks(); }, 50);
     }
 
     function renderOpenTradeCard(a, i) {
@@ -2772,6 +2772,22 @@ const BACKTEST = {
             if (key && key.startsWith('sz_')) sizes.push(parseFloat(localStorage.getItem(key)) || 1);
         }
         return sizes;
+    }
+
+    // Clean up orphaned sz_ keys (trades already closed but size never cleared)
+    function cleanupOrphanedSizeKeys() {
+        const openTickers = new Set();
+        document.querySelectorAll('.open-trade-item').forEach(el => {
+            const t = (el.dataset.ticker || '').toUpperCase();
+            const s = (el.querySelector('.signal-tag')?.textContent || '').toLowerCase();
+            if (t) openTickers.add('sz_' + t + '_' + s);
+        });
+        const toRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('sz_') && !openTickers.has(key)) toRemove.push(key);
+        }
+        toRemove.forEach(k => localStorage.removeItem(k));
     }
 
     // Restore saved state after rendering open trade cards
@@ -3411,6 +3427,7 @@ const BACKTEST = {
             const grandTotal = prevTotal + inputVal;
             const finalValue = value === 'Lost' ? 'Lost' : 'Closed';
             clearTradeState(ticker, signal);
+            clearTradeSize(ticker, signal);
 
             el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
 
