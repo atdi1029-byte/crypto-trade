@@ -1,4 +1,4 @@
-const CACHE_NAME = 'crypto-trade-v159';
+const CACHE_NAME = 'crypto-trade-v160';
 const ASSETS = [
   './',
   './index.html',
