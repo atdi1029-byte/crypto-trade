@@ -863,10 +863,13 @@
             const losses = parseInt(stats.losses) || 0;
             const winRate = stats.winRate || '0%';
 
-            // Calculate edge from win rate (early tiny-trade data skews raw edge too low)
-            // Assumes ~18% avg win and ~10% avg loss (typical crypto TP/SL ratios)
+            // Calculate edge from actual gross win/loss data
+            const grossWin = parseFloat(stats.grossWin) || 0;
+            const grossLoss = Math.abs(parseFloat(stats.grossLoss) || 0);
+            const avgWinPct = wins > 0 ? grossWin / wins : 0;
+            const avgLossPct = losses > 0 ? grossLoss / losses : 0;
             const winRateNum = wins / Math.max(1, totalTrades);
-            const edgeRate = Math.max(0.05, winRateNum * 0.18 - (1 - winRateNum) * 0.10);
+            const edgeRate = Math.max(0.05, winRateNum * avgWinPct - (1 - winRateNum) * avgLossPct);
 
             // Estimate trades per day from data
             // Use first signal timestamp to calculate days active
@@ -883,7 +886,7 @@
             updateEstimates(pnl, tradesPerDay, edgeRate);
 
             // Show stats summary
-            statsInfo.innerHTML = `${wins}W / ${losses}L (${winRate}) &middot; $${pnl.toFixed(2)} P&L &middot; ${totalTrades} trades &middot; ~${tradesPerDay}/day &middot; ${(edgeRate * 100).toFixed(1)}% edge`;
+            statsInfo.innerHTML = `${wins}W / ${losses}L (${winRate}) &middot; $${pnl.toFixed(2)} P&L &middot; ${totalTrades} trades &middot; ~${tradesPerDay}/day &middot; avg win ${(avgWinPct * 100).toFixed(1)}% / avg loss ${(avgLossPct * 100).toFixed(1)}% &middot; ${(edgeRate * 100).toFixed(1)}% edge`;
         } catch (e) {
             result.innerHTML = 'Could not load stats \u2014 enter P&L manually below';
             statsInfo.innerHTML = '';
