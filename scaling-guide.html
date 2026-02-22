@@ -802,8 +802,8 @@
                     effectiveScout = maxScouts > 0 ? Math.max(1, Math.floor(scoutBudget / maxScouts)) : scoutSz;
                 }
                 maxScoutCount = Math.max(maxScoutCount, maxScouts);
-                // Force +$1 minimum per level — scouts never stall
-                effectiveScout = Math.max(effectiveScout, maxScoutSeen + 1);
+                // Ratchet: scout $ never decreases
+                effectiveScout = Math.max(effectiveScout, maxScoutSeen);
                 maxScoutSeen = Math.max(maxScoutSeen, effectiveScout);
 
                 html += `<tr id="row-${lv}">`;
