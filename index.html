@@ -3431,12 +3431,16 @@ const BACKTEST = {
 
         } else {
             // Closed or Stopped Out — finalize and send total to sheet
-            let grandTotal = prevTotal + inputVal;
+            // Auto-negate positive input for losses (user enters 0.34, we record -0.34)
+            const adjustedInput = (value === 'Lost' && inputVal > 0) ? -inputVal : inputVal;
+            let grandTotal = prevTotal + adjustedInput;
             // Safety net: if P&L is $0, prompt user to enter it
             if (grandTotal === 0) {
                 const entered = prompt('P&L for ' + ticker + '? (negative for loss, blank to skip)');
                 if (entered === null) return; // cancelled
-                if (entered.trim() !== '') grandTotal = parseFloat(entered) || 0;
+                let manualVal = parseFloat(entered) || 0;
+                if (value === 'Lost' && manualVal > 0) manualVal = -manualVal;
+                grandTotal = prevTotal + manualVal;
             }
             const finalValue = value === 'Lost' ? 'Lost' : 'Closed';
             clearTradeState(ticker, signal);
