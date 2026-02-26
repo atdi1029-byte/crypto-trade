@@ -4124,22 +4124,26 @@ const BACKTEST = {
             const roiPct = dcaTotal > 0 ? (pnl / dcaTotal * 100) : 0;
             const roiStr = roiPct >= 0 ? '+' + roiPct.toFixed(0) + '%' : roiPct.toFixed(0) + '%';
 
-            let healthLabel, healthClass;
-            if (pnl7d >= 0 && pnl >= 0) {
-                healthLabel = 'HEALTHY';
+            let healthLabel, healthClass, healthAdvice;
+            if (pnl >= 0 && pnl7d >= 0) {
+                healthLabel = 'EDGE CONFIRMED';
                 healthClass = 'healthy';
-            } else if (pnl7d < 0 && pnl14d >= 0) {
-                healthLabel = 'CAUTION';
+                healthAdvice = 'System working \u2014 keep DCA\u2019ing';
+            } else if (pnl >= 0 && pnl7d < 0) {
+                healthLabel = 'PAUSE DCA';
                 healthClass = 'caution';
+                healthAdvice = 'Bad week \u2014 skip Level Up, wait for recovery';
             } else {
-                healthLabel = 'DANGER';
+                healthLabel = 'SWITCH TO ORGANIC';
                 healthClass = 'danger';
+                healthAdvice = 'P&L negative \u2014 flip DCA off, trade at organic level';
             }
 
             html += `<div class="dca-health">`;
             html += `<div><span class="health-status ${healthClass}">${healthLabel}</span></div>`;
             html += `<div class="health-detail">Deposited: $${dcaTotal.toFixed(2)} &middot; Trading P&L: ${pnlStr} &middot; 7d: ${pnl7d >= 0 ? '+' : ''}$${pnl7d.toFixed(2)}</div>`;
             html += `<div class="health-roi ${roiPct >= 0 ? 'positive' : 'negative'}">ROI: ${roiStr} of deposits earned back</div>`;
+            html += `<div style="font-size:0.6rem;margin-top:0.2rem;color:${healthClass === 'healthy' ? 'var(--green-bright)' : healthClass === 'caution' ? '#ffa726' : 'var(--red-bright)'}">${healthAdvice}</div>`;
             html += `</div>`;
 
             // Organic level + deposit info
