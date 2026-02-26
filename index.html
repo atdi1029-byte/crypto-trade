@@ -1356,6 +1356,19 @@
             text-align: center; font-size: 0.6rem; color: var(--accent-glow);
             margin-top: 0.2rem; letter-spacing: 0.5px;
         }
+        .dca-health {
+            text-align: center; margin-top: 0.5rem; padding: 0.5rem 0.8rem;
+            background: rgba(12,17,25,0.7); border-radius: 6px;
+            border: 1px solid var(--border); font-size: 0.7rem;
+        }
+        .dca-health .health-status { font-weight: 700; font-size: 0.75rem; }
+        .dca-health .health-status.healthy { color: var(--green-bright); text-shadow: 0 0 8px var(--green-bright); }
+        .dca-health .health-status.caution { color: #ffa726; text-shadow: 0 0 8px #ffa726; }
+        .dca-health .health-status.danger { color: var(--red-bright); text-shadow: 0 0 8px var(--red-bright); }
+        .dca-health .health-detail { font-size: 0.6rem; color: var(--text-dim); margin-top: 0.2rem; }
+        .dca-health .health-roi { font-size: 0.6rem; margin-top: 0.15rem; }
+        .dca-health .health-roi.positive { color: var(--green-bright); }
+        .dca-health .health-roi.negative { color: var(--red-bright); }
 
         @media (max-width: 768px) {
             .content { padding: 0.25rem 1rem 1rem; }
@@ -4103,12 +4116,38 @@ const BACKTEST = {
             <div class="pokemon-sizes">${sizeChips}</div>
         </div>`;
 
-        // Show organic level underneath when DCA is on
-        if (dcaMode && organicIdx !== levelIdx) {
-            html += `<div class="dca-organic-label"><img src="${POKE_SPRITE(organicLevel.pokeId)}" alt="${organicLevel.pokemon}"> Organic: Lv.${organicIdx} ${organicLevel.pokemon} ($${pnl.toFixed(2)} P&L)</div>`;
-            html += `<div class="dca-deposit-total">DCA Deposited: +$${dcaTotal.toFixed(2)} \u2192 Effective: $${activePnl.toFixed(2)}</div>`;
+        // Show DCA health when DCA is on
+        if (dcaMode && dcaTotal > 0) {
+            const trend = stats.trend || {};
+            const pnl7d = trend.avg7d ? trend.avg7d.pnl : 0;
+            const pnl14d = trend.avg14d ? trend.avg14d.pnl : 0;
+            const roiPct = dcaTotal > 0 ? (pnl / dcaTotal * 100) : 0;
+            const roiStr = roiPct >= 0 ? '+' + roiPct.toFixed(0) + '%' : roiPct.toFixed(0) + '%';
+
+            let healthLabel, healthClass;
+            if (pnl7d >= 0 && pnl >= 0) {
+                healthLabel = 'HEALTHY';
+                healthClass = 'healthy';
+            } else if (pnl7d < 0 && pnl14d >= 0) {
+                healthLabel = 'CAUTION';
+                healthClass = 'caution';
+            } else {
+                healthLabel = 'DANGER';
+                healthClass = 'danger';
+            }
+
+            html += `<div class="dca-health">`;
+            html += `<div><span class="health-status ${healthClass}">${healthLabel}</span></div>`;
+            html += `<div class="health-detail">Deposited: $${dcaTotal.toFixed(2)} &middot; Trading P&L: ${pnlStr} &middot; 7d: ${pnl7d >= 0 ? '+' : ''}$${pnl7d.toFixed(2)}</div>`;
+            html += `<div class="health-roi ${roiPct >= 0 ? 'positive' : 'negative'}">ROI: ${roiStr} of deposits earned back</div>`;
+            html += `</div>`;
+
+            // Organic level + deposit info
+            if (organicIdx !== levelIdx) {
+                html += `<div class="dca-organic-label"><img src="${POKE_SPRITE(organicLevel.pokeId)}" alt="${organicLevel.pokemon}"> Organic: Lv.${organicIdx} ${organicLevel.pokemon} ($${pnl.toFixed(2)} P&L)</div>`;
+            }
         } else if (dcaMode) {
-            html += `<div class="dca-deposit-total">DCA Deposited: +$${dcaTotal.toFixed(2)} (same level as organic)</div>`;
+            html += `<div class="dca-deposit-total">DCA active — tap Level Up to start</div>`;
         }
 
         html += `<div class="pokemon-xp-bar">
