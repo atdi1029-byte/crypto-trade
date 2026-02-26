@@ -1637,6 +1637,7 @@
     // DCA state
     let dcaMode = localStorage.getItem('dca_mode') === 'true';
     let dcaTotal = parseFloat(localStorage.getItem('dca_total')) || 0;
+    let dcaSyncCooldown = 0; // timestamp — skip API overwrite until this passes
 
     // GET request that reads response and alerts on error
     async function fireGet(url) {
@@ -2416,16 +2417,18 @@ const BACKTEST = {
             localStorage.setItem('pokeball_used', JSON.stringify(data.pokeballUsed));
         }
 
-        // Sync DCA state from API
-        if (data.dcaMode !== undefined) {
-            dcaMode = data.dcaMode;
-            localStorage.setItem('dca_mode', dcaMode ? 'true' : 'false');
+        // Sync DCA state from API (skip if user just toggled — cooldown prevents race condition)
+        if (Date.now() > dcaSyncCooldown) {
+            if (data.dcaMode !== undefined) {
+                dcaMode = data.dcaMode;
+                localStorage.setItem('dca_mode', dcaMode ? 'true' : 'false');
+            }
+            if (data.dcaTotal !== undefined && data.dcaTotal > 0) {
+                dcaTotal = data.dcaTotal;
+                localStorage.setItem('dca_total', dcaTotal.toString());
+            }
+            updateDCAControls();
         }
-        if (data.dcaTotal !== undefined && data.dcaTotal > 0) {
-            dcaTotal = data.dcaTotal;
-            localStorage.setItem('dca_total', dcaTotal.toString());
-        }
-        updateDCAControls();
 
         // Score all signals
         const scoredSignals = (recentSignals || []).map(s => {
@@ -2880,6 +2883,7 @@ const BACKTEST = {
     function toggleDCAMode() {
         dcaMode = !dcaMode;
         localStorage.setItem('dca_mode', dcaMode ? 'true' : 'false');
+        dcaSyncCooldown = Date.now() + 10000;
         updateDCAControls();
         if (window._lastStats) renderPokemon(window._lastStats);
         fireGet(POST_URL + '?action=toggle_dca&mode=' + dcaMode);
@@ -2921,6 +2925,7 @@ const BACKTEST = {
         if (!confirm('Reset DCA to $0? This clears all deposits. You\u2019ll start fresh from your organic level.')) return;
         dcaTotal = 0;
         localStorage.setItem('dca_total', '0');
+        dcaSyncCooldown = Date.now() + 10000;
         updateDCAControls();
         if (window._lastStats) renderPokemon(window._lastStats);
         fireGet(POST_URL + '?action=reset_dca');
@@ -2938,6 +2943,7 @@ const BACKTEST = {
         if (!confirm('Add $' + gap.toFixed(2) + ' DCA to reach Lv.' + nextIdx + ' ' + nextDCALevel.pokemon + '?')) return;
         dcaTotal += gap;
         localStorage.setItem('dca_total', dcaTotal.toString());
+        dcaSyncCooldown = Date.now() + 10000;
         updateDCAControls();
         renderPokemon(window._lastStats);
         fireGet(POST_URL + '?action=update_dca&amount=' + gap.toFixed(2));
