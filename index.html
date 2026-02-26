@@ -1347,6 +1347,13 @@
         }
         .dca-levelup-btn:hover { background: #0f2a25; box-shadow: 0 0 25px rgba(38,166,154,0.6); }
         .dca-levelup-btn:disabled { opacity: 0.4; cursor: default; box-shadow: none; text-shadow: none; }
+        .dca-reset-btn {
+            background: #1a0a0a; border: 2px solid var(--red-bright);
+            color: var(--red-bright); padding: 10px 22px; border-radius: 6px; cursor: pointer;
+            font-family: 'Space Mono', monospace; font-size: 0.7rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s;
+        }
+        .dca-reset-btn:hover { background: #2a0f0f; box-shadow: 0 0 15px rgba(239,83,80,0.4); }
         .dca-organic-label {
             text-align: center; font-size: 0.65rem; color: var(--text-dim);
             margin-top: 0.3rem; letter-spacing: 0.5px;
@@ -1539,6 +1546,7 @@
         <div class="dca-controls" id="dcaControls">
             <button class="dca-toggle-btn" id="dcaToggleBtn" onclick="toggleDCAMode()">DCA: OFF</button>
             <button class="dca-levelup-btn" id="dcaLevelUpBtn" onclick="dcaLevelUp()" style="display:none">Level Up</button>
+            <button class="dca-reset-btn" id="dcaResetBtn" onclick="dcaReset()" style="display:none">Reset DCA</button>
         </div>
         <div class="pokemon-box" id="pokemonBox"></div>
     </div>
@@ -2880,6 +2888,7 @@ const BACKTEST = {
     function updateDCAControls() {
         const btn = document.getElementById('dcaToggleBtn');
         const lvlBtn = document.getElementById('dcaLevelUpBtn');
+        const resetBtn = document.getElementById('dcaResetBtn');
         if (btn) {
             btn.textContent = 'DCA: ' + (dcaMode ? 'ON' : 'OFF');
             btn.classList.toggle('active', dcaMode);
@@ -2902,6 +2911,19 @@ const BACKTEST = {
                 }
             }
         }
+        // Show reset button when DCA has deposits (visible whether DCA is on or off)
+        if (resetBtn) {
+            resetBtn.style.display = dcaTotal > 0 ? '' : 'none';
+        }
+    }
+
+    function dcaReset() {
+        if (!confirm('Reset DCA to $0? This clears all deposits. You\u2019ll start fresh from your organic level.')) return;
+        dcaTotal = 0;
+        localStorage.setItem('dca_total', '0');
+        updateDCAControls();
+        if (window._lastStats) renderPokemon(window._lastStats);
+        fireGet(POST_URL + '?action=reset_dca');
     }
 
     function dcaLevelUp() {
