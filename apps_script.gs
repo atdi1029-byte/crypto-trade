@@ -512,6 +512,42 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  if (action === 'toggle_dca') {
+    var mode = (e.parameter.mode === 'true') ? 'true' : 'false';
+    setConfig_('dca_mode', mode);
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'ok', dcaMode: mode === 'true' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (action === 'update_dca') {
+    var amount = parseFloat(e.parameter.amount) || 0;
+    if (amount <= 0) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: 'error', message: 'Amount must be positive' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    var currentTotal = parseFloat(getConfig_('dca_total')) || 0;
+    var newTotal = currentTotal + amount;
+    setConfig_('dca_total', newTotal.toString());
+    var historyRaw = getConfig_('dca_history');
+    var history = [];
+    if (historyRaw) { try { history = JSON.parse(historyRaw); } catch(e) {} }
+    history.push({ date: new Date().toISOString(), amount: amount });
+    setConfig_('dca_history', JSON.stringify(history));
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'ok', dcaTotal: newTotal, added: amount }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (action === 'reset_dca') {
+    setConfig_('dca_total', '0');
+    setConfig_('dca_history', '[]');
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'ok', dcaTotal: 0 }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   return ContentService
     .createTextOutput(JSON.stringify({
       status: 'ok',
@@ -984,6 +1020,10 @@ function serveDashboardJSON_() {
     try { pokeballUsed = JSON.parse(pokeballRaw); } catch(e) {}
   }
 
+  // --- DCA state from Config tab ---
+  var dcaMode = getConfig_('dca_mode') === 'true';
+  var dcaTotal = parseFloat(getConfig_('dca_total')) || 0;
+
   var payload = {
     status:        'ok',
     timestamp:     new Date().toISOString(),
@@ -993,7 +1033,9 @@ function serveDashboardJSON_() {
     claudePicks:   claudePicks,
     actionNeeded:  actionNeeded,
     stats:         stats,
-    pokeballUsed:  pokeballUsed
+    pokeballUsed:  pokeballUsed,
+    dcaMode:       dcaMode,
+    dcaTotal:      dcaTotal
   };
 
   return ContentService

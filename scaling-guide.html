@@ -289,6 +289,32 @@
             border-radius: 3px;
         }
 
+        /* DCA controls */
+        .dca-row {
+            display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+            width: 100%; margin-top: 0.5rem; flex-wrap: wrap;
+        }
+        .dca-toggle {
+            background: #0c1119; border: 1px solid #1e3a5f; color: #6a8aaa;
+            padding: 4px 12px; border-radius: 4px; cursor: pointer;
+            font-family: 'Space Mono', monospace; font-size: 0.6rem;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .dca-toggle.active { background: rgba(74,158,255,0.15); border-color: #4a9eff; color: #6ab4ff; }
+        .dca-levelup {
+            background: rgba(77,208,196,0.1); border: 1px solid #4dd0c4; color: #4dd0c4;
+            padding: 4px 12px; border-radius: 4px; cursor: pointer;
+            font-family: 'Space Mono', monospace; font-size: 0.6rem;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .dca-levelup:hover { background: rgba(77,208,196,0.2); }
+        .dca-levelup:disabled { opacity: 0.4; cursor: default; }
+        tr.highlight-organic {
+            background: rgba(77,208,196,0.08) !important;
+            box-shadow: inset 0 0 0 1px rgba(77,208,196,0.25);
+        }
+        tr.highlight-organic td { border-bottom-color: rgba(77,208,196,0.15); }
+
         @media (max-width: 768px) {
             body { padding: 1rem; }
             h1 { font-size: 1.4rem; }
@@ -306,6 +332,11 @@
     <div class="level-finder" style="flex-wrap:wrap;">
         <div class="finder-result" id="finderResult" style="width:100%;text-align:center;">Loading stats...</div>
         <div id="statsInfo" style="width:100%;text-align:center;font-size:0.6rem;color:#6a8aaa;margin-top:0.3rem;"></div>
+        <div class="dca-row" id="dcaRow">
+            <button class="dca-toggle" id="dcaToggle" onclick="toggleDCA()">DCA: OFF</button>
+            <button class="dca-levelup" id="dcaLevelUp" onclick="dcaLevelUp()" style="display:none">Level Up</button>
+            <span id="dcaInfo" style="font-size:0.55rem;color:#6a8aaa;"></span>
+        </div>
     </div>
 
     <div class="progress-bar">
@@ -849,6 +880,66 @@
     }
 
     const API_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec?action=dashboard';
+    const POST_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec';
+
+    // DCA state
+    let dcaMode = localStorage.getItem('dca_mode') === 'true';
+    let dcaTotal = parseFloat(localStorage.getItem('dca_total')) || 0;
+    let _organicPnl = 0, _tradesPerDay = 4, _edgeRate = 0.05;
+
+    function toggleDCA() {
+        dcaMode = !dcaMode;
+        localStorage.setItem('dca_mode', dcaMode ? 'true' : 'false');
+        updateDCAUI();
+        updateEstimates(dcaMode ? _organicPnl + dcaTotal : _organicPnl, _tradesPerDay, _edgeRate);
+        fetch(POST_URL + '?action=toggle_dca&mode=' + dcaMode).catch(() => {});
+    }
+
+    function dcaLevelUp() {
+        const activePnl = _organicPnl + dcaTotal;
+        let lvl = POKEMON_LEVELS[0], idx = 0;
+        for (let i = 0; i < POKEMON_LEVELS.length; i++) {
+            if (activePnl >= POKEMON_LEVELS[i].min) { lvl = POKEMON_LEVELS[i]; idx = i; }
+        }
+        const next = idx < POKEMON_LEVELS.length - 1 ? POKEMON_LEVELS[idx + 1] : null;
+        if (!next) return;
+        const gap = Math.max(0.01, next.min - activePnl);
+        const nextIdx = idx + 2;
+        if (!confirm('Add $' + gap.toFixed(2) + ' DCA to reach Lv.' + nextIdx + ' ' + next.pokemon + '?')) return;
+        dcaTotal += gap;
+        localStorage.setItem('dca_total', dcaTotal.toString());
+        updateDCAUI();
+        updateEstimates(_organicPnl + dcaTotal, _tradesPerDay, _edgeRate);
+        fetch(POST_URL + '?action=update_dca&amount=' + gap.toFixed(2)).catch(() => {});
+    }
+
+    function updateDCAUI() {
+        const btn = document.getElementById('dcaToggle');
+        const lvlBtn = document.getElementById('dcaLevelUp');
+        const info = document.getElementById('dcaInfo');
+        btn.textContent = 'DCA: ' + (dcaMode ? 'ON' : 'OFF');
+        btn.classList.toggle('active', dcaMode);
+        lvlBtn.style.display = dcaMode ? '' : 'none';
+        if (dcaMode) {
+            const activePnl = _organicPnl + dcaTotal;
+            let lvl = POKEMON_LEVELS[0], idx = 0;
+            for (let i = 0; i < POKEMON_LEVELS.length; i++) {
+                if (activePnl >= POKEMON_LEVELS[i].min) { lvl = POKEMON_LEVELS[i]; idx = i; }
+            }
+            const next = idx < POKEMON_LEVELS.length - 1 ? POKEMON_LEVELS[idx + 1] : null;
+            if (next) {
+                const gap = Math.max(0, next.min - activePnl);
+                lvlBtn.textContent = 'Level Up \u2192 Lv.' + (idx + 2) + ' ' + next.pokemon + ' (+$' + gap.toFixed(2) + ')';
+                lvlBtn.disabled = false;
+            } else {
+                lvlBtn.textContent = 'MAX LEVEL';
+                lvlBtn.disabled = true;
+            }
+            info.textContent = 'Deposited: +$' + dcaTotal.toFixed(2) + ' \u2192 Effective: $' + activePnl.toFixed(2);
+        } else {
+            info.textContent = '';
+        }
+    }
 
     async function fetchAndEstimate() {
         const result = document.getElementById('finderResult');
@@ -858,10 +949,21 @@
             const data = await resp.json();
             const stats = data.stats || {};
             const pnl = parseFloat(stats.netPnl) || 0;
+            _organicPnl = pnl;
             const totalTrades = parseInt(stats.totalTrades) || 1;
             const wins = parseInt(stats.wins) || 0;
             const losses = parseInt(stats.losses) || 0;
             const winRate = stats.winRate || '0%';
+
+            // Sync DCA state from API
+            if (data.dcaMode !== undefined) {
+                dcaMode = data.dcaMode;
+                localStorage.setItem('dca_mode', dcaMode ? 'true' : 'false');
+            }
+            if (data.dcaTotal !== undefined && data.dcaTotal > 0) {
+                dcaTotal = data.dcaTotal;
+                localStorage.setItem('dca_total', dcaTotal.toString());
+            }
 
             // Calculate edge from actual gross win/loss data
             const grossWin = parseFloat(stats.grossWin) || 0;
@@ -870,23 +972,25 @@
             const avgLossPct = losses > 0 ? grossLoss / losses : 0;
             const winRateNum = wins / Math.max(1, totalTrades);
             const edgeRate = Math.max(0.05, winRateNum * avgWinPct - (1 - winRateNum) * avgLossPct);
+            _tradesPerDay = 4;
+            _edgeRate = edgeRate;
 
             // Estimate trades per day from data
-            // Use first signal timestamp to calculate days active
-            let tradesPerDay = 4; // fallback
             if (data.signals && data.signals.length > 0) {
                 const timestamps = data.signals.map(s => new Date(s.timestamp).getTime()).filter(t => t > 0);
                 if (timestamps.length > 1) {
                     const earliest = Math.min(...timestamps);
                     const daysActive = Math.max(1, (Date.now() - earliest) / (1000 * 60 * 60 * 24));
-                    tradesPerDay = Math.max(1, Math.round(totalTrades / daysActive * 10) / 10);
+                    _tradesPerDay = Math.max(1, Math.round(totalTrades / daysActive * 10) / 10);
                 }
             }
 
-            updateEstimates(pnl, tradesPerDay, edgeRate);
+            const activePnl = dcaMode ? pnl + dcaTotal : pnl;
+            updateEstimates(activePnl, _tradesPerDay, edgeRate);
+            updateDCAUI();
 
             // Show stats summary
-            statsInfo.innerHTML = `${wins}W / ${losses}L (${winRate}) &middot; $${pnl.toFixed(2)} P&L &middot; ${totalTrades} trades &middot; ~${tradesPerDay}/day &middot; avg win ${(avgWinPct * 100).toFixed(1)}% / avg loss ${(avgLossPct * 100).toFixed(1)}% &middot; ${(edgeRate * 100).toFixed(1)}% edge`;
+            statsInfo.innerHTML = `${wins}W / ${losses}L (${winRate}) &middot; $${pnl.toFixed(2)} P&L &middot; ${totalTrades} trades &middot; ~${_tradesPerDay}/day &middot; avg win ${(avgWinPct * 100).toFixed(1)}% / avg loss ${(avgLossPct * 100).toFixed(1)}% &middot; ${(edgeRate * 100).toFixed(1)}% edge`;
         } catch (e) {
             result.innerHTML = 'Could not load stats \u2014 enter P&L manually below';
             statsInfo.innerHTML = '';
@@ -923,15 +1027,26 @@
             ? Math.min(Math.floor(scoutBudget / 225), 500) : scoutSz;
         // Force +$1/level — scouts always progress
         effectiveScout = Math.max(effectiveScout, lv);
-        result.innerHTML = `<img src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}"> Lv.${levelIdx + 1} <strong>${level.pokemon}</strong> \u2014 ${sizesStr} = $${total} total${nextStr}<br><span style="font-size:0.6rem;color:#6a8aaa;">${(capPct*100).toFixed(0)}% Budget: $${buffer} \u2014 Scout: $${effectiveScout} \u2014 Max ${maxScouts} scouts</span>`;
+        let displayHtml = `<img src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}"> ${dcaMode ? 'DCA ' : ''}Lv.${levelIdx + 1} <strong>${level.pokemon}</strong> \u2014 ${sizesStr} = $${total} total${nextStr}<br><span style="font-size:0.6rem;color:#6a8aaa;">${(capPct*100).toFixed(0)}% Budget: $${buffer} \u2014 Scout: $${effectiveScout} \u2014 Max ${maxScouts} scouts</span>`;
+
+        // Show organic level when DCA is on
+        if (dcaMode && _organicPnl !== val) {
+            let orgLevel = POKEMON_LEVELS[0], orgIdx = 0;
+            for (let i = 0; i < POKEMON_LEVELS.length; i++) {
+                if (_organicPnl >= POKEMON_LEVELS[i].min) { orgLevel = POKEMON_LEVELS[i]; orgIdx = i; }
+            }
+            displayHtml += `<br><span style="font-size:0.55rem;color:#4dd0c4;"><img src="${POKE_SPRITE(orgLevel.pokeId)}" style="width:20px;height:20px;image-rendering:pixelated;vertical-align:middle;margin-right:3px;"> Organic: Lv.${orgIdx + 1} ${orgLevel.pokemon} ($${_organicPnl.toFixed(2)} P&L)</span>`;
+        }
+        result.innerHTML = displayHtml;
 
         // Progress bar
         const maxLevel = POKEMON_LEVELS[POKEMON_LEVELS.length - 1].min;
         const pct = Math.min(100, (val / maxLevel) * 100);
         progress.style.width = pct + '%';
 
-        // Highlight row
+        // Highlight rows
         document.querySelectorAll('tr.highlight').forEach(tr => tr.classList.remove('highlight'));
+        document.querySelectorAll('tr.highlight-organic').forEach(tr => tr.classList.remove('highlight-organic'));
         const row = document.getElementById('row-' + (levelIdx + 1));
         if (row) {
             row.classList.add('highlight');
@@ -939,6 +1054,21 @@
             const phase = row.closest('.phase');
             if (phase && phase.classList.contains('collapsed')) {
                 phase.classList.remove('collapsed');
+            }
+        }
+        // Highlight organic row separately when DCA is on
+        if (dcaMode && _organicPnl !== val) {
+            let orgIdx2 = 0;
+            for (let i = 0; i < POKEMON_LEVELS.length; i++) {
+                if (_organicPnl >= POKEMON_LEVELS[i].min) orgIdx2 = i;
+            }
+            const orgRow = document.getElementById('row-' + (orgIdx2 + 1));
+            if (orgRow && orgRow !== row) {
+                orgRow.classList.add('highlight-organic');
+                const orgPhase = orgRow.closest('.phase');
+                if (orgPhase && orgPhase.classList.contains('collapsed')) {
+                    orgPhase.classList.remove('collapsed');
+                }
             }
         }
 

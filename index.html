@@ -1321,6 +1321,39 @@
         .pokemon-scout-info .scout-val { color: var(--green-bright); font-weight: 700; }
         .pokemon-scout-info .scout-warn { color: var(--red-bright); font-weight: 700; }
 
+        /* DCA Mode */
+        .dca-controls {
+            display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+            margin-bottom: 0.8rem; flex-wrap: wrap;
+        }
+        .dca-toggle-btn {
+            background: var(--bg-card); border: 1px solid var(--border); color: var(--text-dim);
+            padding: 5px 14px; border-radius: 4px; cursor: pointer;
+            font-family: 'Space Mono', monospace; font-size: 0.65rem;
+            text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s;
+        }
+        .dca-toggle-btn.active {
+            background: rgba(74,158,255,0.15); border-color: var(--accent);
+            color: var(--accent-glow); box-shadow: 0 0 10px rgba(74,158,255,0.2);
+        }
+        .dca-levelup-btn {
+            background: rgba(38,166,154,0.15); border: 1px solid var(--green-candle);
+            color: var(--green-bright); padding: 5px 14px; border-radius: 4px; cursor: pointer;
+            font-family: 'Space Mono', monospace; font-size: 0.65rem;
+            text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s;
+        }
+        .dca-levelup-btn:hover { background: rgba(38,166,154,0.25); box-shadow: 0 0 10px rgba(38,166,154,0.3); }
+        .dca-levelup-btn:disabled { opacity: 0.4; cursor: default; }
+        .dca-organic-label {
+            text-align: center; font-size: 0.65rem; color: var(--text-dim);
+            margin-top: 0.3rem; letter-spacing: 0.5px;
+        }
+        .dca-organic-label img { width: 20px; height: 20px; image-rendering: pixelated; vertical-align: middle; margin: 0 3px; }
+        .dca-deposit-total {
+            text-align: center; font-size: 0.6rem; color: var(--accent-glow);
+            margin-top: 0.2rem; letter-spacing: 0.5px;
+        }
+
         @media (max-width: 768px) {
             .content { padding: 0.25rem 1rem 1rem; }
             .header { flex-direction: column; gap: 0.5rem; text-align: center; }
@@ -1487,6 +1520,10 @@
     <!-- Pokemon Trainer Level -->
     <div class="pokemon-section" id="pokemonSection">
         <div class="section-header" style="margin-top:2rem">Trainer Level</div>
+        <div class="dca-controls" id="dcaControls">
+            <button class="dca-toggle-btn" id="dcaToggleBtn" onclick="toggleDCAMode()">DCA: OFF</button>
+            <button class="dca-levelup-btn" id="dcaLevelUpBtn" onclick="dcaLevelUp()" style="display:none">Level Up</button>
+        </div>
         <div class="pokemon-box" id="pokemonBox"></div>
     </div>
 
@@ -1572,6 +1609,10 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec?action=dashboard';
     const POST_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec';
     const REFRESH_INTERVAL = 60000;
+
+    // DCA state
+    let dcaMode = localStorage.getItem('dca_mode') === 'true';
+    let dcaTotal = parseFloat(localStorage.getItem('dca_total')) || 0;
 
     // GET request that reads response and alerts on error
     async function fireGet(url) {
@@ -2351,6 +2392,17 @@ const BACKTEST = {
             localStorage.setItem('pokeball_used', JSON.stringify(data.pokeballUsed));
         }
 
+        // Sync DCA state from API
+        if (data.dcaMode !== undefined) {
+            dcaMode = data.dcaMode;
+            localStorage.setItem('dca_mode', dcaMode ? 'true' : 'false');
+        }
+        if (data.dcaTotal !== undefined && data.dcaTotal > 0) {
+            dcaTotal = data.dcaTotal;
+            localStorage.setItem('dca_total', dcaTotal.toString());
+        }
+        updateDCAControls();
+
         // Score all signals
         const scoredSignals = (recentSignals || []).map(s => {
             s._score = Math.max(scoreSignal(s), s.score || 0);
@@ -2798,6 +2850,59 @@ const BACKTEST = {
         if (pokemonEl && window._lastStats) renderPokemon(window._lastStats);
         // Sync to Google Sheet (fire and forget)
         fireGet(POST_URL + '?action=update_pokeballs&state=' + encodeURIComponent(JSON.stringify(used)));
+    }
+
+    // ====== DCA MODE ======
+    function toggleDCAMode() {
+        dcaMode = !dcaMode;
+        localStorage.setItem('dca_mode', dcaMode ? 'true' : 'false');
+        updateDCAControls();
+        if (window._lastStats) renderPokemon(window._lastStats);
+        fireGet(POST_URL + '?action=toggle_dca&mode=' + dcaMode);
+    }
+
+    function updateDCAControls() {
+        const btn = document.getElementById('dcaToggleBtn');
+        const lvlBtn = document.getElementById('dcaLevelUpBtn');
+        if (btn) {
+            btn.textContent = 'DCA: ' + (dcaMode ? 'ON' : 'OFF');
+            btn.classList.toggle('active', dcaMode);
+        }
+        if (lvlBtn) {
+            lvlBtn.style.display = dcaMode ? '' : 'none';
+            if (dcaMode && window._lastStats) {
+                const pnl = parseFloat(window._lastStats.netPnl) || 0;
+                const boostedPnl = pnl + dcaTotal;
+                const currentDCALevel = getPokemonLevel(boostedPnl);
+                const nextDCALevel = getNextPokemonLevel(currentDCALevel);
+                if (nextDCALevel) {
+                    const gap = Math.max(0, nextDCALevel.min - boostedPnl);
+                    const nextIdx = POKEMON_LEVELS.indexOf(nextDCALevel) + 1;
+                    lvlBtn.textContent = 'Level Up \u2192 Lv.' + nextIdx + ' ' + nextDCALevel.pokemon + ' (+$' + gap.toFixed(2) + ')';
+                    lvlBtn.disabled = false;
+                } else {
+                    lvlBtn.textContent = 'MAX LEVEL';
+                    lvlBtn.disabled = true;
+                }
+            }
+        }
+    }
+
+    function dcaLevelUp() {
+        if (!dcaMode || !window._lastStats) return;
+        const pnl = parseFloat(window._lastStats.netPnl) || 0;
+        const boostedPnl = pnl + dcaTotal;
+        const currentDCALevel = getPokemonLevel(boostedPnl);
+        const nextDCALevel = getNextPokemonLevel(currentDCALevel);
+        if (!nextDCALevel) return;
+        const gap = Math.max(0.01, nextDCALevel.min - boostedPnl);
+        const nextIdx = POKEMON_LEVELS.indexOf(nextDCALevel) + 1;
+        if (!confirm('Add $' + gap.toFixed(2) + ' DCA to reach Lv.' + nextIdx + ' ' + nextDCALevel.pokemon + '?')) return;
+        dcaTotal += gap;
+        localStorage.setItem('dca_total', dcaTotal.toString());
+        updateDCAControls();
+        renderPokemon(window._lastStats);
+        fireGet(POST_URL + '?action=update_dca&amount=' + gap.toFixed(2));
     }
 
     // Restore saved state after rendering open trade cards
@@ -3957,12 +4062,17 @@ const BACKTEST = {
         if (!box) return;
         const pnl = parseFloat(stats.netPnl) || 0;
         const openCount = parseInt(stats.openPositions) || 0;
-        const level = getPokemonLevel(pnl);
+
+        // Determine active P&L (organic or DCA-boosted)
+        const activePnl = dcaMode ? pnl + dcaTotal : pnl;
+        const organicLevel = getPokemonLevel(pnl);
+        const organicIdx = POKEMON_LEVELS.indexOf(organicLevel) + 1;
+
+        const level = getPokemonLevel(activePnl);
         const nextLevel = getNextPokemonLevel(level);
         const levelIdx = POKEMON_LEVELS.indexOf(level) + 1;
         const sizes = getCryptoSizes(level.min);
         const totalRisk = sizes.reduce((a, b) => a + b, 0);
-        const available = Math.max(0, 5 - openCount);
 
         const pnlStr = pnl >= 0 ? '+$' + pnl.toFixed(2) : '-$' + Math.abs(pnl).toFixed(2);
         const pnlClass = pnl > 0 ? 'positive' : pnl < 0 ? 'negative' : 'zero';
@@ -3970,7 +4080,7 @@ const BACKTEST = {
         const xpFrom = level.min;
         const xpTo = nextLevel ? nextLevel.min : level.min;
         const xpRange = xpTo - xpFrom;
-        const xpProgress = xpRange > 0 ? Math.max(0, Math.min(100, ((pnl - xpFrom) / xpRange) * 100)) : 100;
+        const xpProgress = xpRange > 0 ? Math.max(0, Math.min(100, ((activePnl - xpFrom) / xpRange) * 100)) : 100;
 
         // Build size chips with pokeball icons — click to toggle used/available
         const pokeballSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path class="ball-top" d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle class="ball-center" cx="10" cy="10" r="3"/></svg>`;
@@ -3981,14 +4091,22 @@ const BACKTEST = {
             sizeChips += `<span class="pokemon-size-chip ${cls}" onclick="togglePokeball(${i})" style="cursor:pointer">${pokeballSvg}<span class="ball-amt">$${sizes[i]}</span></span>`;
         }
 
-        const needStr = nextLevel ? '$' + (nextLevel.min - pnl).toFixed(2) + ' to Evolve' : '';
+        const needStr = nextLevel ? '$' + (nextLevel.min - activePnl).toFixed(2) + ' to Evolve' : '';
 
         let html = `<div class="pokemon-header">
-            <div class="pokemon-level-name">Lv.${levelIdx} \u2014 ${level.pokemon}</div>
+            <div class="pokemon-level-name">${dcaMode ? 'DCA ' : ''}Lv.${levelIdx} \u2014 ${level.pokemon}</div>
             <img class="pokemon-sprite" src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}">
             <div class="pokemon-pnl ${pnlClass}">P&L: ${pnlStr}${needStr ? ' <span style="color:var(--accent-glow);font-size:0.85rem">&middot; ' + needStr + '</span>' : ''}</div>
             <div class="pokemon-sizes">${sizeChips}</div>
         </div>`;
+
+        // Show organic level underneath when DCA is on
+        if (dcaMode && organicIdx !== levelIdx) {
+            html += `<div class="dca-organic-label"><img src="${POKE_SPRITE(organicLevel.pokeId)}" alt="${organicLevel.pokemon}"> Organic: Lv.${organicIdx} ${organicLevel.pokemon} ($${pnl.toFixed(2)} P&L)</div>`;
+            html += `<div class="dca-deposit-total">DCA Deposited: +$${dcaTotal.toFixed(2)} \u2192 Effective: $${activePnl.toFixed(2)}</div>`;
+        } else if (dcaMode) {
+            html += `<div class="dca-deposit-total">DCA Deposited: +$${dcaTotal.toFixed(2)} (same level as organic)</div>`;
+        }
 
         html += `<div class="pokemon-xp-bar">
             <div class="pokemon-xp-track">
@@ -4007,14 +4125,14 @@ const BACKTEST = {
             html += `<div class="pokemon-next-evolve">MAX LEVEL \u2014 You are the very best!</div>`;
         }
 
-        // Scout trade info
-        const scoutSz = getScoutSize(pnl);
-        const exposureBudget = Math.floor(pnl * 0.25);
+        // Scout trade info (uses active P&L for budget)
+        const scoutSz = getScoutSize(activePnl);
+        const exposureBudget = Math.floor(activePnl * 0.25);
         const mainExposure = sizes.slice(0, Math.min(openCount, 5)).reduce((a, b) => a + b, 0);
         const scoutBudget = Math.max(0, exposureBudget - mainExposure);
         const scoutsAvail = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
         const scoutClass = scoutsAvail <= 0 ? 'scout-warn' : 'scout-val';
-        if (pnl > 0) {
+        if (activePnl > 0) {
             html += `<div class="pokemon-scout-info">Scout: <span class="scout-val">$${scoutSz}</span> &middot; Budget: <span class="scout-val">$${exposureBudget}</span> (25%) &middot; <span class="${scoutClass}">${scoutsAvail} scouts</span> available</div>`;
         }
 
@@ -4022,7 +4140,8 @@ const BACKTEST = {
             box.style.setProperty('--location-bg', `url('${LOCATION_BG[level.location]}')`);
         }
         box.innerHTML = html;
-        checkPokemonLevelUp(pnl);
+        updateDCAControls();
+        checkPokemonLevelUp(activePnl);
     }
 
     // ====== POKEMON LEVEL UP ======
