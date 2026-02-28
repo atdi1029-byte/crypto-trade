@@ -1517,6 +1517,9 @@
         </div>
     </div>
 
+    <!-- Trading Context Banner -->
+    <div class="section-box" id="contextBanner" style="margin-bottom:1rem;padding:0.6rem 1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;font-size:0.7rem"></div>
+
     <!-- Top Picks + Action Needed (two columns) -->
     <div class="picks-actions-row">
         <div class="picks-col">
@@ -2476,6 +2479,9 @@ const BACKTEST = {
 
         // Won/Lost now rendered in perfGrid via renderPerformance()
 
+        // --- Context Banner ---
+        renderContextBanner(stats);
+
         // --- Top Picks (Claude's recommendations) ---
         renderTopPicks(claudePicks || [], scoredSignals, actionNeeded || []);
 
@@ -2641,6 +2647,20 @@ const BACKTEST = {
             const isDCA = signalType.includes('reduce') || signalType.includes('add');
             const score = a.score || a._score || '-';
 
+            // Context tips based on analysis data
+            const now = new Date();
+            const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getDay()];
+            const utcH = now.getUTCHours();
+            const session = utcH < 8 ? 'Asian' : utcH < 14 ? 'Europe' : utcH < 21 ? 'US' : 'Night';
+            const dayTips = {Sun:'caution',Mon:'good',Tue:'hot',Wed:'hot',Thu:'good',Fri:'caution',Sat:'caution'};
+            const sessTips = {Asian:'ok',Europe:'good',US:'good',Night:'caution'};
+            const dayTip = dayTips[dayName] || 'ok';
+            const sessTip = sessTips[session] || 'ok';
+            const tipColors = {hot:'#4caf50',good:'#64b5f6',ok:'#f9c846',caution:'#ef5350'};
+            const tipLabels = {hot:'STRONG',good:'GOOD',ok:'OK',caution:'CAUTION'};
+            const worstTip = dayTip === 'caution' || sessTip === 'caution' ? 'caution' : dayTip === 'hot' ? 'hot' : sessTip === 'good' ? 'good' : 'ok';
+            const contextTag = `<span style="font-size:0.5rem;padding:1px 5px;border-radius:3px;background:${tipColors[worstTip]}22;color:${tipColors[worstTip]};font-weight:700;margin-left:4px">${dayName} ${session} · ${tipLabels[worstTip]}</span>`;
+
             // Use RSI/MACD/Vol from action item directly (from Apps Script), fall back to signal match
             const matched = (allSignals || []).find(s => (s.symbol || s.ticker || '').toUpperCase() === tkr.toUpperCase() && Math.abs(Number(s.entry || s.price || 0) - prc) < 0.001)
                 || (allSignals || []).find(s => (s.symbol || s.ticker || '').toUpperCase() === tkr.toUpperCase());
@@ -2689,6 +2709,7 @@ const BACKTEST = {
                                     <span class="signal-tag ${signalClass}">${signalLabel(signalType)}</span>
                                     ${isDCA ? '' : `<span class="score-tag">Score: ${score}</span>`}
                                     ${wrHtml}
+                                    ${contextTag}
                                 </div>
                                 ${noteHtml ? `<div class="meta" style="margin-top:0.15rem">${noteHtml}</div>` : ''}
                                 <div class="meta">@ $${prc}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
@@ -3212,6 +3233,49 @@ const BACKTEST = {
                 <div class="perf-val" style="color:#f9c846">${eff.winLossRatio || '-'}x</div>
                 <div class="perf-label">Win/Loss Ratio</div>
             </div>
+        `;
+    }
+
+    function renderContextBanner(stats) {
+        const el = document.getElementById('contextBanner');
+        if (!el) return;
+        const now = new Date();
+        const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        const day = dayNames[now.getDay()];
+        const utcH = now.getUTCHours();
+        const session = utcH < 8 ? 'Asian' : utcH < 14 ? 'Europe' : utcH < 21 ? 'US' : 'Night';
+
+        // Day quality from data
+        const dow = stats.dayOfWeekAnalysis || {};
+        const dayData = dow[day] || {};
+        const dayWR = dayData.winRate || 'N/A';
+        const dayTotal = dayData.total || 0;
+
+        // Session quality from data
+        const sess = stats.sessionAnalysis || {};
+        const sessKey = session.toLowerCase();
+        const sessData = sess[sessKey] || {};
+        const sessWR = sessData.winRate || 'N/A';
+
+        // Quality labels
+        const dayQuality = dayData.total >= 3 ? (parseInt(dayWR) >= 95 ? 'HOT' : parseInt(dayWR) >= 85 ? 'GOOD' : 'CAUTION') : 'LOW DATA';
+        const sessQuality = sessData.total >= 3 ? (parseInt(sessWR) >= 95 ? 'HOT' : parseInt(sessWR) >= 85 ? 'GOOD' : 'CAUTION') : 'LOW DATA';
+        const qColors = {HOT:'#4caf50',GOOD:'#64b5f6',CAUTION:'#ef5350','LOW DATA':'#9e9e9e'};
+
+        // Milestone check
+        const totalTrades = parseInt(stats.totalTrades) || 0;
+        const milestones = [150, 200, 250, 300, 400, 500];
+        const nextMilestone = milestones.find(m => totalTrades < m);
+        const milestoneHtml = nextMilestone ? `<span style="color:#b39ddb">Next review: ${nextMilestone} trades (${nextMilestone - totalTrades} to go)</span>` : '';
+
+        el.innerHTML = `
+            <span style="color:var(--text-dim)">NOW:</span>
+            <span style="font-weight:700;color:${qColors[dayQuality]}">${day} ${dayWR} WR · ${dayQuality}</span>
+            <span style="color:var(--text-dim)">|</span>
+            <span style="font-weight:700;color:${qColors[sessQuality]}">${session} Session ${sessWR} WR · ${sessQuality}</span>
+            <span style="color:var(--text-dim)">|</span>
+            <span style="color:var(--text-dim)">${totalTrades} trades</span>
+            ${milestoneHtml}
         `;
     }
 

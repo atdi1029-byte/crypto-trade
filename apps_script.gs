@@ -105,7 +105,9 @@ function doPost(e) {
         timestamp, symbol, signal, entry, sl, tp1, tp2, score,
         '',  // Action — user fills: Entered / Skipped
         '',  // Outcome — user fills: Won / Lost / Open
-        ''   // Realized P&L
+        '',  // Realized P&L
+        rsi || '',   // Column L — RSI at entry
+        macd || ''   // Column M — MACD at entry
       ]);
     }
 
@@ -1301,17 +1303,20 @@ function getAllCompletedTrades_() {
     var score  = posData[j][7] || 0;
     var pnl    = posData[j][10] || 0;
 
-    // Cross-reference Signal Log for extra fields
-    var lookupKey = symbol + '|' + signal + '|' + String(entry);
-    var rsi = '';
+    // Read RSI/MACD directly from Positions columns L/M (new trades)
+    // Fall back to Signal Log cross-reference for older trades
+    var rsi = posData[j][11] || '';
+    var macd = posData[j][12] || '';
     var timeframe = '';
-    var macd = '';
-    if (logLookup[lookupKey] && logLookup[lookupKey].length > 0) {
-      var match = logLookup[lookupKey][0];
-      rsi = match.rsi;
-      timeframe = match.timeframe;
-      macd = match.macd;
-      logLookup[lookupKey].shift(); // consume match
+    if (!rsi && !macd) {
+      var lookupKey = symbol + '|' + signal + '|' + String(entry);
+      if (logLookup[lookupKey] && logLookup[lookupKey].length > 0) {
+        var match = logLookup[lookupKey][0];
+        rsi = match.rsi;
+        timeframe = match.timeframe;
+        macd = match.macd;
+        logLookup[lookupKey].shift();
+      }
     }
 
     trades.push({
