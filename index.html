@@ -3158,24 +3158,24 @@ const BACKTEST = {
                 <div class="perf-label">Avg $/Trade</div>
             </div>
             <div class="perf-item" style="border-top:1px solid var(--border);padding-top:8px">
-                <div class="perf-val" style="color:${buySide.pnl >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'}">${buySide.winRate || '-'}</div>
+                <div class="perf-val" style="color:#64b5f6">${buySide.winRate || '-'}</div>
                 <div class="perf-label">Buy WR (${buySide.total || 0})</div>
-                <div style="font-size:0.55rem;color:${buySide.pnl >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'};margin-top:2px">${fmtPnl(buySide.pnl || 0)}</div>
+                <div style="font-size:0.55rem;color:#64b5f6;margin-top:2px">${fmtPnl(buySide.pnl || 0)}</div>
             </div>
             <div class="perf-item" style="border-top:1px solid var(--border);padding-top:8px">
-                <div class="perf-val" style="color:${(sellSide.pnl || 0) >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'}">${sellSide.winRate || '-'}</div>
+                <div class="perf-val" style="color:#ce93d8">${sellSide.winRate || '-'}</div>
                 <div class="perf-label">Short WR (${sellSide.total || 0})</div>
-                <div style="font-size:0.55rem;color:${(sellSide.pnl || 0) >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'};margin-top:2px">${fmtPnl(sellSide.pnl || 0)}</div>
+                <div style="font-size:0.55rem;color:#ce93d8;margin-top:2px">${fmtPnl(sellSide.pnl || 0)}</div>
             </div>
             <div class="perf-item" style="border-top:1px solid var(--border);padding-top:8px">
-                <div class="perf-val" style="color:${(ini.pnl || 0) >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'}">${ini.winRate || '-'}</div>
+                <div class="perf-val" style="color:#4dd0e1">${ini.winRate || '-'}</div>
                 <div class="perf-label">Initial WR (${ini.total || 0})</div>
-                <div style="font-size:0.55rem;color:${(ini.pnl || 0) >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'};margin-top:2px">${fmtPnl(ini.pnl || 0)}</div>
+                <div style="font-size:0.55rem;color:#4dd0e1;margin-top:2px">${fmtPnl(ini.pnl || 0)}</div>
             </div>
             <div class="perf-item" style="border-top:1px solid var(--border);padding-top:8px">
-                <div class="perf-val" style="color:${(dca.pnl || 0) >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'}">${dca.winRate || '-'}</div>
+                <div class="perf-val" style="color:#ffab91">${dca.winRate || '-'}</div>
                 <div class="perf-label">DCA WR (${dca.total || 0})</div>
-                <div style="font-size:0.55rem;color:${(dca.pnl || 0) >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'};margin-top:2px">${fmtPnl(dca.pnl || 0)}</div>
+                <div style="font-size:0.55rem;color:#ffab91;margin-top:2px">${fmtPnl(dca.pnl || 0)}</div>
             </div>
             <div class="perf-item" style="border-top:1px solid var(--border);padding-top:8px">
                 <div class="perf-val" style="color:var(--green-bright)">${fmtAvg(eff.avgWinAmount || 0)}</div>
@@ -3186,7 +3186,7 @@ const BACKTEST = {
                 <div class="perf-label">Avg Loss</div>
             </div>
             <div class="perf-item" style="border-top:1px solid var(--border);padding-top:8px">
-                <div class="perf-val" style="color:#ffb74d">${eff.winLossRatio || '-'}x</div>
+                <div class="perf-val" style="color:#f9c846">${eff.winLossRatio || '-'}x</div>
                 <div class="perf-label">Win/Loss Ratio</div>
             </div>
         `;
