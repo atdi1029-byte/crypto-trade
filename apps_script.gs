@@ -35,7 +35,7 @@ var MIN_PICK_RR      = 1.4; // Minimum R:R ratio to auto-add
 // ---------------------------------------------------------------
 function doPost(e) {
   var lock = LockService.getScriptLock();
-  lock.waitLock(120000);
+  lock.waitLock(5000);
   try {
     var ss   = SpreadsheetApp.getActiveSpreadsheet();
     var raw  = e.postData.contents;
@@ -483,6 +483,12 @@ function doGet(e) {
 
   if (action === 'performance') {
     return servePerformanceJSON_();
+  }
+
+  if (action === 'raw_trades') {
+    var trades = getAllCompletedTrades_();
+    return ContentService.createTextOutput(JSON.stringify({ status: 'ok', trades: trades }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 
   if (action === 'scaling') {
@@ -957,6 +963,76 @@ function serveDashboardJSON_() {
         cumulative: cumulative.slice(-60) // last 60 data points for chart
       };
     })(),
+    // DCA vs Initial entry performance
+    dcaVsInitial: (function() {
+      var initial = { wins: 0, losses: 0, pnl: 0 }; // buy/sell/short
+      var dca = { wins: 0, losses: 0, pnl: 0 };     // add/reduce
+      trades.forEach(function(t) {
+        var sig = t.signal;
+        var bucket = (sig === 'add' || sig === 'reduce') ? dca : initial;
+        if (t.win) bucket.wins++;
+        else if (t.outcome === 'lost') bucket.losses++;
+        bucket.pnl += t.realizedPnl;
+      });
+      var iTotal = initial.wins + initial.losses;
+      var dTotal = dca.wins + dca.losses;
+      return {
+        initial: { wins: initial.wins, losses: initial.losses, total: iTotal, winRate: iTotal > 0 ? (initial.wins / iTotal * 100).toFixed(1) + '%' : 'N/A', pnl: Math.round(initial.pnl * 100) / 100, avgPnl: iTotal > 0 ? Math.round(initial.pnl / iTotal * 1000) / 1000 : 0 },
+        dca: { wins: dca.wins, losses: dca.losses, total: dTotal, winRate: dTotal > 0 ? (dca.wins / dTotal * 100).toFixed(1) + '%' : 'N/A', pnl: Math.round(dca.pnl * 100) / 100, avgPnl: dTotal > 0 ? Math.round(dca.pnl / dTotal * 1000) / 1000 : 0 }
+      };
+    })(),
+    // SL/TP efficiency: how much of potential TP captured, how losses compare to SL
+    slTpEfficiency: (function() {
+      var tpCapture = []; // % of TP1 captured on wins
+      var slCapture = []; // % of SL hit on losses
+      var closedAboveTp1 = 0, closedAboveTp2 = 0;
+      wins.forEach(function(t) {
+        if (t.entry && t.tp1 && t.realizedPnl > 0) {
+          var tpRange = Math.abs(t.tp1 - t.entry);
+          if (tpRange > 0) {
+            var pct = (t.realizedPnl / tpRange) * 100; // rough % — not exact since sizes vary
+            tpCapture.push(pct);
+          }
+        }
+      });
+      losses.forEach(function(t) {
+        if (t.entry && t.sl && t.realizedPnl < 0) {
+          var slRange = Math.abs(t.sl - t.entry);
+          if (slRange > 0) {
+            var pct = (Math.abs(t.realizedPnl) / slRange) * 100;
+            slCapture.push(pct);
+          }
+        }
+      });
+      var avgTpPct = tpCapture.length > 0 ? tpCapture.reduce(function(a,b){return a+b},0) / tpCapture.length : 0;
+      var avgSlPct = slCapture.length > 0 ? slCapture.reduce(function(a,b){return a+b},0) / slCapture.length : 0;
+      var avgWinAmt = wins.length > 0 ? wins.reduce(function(a,t){return a+t.realizedPnl},0) / wins.length : 0;
+      var avgLossAmt = losses.length > 0 ? losses.reduce(function(a,t){return a+Math.abs(t.realizedPnl)},0) / losses.length : 0;
+      return {
+        avgWinAmount: Math.round(avgWinAmt * 1000) / 1000,
+        avgLossAmount: Math.round(avgLossAmt * 1000) / 1000,
+        winLossRatio: avgLossAmt > 0 ? Math.round(avgWinAmt / avgLossAmt * 100) / 100 : 0,
+        totalWins: wins.length,
+        totalLosses: losses.length
+      };
+    })(),
+    // Buy vs Short side breakdown
+    sideBreakdown: (function() {
+      var buy = { wins: 0, losses: 0, pnl: 0 };
+      var sell = { wins: 0, losses: 0, pnl: 0 };
+      trades.forEach(function(t) {
+        var side = (t.signal === 'sell' || t.signal === 'short' || t.signal === 'reduce') ? sell : buy;
+        if (t.win) side.wins++;
+        else if (t.outcome === 'lost') side.losses++;
+        side.pnl += t.realizedPnl;
+      });
+      var bTotal = buy.wins + buy.losses;
+      var sTotal = sell.wins + sell.losses;
+      return {
+        buy: { wins: buy.wins, losses: buy.losses, total: bTotal, winRate: bTotal > 0 ? (buy.wins / bTotal * 100).toFixed(1) + '%' : 'N/A', pnl: Math.round(buy.pnl * 100) / 100 },
+        sell: { wins: sell.wins, losses: sell.losses, total: sTotal, winRate: sTotal > 0 ? (sell.wins / sTotal * 100).toFixed(1) + '%' : 'N/A', pnl: Math.round(sell.pnl * 100) / 100 }
+      };
+    })(),
     winRateByScore:  (function() {
       var buckets = { high: { w:0, t:0 }, mid: { w:0, t:0 }, low: { w:0, t:0 } };
       trades.forEach(function(t) {
@@ -1021,7 +1097,7 @@ function serveDashboardJSON_() {
   }
 
   // --- DCA state from Config tab ---
-  var dcaMode = getConfig_('dca_mode') === 'true';
+  var dcaMode = String(getConfig_('dca_mode')).toLowerCase() === 'true';
   var dcaTotal = parseFloat(getConfig_('dca_total')) || 0;
 
   var payload = {
@@ -2012,4 +2088,12 @@ function serveWeeklyTasks_() {
   return ContentService
     .createTextOutput(JSON.stringify({ status: 'ok', tasks: tasks }))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---------------------------------------------------------------
+// Keep-alive — prevents cold starts that cause webhook timeouts
+// Set up: Triggers → Add Trigger → keepAlive → Time-driven → Every 5 minutes
+// ---------------------------------------------------------------
+function keepAlive() {
+  SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config');
 }

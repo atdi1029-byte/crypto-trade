@@ -3095,6 +3095,17 @@ const BACKTEST = {
             trendPct = trend.direction.toUpperCase();
         }
 
+        // DCA vs Initial
+        const dvi = stats.dcaVsInitial || {};
+        const ini = dvi.initial || {};
+        const dca = dvi.dca || {};
+        // Side breakdown
+        const sides = stats.sideBreakdown || {};
+        const buySide = sides.buy || {};
+        const sellSide = sides.sell || {};
+        // SL/TP efficiency
+        const eff = stats.slTpEfficiency || {};
+
         perfGrid.innerHTML = `
             <div class="perf-item">
                 <div class="perf-val" style="color:var(--green-bright);text-shadow:0 0 15px var(--green-bright),0 0 30px rgba(0,255,136,0.4)">${wins} <span style="font-size:0.7rem;font-weight:400">Won</span></div>
@@ -3145,6 +3156,38 @@ const BACKTEST = {
             <div class="perf-item">
                 <div class="perf-val" style="color:${trend ? (trend.allTime.avgPerTrade >= 0 ? '#ffb74d' : 'var(--red-bright)') : ''}">${trend ? fmtAvg(trend.allTime.avgPerTrade) : '-'}</div>
                 <div class="perf-label">Avg $/Trade</div>
+            </div>
+            <div class="perf-item" style="border-top:1px solid var(--border);padding-top:8px">
+                <div class="perf-val" style="color:${buySide.pnl >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'}">${buySide.winRate || '-'}</div>
+                <div class="perf-label">Buy WR (${buySide.total || 0})</div>
+                <div style="font-size:0.55rem;color:${buySide.pnl >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'};margin-top:2px">${fmtPnl(buySide.pnl || 0)}</div>
+            </div>
+            <div class="perf-item" style="border-top:1px solid var(--border);padding-top:8px">
+                <div class="perf-val" style="color:${(sellSide.pnl || 0) >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'}">${sellSide.winRate || '-'}</div>
+                <div class="perf-label">Short WR (${sellSide.total || 0})</div>
+                <div style="font-size:0.55rem;color:${(sellSide.pnl || 0) >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'};margin-top:2px">${fmtPnl(sellSide.pnl || 0)}</div>
+            </div>
+            <div class="perf-item" style="border-top:1px solid var(--border);padding-top:8px">
+                <div class="perf-val" style="color:${(ini.pnl || 0) >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'}">${ini.winRate || '-'}</div>
+                <div class="perf-label">Initial WR (${ini.total || 0})</div>
+                <div style="font-size:0.55rem;color:${(ini.pnl || 0) >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'};margin-top:2px">${fmtPnl(ini.pnl || 0)}</div>
+            </div>
+            <div class="perf-item" style="border-top:1px solid var(--border);padding-top:8px">
+                <div class="perf-val" style="color:${(dca.pnl || 0) >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'}">${dca.winRate || '-'}</div>
+                <div class="perf-label">DCA WR (${dca.total || 0})</div>
+                <div style="font-size:0.55rem;color:${(dca.pnl || 0) >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'};margin-top:2px">${fmtPnl(dca.pnl || 0)}</div>
+            </div>
+            <div class="perf-item" style="border-top:1px solid var(--border);padding-top:8px">
+                <div class="perf-val" style="color:var(--green-bright)">${fmtAvg(eff.avgWinAmount || 0)}</div>
+                <div class="perf-label">Avg Win</div>
+            </div>
+            <div class="perf-item" style="border-top:1px solid var(--border);padding-top:8px">
+                <div class="perf-val" style="color:var(--red-bright)">${fmtAvg(eff.avgLossAmount || 0)}</div>
+                <div class="perf-label">Avg Loss</div>
+            </div>
+            <div class="perf-item" style="border-top:1px solid var(--border);padding-top:8px">
+                <div class="perf-val" style="color:#ffb74d">${eff.winLossRatio || '-'}x</div>
+                <div class="perf-label">Win/Loss Ratio</div>
             </div>
         `;
     }
