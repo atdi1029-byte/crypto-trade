@@ -1588,32 +1588,36 @@
         </div>
     </div>
 
-    <!-- Performance & Analysis -->
+    <!-- Performance & Analysis (collapsible) -->
     <div class="bottom-grid">
         <div>
-            <div class="section-header">Performance & Analysis</div>
-            <div class="section-box" style="margin-bottom:0.75rem">
-                <div class="perf-grid" id="perfGrid"></div>
+            <div class="section-header" style="cursor:pointer" onclick="const c=document.getElementById('perfContent');c.style.display=c.style.display==='none'?'block':'none';this.querySelector('.toggle-arrow').textContent=c.style.display==='none'?'▶':'▼'">
+                <span class="toggle-arrow">▶</span> Performance & Analysis
             </div>
-            <div class="section-box" style="margin-bottom:0.75rem">
-                <div style="font-size:0.7rem;color:var(--accent-glow);margin-bottom:0.5rem;font-weight:700">Score Breakdown</div>
-                <div class="perf-grid" id="scoreGrid"></div>
-            </div>
-            <div class="section-box" style="margin-bottom:0.75rem">
-                <div style="font-size:0.7rem;color:#f9c846;margin-bottom:0.5rem;font-weight:700">Trading Session</div>
-                <div class="perf-grid" id="sessionGrid"></div>
-            </div>
-            <div class="section-box" style="margin-bottom:0.75rem">
-                <div style="font-size:0.7rem;color:#ffab91;margin-bottom:0.5rem;font-weight:700">Day of Week</div>
-                <div class="perf-grid" id="dayGrid"></div>
-            </div>
-            <div class="section-box" style="margin-bottom:0.75rem">
-                <div style="font-size:0.7rem;color:#64b5f6;margin-bottom:0.5rem;font-weight:700">RSI at Entry</div>
-                <div class="perf-grid" id="rsiGrid"></div>
-            </div>
-            <div class="section-box">
-                <div style="font-size:0.7rem;color:#ce93d8;margin-bottom:0.5rem;font-weight:700">MACD Confirmation</div>
-                <div class="perf-grid" id="macdGrid"></div>
+            <div id="perfContent" style="display:none">
+                <div class="section-box" style="margin-bottom:0.75rem">
+                    <div class="perf-grid" id="perfGrid"></div>
+                </div>
+                <div class="section-box" style="margin-bottom:0.75rem">
+                    <div style="font-size:0.7rem;color:var(--accent-glow);margin-bottom:0.5rem;font-weight:700">Score Breakdown</div>
+                    <div class="perf-grid" id="scoreGrid"></div>
+                </div>
+                <div class="section-box" style="margin-bottom:0.75rem">
+                    <div style="font-size:0.7rem;color:#f9c846;margin-bottom:0.5rem;font-weight:700">Trading Session</div>
+                    <div class="perf-grid" id="sessionGrid"></div>
+                </div>
+                <div class="section-box" style="margin-bottom:0.75rem">
+                    <div style="font-size:0.7rem;color:#ffab91;margin-bottom:0.5rem;font-weight:700">Day of Week</div>
+                    <div class="perf-grid" id="dayGrid"></div>
+                </div>
+                <div class="section-box" style="margin-bottom:0.75rem">
+                    <div style="font-size:0.7rem;color:#64b5f6;margin-bottom:0.5rem;font-weight:700">RSI at Entry</div>
+                    <div class="perf-grid" id="rsiGrid"></div>
+                </div>
+                <div class="section-box">
+                    <div style="font-size:0.7rem;color:#ce93d8;margin-bottom:0.5rem;font-weight:700">MACD Confirmation</div>
+                    <div class="perf-grid" id="macdGrid"></div>
+                </div>
             </div>
         </div>
     </div>
