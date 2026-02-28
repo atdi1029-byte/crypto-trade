@@ -1037,7 +1037,7 @@ function serveDashboardJSON_() {
       var buckets = { high: { w:0, t:0 }, mid: { w:0, t:0 }, low: { w:0, t:0 } };
       trades.forEach(function(t) {
         var s = Number(t.score);
-        if (s <= 1) return; // Skip manually added trades (no real score data)
+        if (s <= 1) return;
         var b = s >= 5 ? 'high' : s >= 3 ? 'mid' : 'low';
         buckets[b].t++;
         if (t.win) buckets[b].w++;
@@ -1047,6 +1047,104 @@ function serveDashboardJSON_() {
         mid:  buckets.mid.t > 0  ? (buckets.mid.w / buckets.mid.t * 100).toFixed(0) + '%' : null,
         low:  buckets.low.t > 0  ? (buckets.low.w / buckets.low.t * 100).toFixed(0) + '%' : null
       };
+    })(),
+    // RSI at entry: deep oversold vs moderate
+    rsiAnalysis: (function() {
+      var deep = { w:0, l:0, pnl:0 };   // RSI < 25
+      var mid = { w:0, l:0, pnl:0 };    // RSI 25-35
+      var shallow = { w:0, l:0, pnl:0 }; // RSI 35-50
+      var ob = { w:0, l:0, pnl:0 };     // RSI > 50 (overbought side / shorts)
+      trades.forEach(function(t) {
+        if (t.rsi === null || t.rsi === undefined) return;
+        var r = Number(t.rsi);
+        var bucket = r < 25 ? deep : r < 35 ? mid : r < 50 ? shallow : ob;
+        if (t.win) bucket.w++;
+        else if (t.outcome === 'lost') bucket.l++;
+        bucket.pnl += t.realizedPnl;
+      });
+      function fmt(b) {
+        var total = b.w + b.l;
+        return { wins: b.w, losses: b.l, total: total, winRate: total > 0 ? (b.w/total*100).toFixed(0)+'%' : 'N/A', pnl: Math.round(b.pnl*100)/100 };
+      }
+      return { deepOversold: fmt(deep), moderate: fmt(mid), shallow: fmt(shallow), overbought: fmt(ob) };
+    })(),
+    // MACD confirmation
+    macdAnalysis: (function() {
+      var bullish = { w:0, l:0, pnl:0 };
+      var bearish = { w:0, l:0, pnl:0 };
+      var none = { w:0, l:0, pnl:0 };
+      trades.forEach(function(t) {
+        var m = String(t.macd || '').toLowerCase();
+        var bucket = m.indexOf('bull') >= 0 ? bullish : m.indexOf('bear') >= 0 ? bearish : none;
+        if (t.win) bucket.w++;
+        else if (t.outcome === 'lost') bucket.l++;
+        bucket.pnl += t.realizedPnl;
+      });
+      function fmt(b) {
+        var total = b.w + b.l;
+        return { wins: b.w, losses: b.l, total: total, winRate: total > 0 ? (b.w/total*100).toFixed(0)+'%' : 'N/A', pnl: Math.round(b.pnl*100)/100 };
+      }
+      return { bullish: fmt(bullish), bearish: fmt(bearish), none: fmt(none) };
+    })(),
+    // Time of day analysis (by session)
+    sessionAnalysis: (function() {
+      var asian = { w:0, l:0, pnl:0 };   // 00:00-08:00 UTC
+      var europe = { w:0, l:0, pnl:0 };  // 08:00-14:00 UTC
+      var us = { w:0, l:0, pnl:0 };      // 14:00-21:00 UTC
+      var night = { w:0, l:0, pnl:0 };   // 21:00-00:00 UTC
+      trades.forEach(function(t) {
+        var ts = t.timestamp instanceof Date ? t.timestamp : new Date(t.timestamp);
+        var h = ts.getUTCHours();
+        var bucket = h < 8 ? asian : h < 14 ? europe : h < 21 ? us : night;
+        if (t.win) bucket.w++;
+        else if (t.outcome === 'lost') bucket.l++;
+        bucket.pnl += t.realizedPnl;
+      });
+      function fmt(b) {
+        var total = b.w + b.l;
+        return { wins: b.w, losses: b.l, total: total, winRate: total > 0 ? (b.w/total*100).toFixed(0)+'%' : 'N/A', pnl: Math.round(b.pnl*100)/100 };
+      }
+      return { asian: fmt(asian), europe: fmt(europe), us: fmt(us), night: fmt(night) };
+    })(),
+    // Day of week analysis
+    dayOfWeekAnalysis: (function() {
+      var days = {};
+      var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      dayNames.forEach(function(d) { days[d] = { w:0, l:0, pnl:0 }; });
+      trades.forEach(function(t) {
+        var ts = t.timestamp instanceof Date ? t.timestamp : new Date(t.timestamp);
+        var d = dayNames[ts.getDay()];
+        if (t.win) days[d].w++;
+        else if (t.outcome === 'lost') days[d].l++;
+        days[d].pnl += t.realizedPnl;
+      });
+      var result = {};
+      dayNames.forEach(function(d) {
+        var total = days[d].w + days[d].l;
+        result[d] = { wins: days[d].w, losses: days[d].l, total: total, winRate: total > 0 ? (days[d].w/total*100).toFixed(0)+'%' : 'N/A', pnl: Math.round(days[d].pnl*100)/100 };
+      });
+      return result;
+    })(),
+    // Score granularity (exact scores)
+    scoreGranularity: (function() {
+      var scores = {};
+      trades.forEach(function(t) {
+        var s = Number(t.score);
+        if (s <= 1) return;
+        var key = s >= 6 ? '6+' : String(Math.floor(s));
+        if (!scores[key]) scores[key] = { w:0, l:0, pnl:0 };
+        if (t.win) scores[key].w++;
+        else if (t.outcome === 'lost') scores[key].l++;
+        scores[key].pnl += t.realizedPnl;
+      });
+      var result = {};
+      ['2','3','4','5','6+'].forEach(function(k) {
+        if (scores[k]) {
+          var total = scores[k].w + scores[k].l;
+          result[k] = { wins: scores[k].w, losses: scores[k].l, total: total, winRate: total > 0 ? (scores[k].w/total*100).toFixed(0)+'%' : 'N/A', pnl: Math.round(scores[k].pnl*100)/100, avgPnl: total > 0 ? Math.round(scores[k].pnl/total*1000)/1000 : 0 };
+        }
+      });
+      return result;
     })()
   };
 

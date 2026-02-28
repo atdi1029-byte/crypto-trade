@@ -1593,6 +1593,37 @@
         </div>
     </div>
 
+    <!-- Deep Analysis (collapsible) -->
+    <div class="bottom-grid">
+        <div>
+            <div class="section-header" style="cursor:pointer" onclick="document.getElementById('deepAnalysis').style.display = document.getElementById('deepAnalysis').style.display === 'none' ? 'block' : 'none'; this.querySelector('.toggle-arrow').textContent = document.getElementById('deepAnalysis').style.display === 'none' ? '▶' : '▼'">
+                <span class="toggle-arrow">▶</span> Deep Analysis
+            </div>
+            <div id="deepAnalysis" style="display:none">
+                <div class="section-box" style="margin-bottom:1rem">
+                    <div style="font-size:0.7rem;color:var(--accent-glow);margin-bottom:0.5rem;font-weight:700">Score Breakdown</div>
+                    <div class="perf-grid" id="scoreGrid"></div>
+                </div>
+                <div class="section-box" style="margin-bottom:1rem">
+                    <div style="font-size:0.7rem;color:#64b5f6;margin-bottom:0.5rem;font-weight:700">RSI at Entry</div>
+                    <div class="perf-grid" id="rsiGrid"></div>
+                </div>
+                <div class="section-box" style="margin-bottom:1rem">
+                    <div style="font-size:0.7rem;color:#ce93d8;margin-bottom:0.5rem;font-weight:700">MACD Confirmation</div>
+                    <div class="perf-grid" id="macdGrid"></div>
+                </div>
+                <div class="section-box" style="margin-bottom:1rem">
+                    <div style="font-size:0.7rem;color:#f9c846;margin-bottom:0.5rem;font-weight:700">Trading Session</div>
+                    <div class="perf-grid" id="sessionGrid"></div>
+                </div>
+                <div class="section-box" style="margin-bottom:1rem">
+                    <div style="font-size:0.7rem;color:#ffab91;margin-bottom:0.5rem;font-weight:700">Day of Week</div>
+                    <div class="perf-grid" id="dayGrid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Capybara Footer -->
     <div class="zen-footer">
         <div style="display:flex;align-items:center;justify-content:center;margin-bottom:1rem;">
@@ -2489,6 +2520,7 @@ const BACKTEST = {
 
         // --- Performance Summary ---
         renderPerformance(stats);
+        renderDeepAnalysis(stats);
 
         // --- Pokemon Trainer Level ---
         renderPokemon(stats);
@@ -3190,6 +3222,55 @@ const BACKTEST = {
                 <div class="perf-label">Win/Loss Ratio</div>
             </div>
         `;
+    }
+
+    function renderDeepAnalysis(stats) {
+        const fmtPnl = (v) => v >= 0 ? '+$' + v.toFixed(2) : '-$' + Math.abs(v).toFixed(2);
+        function card(label, data, color) {
+            if (!data || data.total === 0) return `<div class="perf-item"><div class="perf-val" style="color:${color}">-</div><div class="perf-label">${label} (0)</div></div>`;
+            return `<div class="perf-item"><div class="perf-val" style="color:${color}">${data.winRate}</div><div class="perf-label">${label} (${data.total})</div><div style="font-size:0.55rem;color:${color};margin-top:2px">${fmtPnl(data.pnl)}</div></div>`;
+        }
+
+        // Score breakdown
+        const sg = stats.scoreGranularity || {};
+        document.getElementById('scoreGrid').innerHTML = ['2','3','4','5','6+'].map(function(k) {
+            const colors = {'2':'#ef5350','3':'#ffab91','4':'#4dd0e1','5':'#64b5f6','6+':'#ce93d8'};
+            const d = sg[k];
+            if (!d) return card('Score '+k, {total:0}, colors[k]);
+            const avgLabel = d.avgPnl !== undefined ? ' · $'+d.avgPnl.toFixed(3)+'/t' : '';
+            return `<div class="perf-item"><div class="perf-val" style="color:${colors[k]}">${d.winRate}</div><div class="perf-label">Score ${k} (${d.total})</div><div style="font-size:0.55rem;color:${colors[k]};margin-top:2px">${fmtPnl(d.pnl)}${avgLabel}</div></div>`;
+        }).join('');
+
+        // RSI analysis
+        const rsi = stats.rsiAnalysis || {};
+        document.getElementById('rsiGrid').innerHTML =
+            card('RSI < 25', rsi.deepOversold, '#4caf50') +
+            card('RSI 25-35', rsi.moderate, '#8bc34a') +
+            card('RSI 35-50', rsi.shallow, '#ffeb3b') +
+            card('RSI > 50', rsi.overbought, '#ff9800');
+
+        // MACD analysis
+        const macd = stats.macdAnalysis || {};
+        document.getElementById('macdGrid').innerHTML =
+            card('Bullish', macd.bullish, '#4caf50') +
+            card('Bearish', macd.bearish, '#ef5350') +
+            card('No MACD', macd.none, '#9e9e9e');
+
+        // Session analysis
+        const sess = stats.sessionAnalysis || {};
+        document.getElementById('sessionGrid').innerHTML =
+            card('Asian 0-8 UTC', sess.asian, '#ff7043') +
+            card('Europe 8-14', sess.europe, '#42a5f5') +
+            card('US 14-21', sess.us, '#66bb6a') +
+            card('Night 21-0', sess.night, '#ab47bc');
+
+        // Day of week
+        const dow = stats.dayOfWeekAnalysis || {};
+        document.getElementById('dayGrid').innerHTML =
+            ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(function(d) {
+                const colors = {Mon:'#42a5f5',Tue:'#66bb6a',Wed:'#ffca28',Thu:'#ff7043',Fri:'#ab47bc',Sat:'#78909c',Sun:'#ef5350'};
+                return card(d, dow[d], colors[d]);
+            }).join('');
     }
 
     // ====== TICKER GRID ======
