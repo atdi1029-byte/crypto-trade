@@ -27,106 +27,147 @@ var MIN_PICK_SCORE   = 4;   // Minimum score to auto-add to Claude Picks
 var MIN_PICK_RR      = 1.4; // Minimum R:R ratio to auto-add
 
 // ---------------------------------------------------------------
-// doPost — Webhook receiver + position update handler
+// doPost — Webhook receiver (FAST — queue and return immediately)
 // TradingView sends JSON like:
 //   {"signal":"buy","symbol":"BTCUSDT","entry":42500,"sl":41800,
 //    "tp1":43500,"tp2":44500,"macd":"rising","volume":"above",
 //    "cross":3,"in_zone":true,"rsi":38.5,"timeframe":"4h"}
+//
+// Heavy processing (dedup, scoring, Claude picks, email) is handled
+// by processQueue which runs on a 1-minute time-based trigger.
+// To set up: Triggers → Add → processQueue → Time-driven → Every minute
 // ---------------------------------------------------------------
+var QUEUE = 'Queue';
+
 function doPost(e) {
-  var lock = LockService.getScriptLock();
-  lock.waitLock(5000);
   try {
-    var ss   = SpreadsheetApp.getActiveSpreadsheet();
-    var raw  = e.postData.contents;
+    var raw = e.postData.contents;
     // Sanitize invalid JSON values (NaN, Infinity) before parsing
     raw = raw.replace(/\bNaN\b/g, 'null').replace(/\bInfinity\b/g, 'null').replace(/\b-Infinity\b/g, 'null');
     var data = JSON.parse(raw);
 
-    // --- Position update actions ---
+    // --- Non-webhook actions still run inline (they're fast) ---
     if (data.action === 'update_position') {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
       return updatePosition_(ss, data);
     }
-
-    // --- Claude analysis push ---
     if (data.action === 'claude_analysis') {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
       return saveClaudeAnalysis_(ss, data);
     }
-
-    // --- Manual trade add (for trades entered directly on Bitunix) ---
     if (data.action === 'add_trade') {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
       return addTrade_(ss, data);
     }
 
-    // --- Normal webhook flow ---
-    var timestamp = new Date();
-    var symbol    = (data.symbol || '').toUpperCase();
-    var signal    = (data.signal || '').toLowerCase();   // buy / short
-    var entry     = data.entry || '';
-    var sl        = data.sl || '';
-    var tp1       = data.tp1 || '';
-    var tp2       = data.tp2 || '';
-    var macd      = (data.macd || '').toLowerCase();     // rising / falling
-    var volume    = (data.volume || '').toLowerCase();    // above / below
-    var cross     = data.cross;                          // number of bars since cross
-    var inZone    = data.in_zone;                        // true / false
-    var rsi       = data.rsi || '';
-    var timeframe = data.timeframe || '';
-
-    // --- Auto-score the signal (now includes signals_used) ---
-    var signalsUsed = data.signals_used || '';
-    var score = calcSignalScore_(macd, cross, inZone, volume, signalsUsed);
-
-    // --- Dedup: skip if same symbol+signal was logged in last 4 hours ---
-    var posSheet = ss.getSheetByName(POSITIONS);
-    var posData = posSheet.getDataRange().getValues();
-    var fourHoursAgo = new Date(timestamp.getTime() - 4 * 60 * 60 * 1000);
-    var isDupe = false;
-    for (var d = posData.length - 1; d >= 1; d--) {
-      var dTs = posData[d][0];
-      if (dTs instanceof Date && dTs >= fourHoursAgo) {
-        if (String(posData[d][1]).toUpperCase() === symbol && String(posData[d][2]).toLowerCase() === signal) {
-          isDupe = true;
-          break;
-        }
-      }
+    // --- Webhook signal: just queue the raw JSON and return fast ---
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var queueSheet = ss.getSheetByName(QUEUE);
+    if (!queueSheet) {
+      queueSheet = ss.insertSheet(QUEUE);
+      queueSheet.appendRow(['Timestamp', 'Raw JSON']);
+      queueSheet.setFrozenRows(1);
     }
-
-    // --- Signal Log (raw backup, always log) ---
-    var logSheet = ss.getSheetByName(SIGNAL_LOG);
-    logSheet.appendRow([
-      timestamp, symbol, signal, entry, sl, tp1, tp2,
-      macd, volume, cross, inZone, rsi, timeframe, score, raw
-    ]);
-
-    // --- Positions (skip if duplicate) ---
-    if (!isDupe) {
-      posSheet.appendRow([
-        timestamp, symbol, signal, entry, sl, tp1, tp2, score,
-        '',  // Action — user fills: Entered / Skipped
-        '',  // Outcome — user fills: Won / Lost / Open
-        '',  // Realized P&L
-        rsi || '',   // Column L — RSI at entry
-        macd || ''   // Column M — MACD at entry
-      ]);
-    }
-
-    // --- Auto-pick: if score + R:R meet thresholds, add to Claude Picks (skip dupes) ---
-    if (!isDupe) autoPickSignal_(ss, data, score);
+    queueSheet.appendRow([new Date(), raw]);
 
     return ContentService
-      .createTextOutput(JSON.stringify({
-        status: 'ok',
-        symbol: symbol,
-        signal: signal,
-        score: score
-      }))
+      .createTextOutput(JSON.stringify({ status: 'ok', queued: true }))
       .setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
     return ContentService
       .createTextOutput(JSON.stringify({ status: 'error', message: err.message }))
       .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// ---------------------------------------------------------------
+// processQueue — Runs every 1 minute via time-based trigger.
+// Processes queued webhook signals: dedup, score, log, auto-pick.
+// Set up trigger: Triggers → Add → processQueue → Time-driven → Every minute
+// ---------------------------------------------------------------
+function processQueue() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var queueSheet = ss.getSheetByName(QUEUE);
+  if (!queueSheet) return;
+
+  var data = queueSheet.getDataRange().getValues();
+  if (data.length <= 1) return; // header only
+
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return; // skip if another instance is running
+
+  try {
+    var posSheet = ss.getSheetByName(POSITIONS);
+    var logSheet = ss.getSheetByName(SIGNAL_LOG);
+    var posData = posSheet.getDataRange().getValues();
+    var now = new Date();
+    var fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+
+    for (var i = 1; i < data.length; i++) {
+      var timestamp = data[i][0];
+      var raw = data[i][1];
+      if (!raw) continue;
+
+      try {
+        var d = JSON.parse(raw);
+      } catch (parseErr) {
+        continue; // skip malformed JSON
+      }
+
+      var symbol    = (d.symbol || '').toUpperCase();
+      var signal    = (d.signal || '').toLowerCase();
+      var entry     = d.entry || '';
+      var sl        = d.sl || '';
+      var tp1       = d.tp1 || '';
+      var tp2       = d.tp2 || '';
+      var macd      = (d.macd || '').toLowerCase();
+      var volume    = (d.volume || '').toLowerCase();
+      var cross     = d.cross;
+      var inZone    = d.in_zone;
+      var rsi       = d.rsi || '';
+      var timeframe = d.timeframe || '';
+      var signalsUsed = d.signals_used || '';
+
+      var score = calcSignalScore_(macd, cross, inZone, volume, signalsUsed);
+
+      // Dedup check against current Positions data
+      var isDupe = false;
+      for (var p = posData.length - 1; p >= 1; p--) {
+        var dTs = posData[p][0];
+        if (dTs instanceof Date && dTs >= fourHoursAgo) {
+          if (String(posData[p][1]).toUpperCase() === symbol && String(posData[p][2]).toLowerCase() === signal) {
+            isDupe = true;
+            break;
+          }
+        }
+      }
+
+      // Signal Log (always log)
+      logSheet.appendRow([
+        timestamp, symbol, signal, entry, sl, tp1, tp2,
+        macd, volume, cross, inZone, rsi, timeframe, score, raw
+      ]);
+
+      // Positions (skip if duplicate)
+      if (!isDupe) {
+        posSheet.appendRow([
+          timestamp, symbol, signal, entry, sl, tp1, tp2, score,
+          '', '', '', rsi || '', macd || ''
+        ]);
+        // Update posData so subsequent items in this batch can dedup correctly
+        posData.push([timestamp, symbol, signal, entry, sl, tp1, tp2, score, '', '', '', rsi, macd]);
+      }
+
+      // Auto-pick
+      if (!isDupe) autoPickSignal_(ss, d, score);
+    }
+
+    // Clear queue (keep header)
+    if (data.length > 1) {
+      queueSheet.deleteRows(2, data.length - 1);
+    }
+
   } finally {
     lock.releaseLock();
   }
@@ -500,6 +541,11 @@ function doGet(e) {
   if (action === 'update') {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     return updatePosition_(ss, e.parameter);
+  }
+
+  if (action === 'add_trade') {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    return addTrade_(ss, e.parameter);
   }
 
   if (action === 'tasks') {
