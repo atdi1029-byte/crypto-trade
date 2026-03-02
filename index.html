@@ -404,6 +404,46 @@
             from { box-shadow: 0 0 8px rgba(239, 83, 80, 0.4); text-shadow: 0 0 6px rgba(239, 83, 80, 0.5); }
             to { box-shadow: 0 0 20px rgba(239, 83, 80, 0.8), 0 0 40px rgba(239, 83, 80, 0.3); text-shadow: 0 0 12px rgba(239, 83, 80, 0.8); }
         }
+
+        /* ============ STRATEGY REVIEW BUTTON ============ */
+        .review-banner {
+            display: none;
+            margin-bottom: 1.25rem;
+        }
+        .review-banner.visible { display: block; }
+        .review-btn {
+            width: 100%;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            padding: 0.7rem 1.2rem;
+            border-radius: 8px;
+            border: 2px solid #ff9800;
+            background: linear-gradient(135deg, #1a1400 0%, #2a1f00 100%);
+            color: #ffb74d;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            animation: flashReview 1.5s ease-in-out infinite alternate;
+            transition: all 0.2s;
+        }
+        .review-btn:hover {
+            background: linear-gradient(135deg, #2a1f00 0%, #3a2a00 100%);
+            border-color: #ffb74d;
+        }
+        .review-btn .review-sub {
+            display: block;
+            font-size: 0.55rem;
+            font-weight: 400;
+            color: #b8860b;
+            margin-top: 4px;
+            letter-spacing: 0.5px;
+        }
+        @keyframes flashReview {
+            from { box-shadow: 0 0 8px rgba(255, 152, 0, 0.3); text-shadow: 0 0 6px rgba(255, 152, 0, 0.3); }
+            to { box-shadow: 0 0 20px rgba(255, 152, 0, 0.7), 0 0 40px rgba(255, 152, 0, 0.2); text-shadow: 0 0 12px rgba(255, 152, 0, 0.6); }
+        }
+
         .open-trades-list {
             display: flex;
             flex-direction: column;
@@ -1493,6 +1533,14 @@
         <div class="weekly-tasks-list" id="weeklyTasksList"></div>
     </div>
 
+    <!-- Strategy Review Banner -->
+    <div class="review-banner" id="reviewBanner">
+        <button class="review-btn" onclick="dismissReview()">
+            STRATEGY REVIEW DUE
+            <span class="review-sub" id="reviewSub">50 trades reached — tap to mark reviewed</span>
+        </button>
+    </div>
+
     <!-- Quick Stats Bar -->
     <div class="stats-bar" id="statsBar">
         <div class="stat-card">
@@ -2525,6 +2573,9 @@ const BACKTEST = {
 
         // --- Pokemon Trainer Level ---
         renderPokemon(stats);
+
+        // --- Strategy Review Check ---
+        checkReviewDue(stats.totalTrades || 0);
     }
 
     // ====== TOP PICKS (Claude's Recommendations) ======
@@ -4442,6 +4493,34 @@ const BACKTEST = {
             overlay.style.opacity = '';
             overlay.style.transition = '';
         }, 400);
+    }
+
+    // ====== STRATEGY REVIEW ======
+    const REVIEW_KEY = 'crypto_last_review_trades';
+    const REVIEW_INTERVAL = 50;
+
+    function checkReviewDue(totalTrades) {
+        const banner = document.getElementById('reviewBanner');
+        const sub = document.getElementById('reviewSub');
+        if (!banner) return;
+        const lastReview = parseInt(localStorage.getItem(REVIEW_KEY) || '0');
+        const nextReview = lastReview + REVIEW_INTERVAL;
+        if (totalTrades >= nextReview) {
+            const milestone = Math.floor(totalTrades / REVIEW_INTERVAL) * REVIEW_INTERVAL;
+            sub.textContent = milestone + ' trades reached \u2014 tap to mark reviewed';
+            banner.classList.add('visible');
+        } else {
+            banner.classList.remove('visible');
+        }
+    }
+
+    function dismissReview() {
+        const banner = document.getElementById('reviewBanner');
+        const totalEl = document.getElementById('statTotal');
+        const total = parseInt(totalEl?.textContent) || 0;
+        const milestone = Math.floor(total / REVIEW_INTERVAL) * REVIEW_INTERVAL;
+        localStorage.setItem(REVIEW_KEY, String(milestone));
+        banner.classList.remove('visible');
     }
 
     // ====== INIT ======
