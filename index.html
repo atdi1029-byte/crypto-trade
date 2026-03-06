@@ -1468,6 +1468,12 @@
             .pokeball-svg { width: 24px; height: 24px; }
             .weekly-tasks { display: none !important; }
             .two-day-btn { display: none !important; }
+            /* Action Needed cards - fix mobile overflow */
+            .action-item { overflow: visible; }
+            .action-item > div { flex-wrap: wrap !important; }
+            .action-item .ticker-header { flex-wrap: wrap; gap: 0.3rem; }
+            .action-item .meta { word-break: break-word; }
+            .action-item .bt-levels { display: inline-flex; flex-wrap: wrap; gap: 0.2rem; }
         }
     </style>
 </head>
