@@ -1543,7 +1543,10 @@
 
     <!-- Weekly Tasks -->
     <div class="weekly-tasks" id="weeklyTasks" style="display: none;">
-        <div class="section-header">Weekly Tasks <span class="count" id="weeklyTasksCount">0</span></div>
+        <div class="section-header" style="display:flex;justify-content:space-between;align-items:center">
+            <span>Weekly Tasks <span class="count" id="weeklyTasksCount">0</span></span>
+            <span id="weeklyReset" style="font-size:0.65rem;color:var(--text-dim);cursor:pointer;opacity:0.5;display:none" onclick="resetWeeklyTasks()">reset</span>
+        </div>
         <div class="weekly-tasks-list" id="weeklyTasksList"></div>
     </div>
 
@@ -2475,8 +2478,15 @@ const BACKTEST = {
             });
             list.appendChild(item);
         });
+        const resetEl = document.getElementById('weeklyReset');
+        resetEl.style.display = hiddenSet.size > 0 ? '' : 'none';
         countEl.textContent = doneCount + '/' + tasks.length;
         container.style.display = '';
+    }
+
+    function resetWeeklyTasks() {
+        setCheckedTasks([]);
+        renderWeeklyTasks();
     }
 
     // ====== SCORING LOGIC ======
