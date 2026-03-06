@@ -2828,11 +2828,9 @@ const BACKTEST = {
                                     <span class="ticker-badge">${esc(tkr)}</span>
                                     <span class="signal-tag ${signalClass}">${signalLabel(signalType)}</span>
                                     ${isDCA ? '' : `<span class="score-tag">Score: ${score}</span>`}
-                                    ${wrHtml}
-                                    ${contextTag}
                                 </div>
+                                <div class="meta" style="margin-top:0.15rem">${wrHtml} ${contextTag}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
                                 ${noteHtml ? `<div class="meta" style="margin-top:0.15rem">${noteHtml}</div>` : ''}
-                                <div class="meta">${a.timestamp ? esc(a.timestamp) : ''}</div>
                                 ${!bt && levelsStr ? `<div class="meta" style="margin-top:0.15rem;font-size:0.7rem">${levelsStr}</div>` : ''}
                                 ${btHtml}
                                 <div class="action-buttons">
