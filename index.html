@@ -635,13 +635,7 @@
             border-left: 4px solid var(--accent);
             border-radius: 4px;
             padding: 0.75rem 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            overflow: hidden;
-            min-width: 0;
         }
-        .action-item > div { min-width: 0; }
         .action-item .ticker-header {
             display: flex;
             align-items: center;
@@ -1468,16 +1462,12 @@
             .pokeball-svg { width: 24px; height: 24px; }
             .weekly-tasks { display: none !important; }
             .two-day-btn { display: none !important; }
-            /* Action Needed cards - fix mobile overflow */
+            /* Action Needed cards - mobile tweaks */
             .action-item { overflow: visible; }
-            .action-item > div { flex-wrap: wrap !important; }
             .action-item .ticker-header { flex-wrap: wrap; gap: 0.3rem; }
             .action-item .meta { word-break: break-word; }
             .action-item .bt-levels { display: inline-flex; flex-wrap: wrap; gap: 0.2rem; }
-            .action-item > div > div:last-child { flex-direction: row !important; align-items: center !important; text-align: left !important; width: 100%; gap: 0.5rem !important; font-size: 0.65rem !important; }
-            .action-item .sparkline { display: none; }
             .action-item .action-buttons { justify-content: center; flex-wrap: wrap; }
-            .action-item .meta { text-align: center; }
         }
     </style>
 </head>
@@ -2819,33 +2809,32 @@ const BACKTEST = {
                     const fmt = v => v >= 100 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v >= 0.01 ? v.toFixed(4) : v.toPrecision(4);
                     btHtml = `<div class="meta" style="margin-top:0.2rem"><span class="bt-levels" ${btDataAttr}><span style="color:var(--red-bright)">SL <span class="bt-sl tap-copy" onclick="copyVal(this)">${fmt(slPrice)}</span></span> &middot; <span style="color:var(--green-bright)">TP1 <span class="bt-half tap-copy" onclick="copyVal(this)">${fmt(halfPrice)}</span></span> &middot; <span style="color:var(--green-bright)">TP2 <span class="bt-tp tap-copy" onclick="copyVal(this)">${fmt(tpPrice)}</span></span></span></div>`;
                 }
+                // Build inline indicator tags
+                const indParts = [];
+                if (rsi) indParts.push('RSI: <span style="color:' + (rsi < 30 ? 'var(--green-bright)' : rsi > 70 ? 'var(--red-bright)' : 'var(--text)') + '">' + Number(rsi).toFixed(1) + '</span>');
+                if (macd) indParts.push('MACD: <span style="color:' + (macd === 'rising' ? 'var(--green-bright)' : 'var(--red-bright)') + '">' + macd + '</span>');
+                if (vol) indParts.push('Vol: <span style="color:' + (vol === 'above' ? 'var(--green-bright)' : 'var(--text-dim)') + '">' + vol + '</span>');
+                const indStr = indParts.length ? ' &middot; ' + indParts.join(' &middot; ') : '';
+
                 return `
                     <div class="action-item" id="${id}">
-                        <div style="display:flex;justify-content:space-between;gap:1rem;width:100%">
-                            <div style="flex:1">
-                                <div class="ticker-header">
-                                    <img class="ticker-icon" src="${iconUrl}" alt="" onerror="${onerrorAttr}">
-                                    <div class="ticker-icon-fallback">${fallbackText}</div>
-                                    <span class="ticker-badge">${esc(tkr)}</span>
-                                    <span class="signal-tag ${signalClass}">${signalLabel(signalType)}</span>
-                                    ${isDCA ? '' : `<span class="score-tag">Score: ${score}</span>`}
-                                </div>
-                                <div class="meta" style="margin-top:0.15rem">${wrHtml} ${contextTag}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
-                                ${noteHtml ? `<div class="meta" style="margin-top:0.15rem">${noteHtml}</div>` : ''}
-                                ${!bt && levelsStr ? `<div class="meta" style="margin-top:0.15rem;font-size:0.7rem">${levelsStr}</div>` : ''}
-                                ${btHtml}
-                                <div class="action-buttons">
-                                    <input type="text" class="entry-input" placeholder="Size $" id="${id}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
-                                    ${bt ? `<input type="text" class="entry-input" placeholder="Entry $" id="${id}-entry" value="${p}" style="width:80px" oninput="recalcLevels('${id}')">` : ''}
-                                    <button class="action-btn entered" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Entered','${id}')">Entered</button>
-                                    <button class="action-btn skipped" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Skipped','${id}')">Skipped</button>
-                                </div>
+                        <div>
+                            <div class="ticker-header">
+                                <img class="ticker-icon" src="${iconUrl}" alt="" onerror="${onerrorAttr}">
+                                <div class="ticker-icon-fallback">${fallbackText}</div>
+                                <span class="ticker-badge">${esc(tkr)}</span>
+                                <span class="signal-tag ${signalClass}">${signalLabel(signalType)}</span>
+                                ${isDCA ? '' : `<span class="score-tag">Score: ${score}</span>`}
                             </div>
-                            <div style="text-align:right;font-size:0.75rem;color:var(--text-dim);display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:0.3rem">
-                                ${rsi ? '<div>RSI: <span style="color:' + (rsi < 30 ? 'var(--green-bright)' : rsi > 70 ? 'var(--red-bright)' : 'var(--text)') + '">' + Number(rsi).toFixed(1) + '</span></div>' : ''}
-                                ${macd ? '<div>MACD: <span style="color:' + (macd === 'rising' ? 'var(--green-bright)' : 'var(--red-bright)') + '">' + macd + '</span></div>' : ''}
-                                ${vol ? '<div>Vol: <span style="color:' + (vol === 'above' ? 'var(--green-bright)' : 'var(--text-dim)') + '">' + vol + '</span></div>' : ''}
-                                <canvas class="sparkline" data-ticker="${esc(tkr)}" width="100" height="30" style="margin-top:0.2rem"></canvas>
+                            <div class="meta" style="margin-top:0.15rem">${wrHtml} ${contextTag}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}${indStr}</div>
+                            ${noteHtml ? `<div class="meta" style="margin-top:0.15rem">${noteHtml}</div>` : ''}
+                            ${!bt && levelsStr ? `<div class="meta" style="margin-top:0.15rem;font-size:0.7rem">${levelsStr}</div>` : ''}
+                            ${btHtml}
+                            <div class="action-buttons">
+                                <input type="text" class="entry-input" placeholder="Size $" id="${id}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
+                                ${bt ? `<input type="text" class="entry-input" placeholder="Entry $" id="${id}-entry" value="${p}" style="width:80px" oninput="recalcLevels('${id}')">` : ''}
+                                <button class="action-btn entered" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Entered','${id}')">Entered</button>
+                                <button class="action-btn skipped" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Skipped','${id}')">Skipped</button>
                             </div>
                         </div>
                     </div>`;
