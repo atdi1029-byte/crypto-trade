@@ -2442,15 +2442,16 @@ const BACKTEST = {
             return;
         }
 
-        // Auto-check parents whose children are all checked
+        // Auto-check parents whose children are all checked, and build hidden set
+        const hiddenSet = new Set();
         for (let i = 0; i < tasks.length; i++) {
-            if (tasks[i].startsWith('>')) continue; // skip sub-tasks
-            // Find all children (consecutive > tasks after this parent)
+            if (tasks[i].startsWith('>')) continue;
             const children = [];
             for (let j = i + 1; j < tasks.length && tasks[j].startsWith('>'); j++) children.push(j);
-            if (children.length > 0 && children.every(c => checked.includes(c)) && !checked.includes(i)) {
-                checked.push(i);
-                setCheckedTasks(checked);
+            if (children.length > 0 && children.every(c => checked.includes(c))) {
+                if (!checked.includes(i)) { checked.push(i); setCheckedTasks(checked); }
+                hiddenSet.add(i);
+                children.forEach(c => hiddenSet.add(c));
             }
         }
 
@@ -2459,6 +2460,7 @@ const BACKTEST = {
         tasks.forEach((text, idx) => {
             const isDone = checked.includes(idx);
             if (isDone) doneCount++;
+            if (hiddenSet.has(idx)) return; // hide completed groups
             const isSub = text.startsWith('>');
             const displayText = isSub ? text.slice(1).trim() : text;
             const item = document.createElement('div');
@@ -4042,14 +4044,13 @@ const BACKTEST = {
         const result = document.getElementById('commandResult');
         const raw = input.trim();
 
-        // ! command → pass exact symbol to TradingView
+        // ! command → open TradingView chart via DEFAULT_TV (appends USDT + exchange prefix)
         if (raw.startsWith('!')) {
             const sym = raw.substring(1).trim();
             if (!sym) return;
-            const url = `https://www.tradingview.com/chart/xF34dN3g/?symbol=${encodeURIComponent(sym)}`;
-            window.open(url, '_blank');
+            window.open(DEFAULT_TV(sym), '_blank');
             result.className = 'command-result success';
-            result.textContent = `Opening ${sym} chart on TradingView`;
+            result.textContent = `Opening ${sym.toUpperCase()} chart on TradingView`;
             setTimeout(() => result.className = 'command-result', 4000);
             return;
         }
