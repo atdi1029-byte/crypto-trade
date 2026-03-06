@@ -2284,6 +2284,23 @@ const BACKTEST = {
         return { sl: d.sl, tp: d.tp, halfTp: d.halfTp, wr: wr };
     }
 
+    function getBlendedWR(ticker, signalType) {
+        const bt = getBacktest(ticker, signalType);
+        if (!bt) return null;
+        const btWr = bt.wr;
+        const BT_ASSUMED = 30; // assumed backtest sample size
+        const LIVE_WEIGHT = 3; // live trades count 3x
+        const btWins = btWr / 100 * BT_ASSUMED;
+        // Find live data from allTickers
+        const tkrUpper = ticker.toUpperCase();
+        const live = allTickers.find(t => t.ticker.toUpperCase() === tkrUpper);
+        if (!live || !live.totalTrades) return btWr; // no live data, pure backtest
+        const liveWins = (live.wins || 0) * LIVE_WEIGHT;
+        const liveTotal = live.totalTrades * LIVE_WEIGHT;
+        const blended = (btWins + liveWins) / (BT_ASSUMED + liveTotal) * 100;
+        return Math.round(blended * 10) / 10;
+    }
+
     function recalcLevels(actionId) {
         const input = document.getElementById(actionId + '-entry');
         if (!input) return;
@@ -2636,7 +2653,8 @@ const BACKTEST = {
             const btNote = btEntry ? btEntry.note : null;
             const p = Number(String(prc).replace(/,/g, ''));
             const noteHtml = btNote ? `<span style="color:#ffa726;font-weight:700">${esc(btNote)}</span>` : '';
-            const wrHtml = bt ? `<span style="color:var(--accent);font-weight:700">WR ${bt.wr}%</span>` : '';
+            const blendedWr = getBlendedWR(tkr, dir || 'buy');
+            const wrHtml = blendedWr !== null ? `<span style="color:var(--accent);font-weight:700">WR ${blendedWr}%</span>` : '';
             const btSide = isBuy ? 'buy' : 'sell';
             const btDataAttr = bt ? `data-sl="${bt.sl}" data-tp="${bt.tp}" data-half="${bt.halfTp}" data-side="${btSide}"` : '';
             let btHtml = '';
@@ -2742,7 +2760,8 @@ const BACKTEST = {
                 const btNote = btEntry ? btEntry.note : null;
                 const p = Number(String(prc).replace(/,/g, ''));
                 const noteHtml = btNote ? `<span style="color:#ffa726;font-weight:700">${esc(btNote)}</span>` : '';
-                const wrHtml = bt ? `<span style="color:var(--accent);font-weight:700">WR ${bt.wr}%</span>` : '';
+                const blendedWr = getBlendedWR(tkr, signalType);
+                const wrHtml = blendedWr !== null ? `<span style="color:var(--accent);font-weight:700">WR ${blendedWr}%</span>` : '';
                 const btSide = isBuy ? 'buy' : 'sell';
                 const btDataAttr = bt ? `data-sl="${bt.sl}" data-tp="${bt.tp}" data-half="${bt.halfTp}" data-side="${btSide}"` : '';
                 let btHtml = '';
@@ -3438,7 +3457,6 @@ const BACKTEST = {
                         <img class="ticker-coin-icon" src="${getCoinIconUrl(t.ticker)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';fetchCoinGeckoIcon('${esc(t.ticker)}',this,this.nextElementSibling)">
                         <div class="ticker-coin-fallback">${getCoinSymbol(t.ticker).slice(0,2).toUpperCase()}</div>
                         <span class="ticker-name">${esc(t.ticker)}</span>
-                        <span class="ticker-direction ${dirClass}">${dirClass.toUpperCase()}</span>
                     </div>
                 </div>
                 <dl class="ticker-detail">
@@ -3446,7 +3464,6 @@ const BACKTEST = {
                     <dt>Total Trades</dt><dd>${t.totalTrades || 0}</dd>
                     <dt>Total P&L</dt><dd class="${(t.totalPnl || 0) > 0 ? 'green' : (t.totalPnl || 0) < 0 ? 'red' : ''}">${(t.totalPnl || 0) !== 0 ? '$' + Number(t.totalPnl).toFixed(2) : '-'}</dd>
                     <dt>Last Signal</dt><dd>${esc((t.lastSignal || '-').toUpperCase())}</dd>
-                    <dt>Direction</dt><dd>${esc((t.lastDirection || '-').toUpperCase())}</dd>
                     <dt>Avg Score</dt><dd>${t.avgScore || '-'}</dd>
                 </dl>
                 <div class="ticker-last-signal">${(t.lastTimestamp || t.lastSignalTime) ? 'Last: ' + esc(t.lastTimestamp || t.lastSignalTime) : 'No signals yet'}</div>
