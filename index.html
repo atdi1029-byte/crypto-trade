@@ -2442,6 +2442,18 @@ const BACKTEST = {
             return;
         }
 
+        // Auto-check parents whose children are all checked
+        for (let i = 0; i < tasks.length; i++) {
+            if (tasks[i].startsWith('>')) continue; // skip sub-tasks
+            // Find all children (consecutive > tasks after this parent)
+            const children = [];
+            for (let j = i + 1; j < tasks.length && tasks[j].startsWith('>'); j++) children.push(j);
+            if (children.length > 0 && children.every(c => checked.includes(c)) && !checked.includes(i)) {
+                checked.push(i);
+                setCheckedTasks(checked);
+            }
+        }
+
         list.innerHTML = '';
         let doneCount = 0;
         tasks.forEach((text, idx) => {
