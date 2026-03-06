@@ -290,6 +290,17 @@
             font-size: 1rem;
             font-weight: 700;
         }
+        .weekly-task-item.sub-task {
+            padding-left: 2rem;
+            font-size: 0.8rem;
+        }
+        .weekly-task-item.sub-task .weekly-task-checkbox {
+            width: 16px; height: 16px;
+            border-width: 1.5px;
+        }
+        .weekly-task-item.sub-task .weekly-task-checkbox::after {
+            font-size: 0.8rem;
+        }
         .task-text {
             font-family: 'Space Mono', monospace;
             font-size: 0.75rem;
@@ -627,7 +638,10 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            overflow: hidden;
+            min-width: 0;
         }
+        .action-item > div { min-width: 0; }
         .action-item .ticker-header {
             display: flex;
             align-items: center;
@@ -2433,9 +2447,11 @@ const BACKTEST = {
         tasks.forEach((text, idx) => {
             const isDone = checked.includes(idx);
             if (isDone) doneCount++;
+            const isSub = text.startsWith('>');
+            const displayText = isSub ? text.slice(1).trim() : text;
             const item = document.createElement('div');
-            item.className = 'weekly-task-item' + (isDone ? ' checked' : '');
-            item.innerHTML = '<div class="weekly-task-checkbox"></div><div class="task-text">' + text + '</div>';
+            item.className = 'weekly-task-item' + (isDone ? ' checked' : '') + (isSub ? ' sub-task' : '');
+            item.innerHTML = '<div class="weekly-task-checkbox"></div><div class="task-text">' + displayText + '</div>';
             item.addEventListener('click', () => {
                 const c = getCheckedTasks();
                 const pos = c.indexOf(idx);
