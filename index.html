@@ -1545,7 +1545,7 @@
     <div class="weekly-tasks" id="weeklyTasks" style="display: none;">
         <div class="section-header" style="display:flex;justify-content:space-between;align-items:center">
             <span>Weekly Tasks <span class="count" id="weeklyTasksCount">0</span></span>
-            <span id="weeklyReset" style="font-size:0.65rem;color:var(--text-dim);cursor:pointer;opacity:0.5;display:none" onclick="resetWeeklyTasks()">reset</span>
+            <span id="weeklyReset" style="font-size:0.7rem;color:var(--accent);cursor:pointer;display:none;text-decoration:underline" onclick="resetWeeklyTasks()">reset</span>
         </div>
         <div class="weekly-tasks-list" id="weeklyTasksList"></div>
     </div>
@@ -2440,11 +2440,6 @@ const BACKTEST = {
         const countEl = document.getElementById('weeklyTasksCount');
         const checked = getCheckedTasks();
 
-        if (checked.length >= tasks.length && tasks.every((_, i) => checked.includes(i))) {
-            container.style.display = 'none';
-            return;
-        }
-
         // Auto-check parents whose children are all checked, and build hidden set
         const hiddenSet = new Set();
         for (let i = 0; i < tasks.length; i++) {
@@ -2478,10 +2473,12 @@ const BACKTEST = {
             });
             list.appendChild(item);
         });
+        const allDone = tasks.every((_, i) => checked.includes(i));
         const resetEl = document.getElementById('weeklyReset');
-        resetEl.style.display = hiddenSet.size > 0 ? '' : 'none';
+        resetEl.style.display = hiddenSet.size > 0 || allDone ? '' : 'none';
         countEl.textContent = doneCount + '/' + tasks.length;
         container.style.display = '';
+        if (allDone) { list.innerHTML = ''; return; }
     }
 
     function resetWeeklyTasks() {
