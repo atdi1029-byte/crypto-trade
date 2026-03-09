@@ -1258,6 +1258,104 @@
         }
         .error-banner.show { display: block; }
 
+        /* ============ TOAST NOTIFICATIONS ============ */
+        .toast-container {
+            position: fixed;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            pointer-events: none;
+            width: 90%;
+            max-width: 400px;
+        }
+        .toast {
+            background: rgba(10, 18, 30, 0.95);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 0.8rem;
+            color: var(--text);
+            pointer-events: auto;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.3s, transform 0.3s;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.error { border-color: var(--red-candle); color: var(--red-bright); }
+        .toast.success { border-color: var(--green-candle); color: var(--green-bright); }
+
+        /* ============ CUSTOM MODAL ============ */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .modal-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 360px;
+            width: 100%;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+        }
+        .modal-box .modal-msg {
+            font-size: 0.9rem;
+            color: var(--text-bright);
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+        .modal-box input {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg-dark);
+            color: var(--text-bright);
+            font-family: 'Space Mono', monospace;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            outline: none;
+        }
+        .modal-box input:focus { border-color: var(--accent); }
+        .modal-buttons {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
+        .modal-buttons button {
+            padding: 0.5rem 1.2rem;
+            border-radius: 6px;
+            border: none;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.8rem;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .modal-btn-cancel {
+            background: var(--bg-dark);
+            color: var(--text-dim);
+            border: 1px solid var(--border) !important;
+        }
+        .modal-btn-ok {
+            background: var(--accent-deep);
+            color: white;
+        }
+        .modal-btn-danger {
+            background: var(--red-candle);
+            color: white;
+        }
+
         /* ============ ZEN FOOTER ============ */
         .zen-footer {
             text-align: center;
@@ -1619,6 +1717,9 @@
     </div>
 </div>
 
+<!-- ============ TOAST CONTAINER ============ -->
+<div class="toast-container" id="toastContainer"></div>
+
 <!-- ============ MAIN CONTENT ============ -->
 <div class="content">
     <div class="error-banner" id="errorBanner"></div>
@@ -1880,6 +1981,63 @@
     let dcaTotal = parseFloat(localStorage.getItem('dca_total')) || 0;
     let dcaSyncCooldown = 0; // timestamp — skip API overwrite until this passes
 
+    // ====== TOAST (non-blocking replacement for alert) ======
+    function showToast(msg, type = 'error', duration = 3500) {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = 'toast ' + type;
+        toast.textContent = msg;
+        container.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.add('show'));
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 350);
+        }, duration);
+    }
+
+    // ====== CUSTOM MODAL (non-blocking replacement for confirm/prompt) ======
+    function showModal({ message, input, inputDefault, okLabel, okClass, cancelLabel }) {
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            const box = document.createElement('div');
+            box.className = 'modal-box';
+            box.innerHTML = `<div class="modal-msg">${message}</div>`;
+            let inputEl = null;
+            if (input) {
+                inputEl = document.createElement('input');
+                inputEl.type = 'text';
+                inputEl.placeholder = input;
+                if (inputDefault) inputEl.value = inputDefault;
+                box.appendChild(inputEl);
+            }
+            const btns = document.createElement('div');
+            btns.className = 'modal-buttons';
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'modal-btn-cancel';
+            cancelBtn.textContent = cancelLabel || 'Cancel';
+            cancelBtn.onclick = () => { overlay.remove(); resolve(null); };
+            const okBtn = document.createElement('button');
+            okBtn.className = okClass || 'modal-btn-ok';
+            okBtn.textContent = okLabel || 'OK';
+            okBtn.onclick = () => { overlay.remove(); resolve(inputEl ? inputEl.value : true); };
+            btns.appendChild(cancelBtn);
+            btns.appendChild(okBtn);
+            box.appendChild(btns);
+            overlay.appendChild(box);
+            overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); resolve(null); } };
+            document.body.appendChild(overlay);
+            if (inputEl) inputEl.focus();
+        });
+    }
+
+    // ====== DEBOUNCED FETCH ======
+    let pendingFetchTimer = null;
+    function scheduleFetch(delayMs = 3000) {
+        if (pendingFetchTimer) clearTimeout(pendingFetchTimer);
+        pendingFetchTimer = setTimeout(() => { pendingFetchTimer = null; fetchData(); }, delayMs);
+    }
+
     // ====== WEEKLY SHORT CAP ======
     // [minLevel, maxShortsPerWeek] — first match wins (checked high-to-low)
     const SHORT_CAPS = [[16, Infinity], [15, 8], [14, 5], [13, 4], [8, 3], [0, 2]];
@@ -1951,11 +2109,11 @@
             const resp = await fetch(url);
             const data = await resp.json();
             if (data.status === 'error') {
-                alert('Update failed: ' + (data.message || 'Unknown error'));
+                showToast('Update failed: ' + (data.message || 'Unknown error'));
             }
             return data;
         } catch (e) {
-            alert('Request failed: ' + e.message);
+            showToast('Request failed: ' + e.message);
             return { status: 'error', message: e.message };
         }
     }
@@ -3299,8 +3457,9 @@ const BACKTEST = {
         }
     }
 
-    function dcaReset() {
-        if (!confirm('Reset DCA to $0? This clears all deposits. You\u2019ll start fresh from your organic level.')) return;
+    async function dcaReset() {
+        const ok = await showModal({ message: 'Reset DCA to $0? This clears all deposits. You\u2019ll start fresh from your organic level.', okLabel: 'Reset', okClass: 'modal-btn-danger' });
+        if (!ok) return;
         dcaTotal = 0;
         localStorage.setItem('dca_total', '0');
         dcaSyncCooldown = Date.now() + 10000;
@@ -3309,7 +3468,7 @@ const BACKTEST = {
         fireGet(POST_URL + '?action=reset_dca');
     }
 
-    function dcaLevelUp() {
+    async function dcaLevelUp() {
         if (!dcaMode || !window._lastStats) return;
         const pnl = parseFloat(window._lastStats.netPnl) || 0;
         const boostedPnl = pnl + dcaTotal;
@@ -3318,7 +3477,8 @@ const BACKTEST = {
         if (!nextDCALevel) return;
         const gap = Math.max(0.01, nextDCALevel.min - boostedPnl);
         const nextIdx = POKEMON_LEVELS.indexOf(nextDCALevel) + 1;
-        if (!confirm('Add $' + gap.toFixed(2) + ' DCA to reach Lv.' + nextIdx + ' ' + nextDCALevel.pokemon + '?')) return;
+        const ok = await showModal({ message: 'Add $' + gap.toFixed(2) + ' DCA to reach Lv.' + nextIdx + ' ' + nextDCALevel.pokemon + '?' });
+        if (!ok) return;
         dcaTotal += gap;
         localStorage.setItem('dca_total', dcaTotal.toString());
         dcaSyncCooldown = Date.now() + 10000;
@@ -3675,7 +3835,11 @@ const BACKTEST = {
         return t.toLowerCase();
     }
 
-    const coinIconCache = {};
+    // Load cached icons from localStorage, fall back to empty object
+    const coinIconCache = (() => {
+        try { return JSON.parse(localStorage.getItem('coinIconCache') || '{}'); } catch(e) { return {}; }
+    })();
+    const geckoInFlight = {}; // prevent duplicate API calls for same symbol
 
     function getCoinIconUrl(ticker) {
         const sym = getCoinSymbol(ticker);
@@ -3691,12 +3855,16 @@ const BACKTEST = {
             fallbackEl.style.display = 'none';
             return;
         }
+        // Skip if already fetching this symbol or previously failed
+        if (geckoInFlight[sym]) return;
+        geckoInFlight[sym] = true;
         try {
             const res = await fetch(`https://api.coingecko.com/api/v3/search?query=${sym}`);
             const data = await res.json();
             const match = data.coins?.find(c => c.symbol.toLowerCase() === sym);
             if (match && match.large) {
                 coinIconCache[sym] = match.large;
+                localStorage.setItem('coinIconCache', JSON.stringify(coinIconCache));
                 imgEl.src = match.large;
                 imgEl.style.display = '';
                 fallbackEl.style.display = 'none';
@@ -3954,21 +4122,15 @@ const BACKTEST = {
         }, 300);
     }
 
-    function editLinks(ticker) {
+    async function editLinks(ticker) {
         const key = ticker.toUpperCase();
         const links = getTickerLinks();
         const current = links[key] || {};
 
-        const tvUrl = prompt(
-            `TradingView URL for ${key}:\n(Leave empty for default)`,
-            current.tv || DEFAULT_TV(ticker)
-        );
+        const tvUrl = await showModal({ message: `TradingView URL for ${key}:`, input: 'Leave empty for default', inputDefault: current.tv || DEFAULT_TV(ticker) });
         if (tvUrl === null) return;
 
-        const bxUrl = prompt(
-            `Bitunix URL for ${key}:\n(Leave empty for default)`,
-            current.bx || DEFAULT_BX(ticker)
-        );
+        const bxUrl = await showModal({ message: `Bitunix URL for ${key}:`, input: 'Leave empty for default', inputDefault: current.bx || DEFAULT_BX(ticker) });
         if (bxUrl === null) return;
 
         if (!links[key]) links[key] = {};
@@ -4006,13 +4168,12 @@ const BACKTEST = {
         const params = new URLSearchParams({
             action: 'update', ticker, signal, price, field: 'action', value
         });
-        fireGet(POST_URL + '?' + params).then(() => setTimeout(fetchData, 3000));
+        fireGet(POST_URL + '?' + params).then(() => scheduleFetch());
     }
 
-    function confirmOutcome(ticker, signal, price, value, elemId, label) {
-        if (confirm(label + ' ' + ticker + '?')) {
-            markOutcome(ticker, signal, price, value, elemId);
-        }
+    async function confirmOutcome(ticker, signal, price, value, elemId, label) {
+        const ok = await showModal({ message: label + ' ' + ticker + '?', okLabel: label, okClass: value === 'Lost' ? 'modal-btn-danger' : 'modal-btn-ok' });
+        if (ok) markOutcome(ticker, signal, price, value, elemId);
     }
 
     async function markOutcome(ticker, signal, price, value, elemId) {
@@ -4095,9 +4256,9 @@ const BACKTEST = {
             // Auto-negate positive input for losses (user enters 0.34, we record -0.34)
             const adjustedInput = (value === 'Lost' && inputVal > 0) ? -inputVal : inputVal;
             let grandTotal = prevTotal + adjustedInput;
-            // Safety net: if P&L is $0, prompt user to enter it
+            // Safety net: if P&L is $0, ask user to enter it
             if (grandTotal === 0) {
-                const entered = prompt('P&L for ' + ticker + '? (negative for loss, blank to skip)');
+                const entered = await showModal({ message: 'P&L for ' + ticker + '?', input: 'Amount (negative for loss)', okLabel: 'Submit' });
                 if (entered === null) return; // cancelled
                 let manualVal = parseFloat(entered) || 0;
                 if (value === 'Lost' && manualVal > 0) manualVal = -manualVal;
@@ -4140,10 +4301,10 @@ const BACKTEST = {
                     setTimeout(() => el.remove(), 600);
                 }, 1200);
 
-                setTimeout(fetchData, 3000);
+                scheduleFetch();
             } catch (err) {
                 el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
-                alert('Failed to update: ' + err.message);
+                showToast('Failed to update: ' + err.message);
             }
         }
     }
@@ -4170,7 +4331,7 @@ const BACKTEST = {
         const params2 = new URLSearchParams({
             action: 'update', ticker, signal, price, field: 'action', value
         });
-        fireGet(POST_URL + '?' + params2).then(() => setTimeout(fetchData, 3000));
+        fireGet(POST_URL + '?' + params2).then(() => scheduleFetch());
     }
 
     // ====== EMPTY FALLBACK ======
