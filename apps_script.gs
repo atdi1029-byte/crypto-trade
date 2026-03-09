@@ -1016,7 +1016,7 @@ function serveDashboardJSON_() {
         avg30d: { pnl: Math.round(pnl30 * 100) / 100, trades: cnt30, avgPerTrade: Math.round(avg30 * 1000) / 1000 },
         allTime: { avgPerTrade: Math.round(avgAll * 1000) / 1000 },
         direction: direction,
-        cumulative: cumulative.slice(-60) // last 60 data points for chart
+        cumulative: cumulative // all data points for chart
       };
     })(),
     // DCA vs Initial entry performance

@@ -349,6 +349,107 @@
             margin-top: 6px;
         }
 
+        /* ============ P&L CHART ============ */
+        .pnl-chart-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .pnl-chart-section::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-deep), transparent);
+        }
+        .pnl-chart-header {
+            text-align: center;
+            margin-bottom: 0.75rem;
+        }
+        .pnl-chart-title {
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5rem;
+        }
+        .pnl-chart-value {
+            font-family: 'Space Mono', monospace;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--text-bright);
+            line-height: 1.2;
+        }
+        .pnl-chart-value.green { color: var(--green-bright); text-shadow: 0 0 12px rgba(38,166,154,0.4); }
+        .pnl-chart-value.red { color: var(--red-bright); text-shadow: 0 0 12px rgba(239,83,80,0.4); }
+        .pnl-change-pill {
+            display: inline-block;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 3px 12px;
+            border-radius: 12px;
+            margin-top: 6px;
+        }
+        .pnl-change-pill.green { background: rgba(38,166,154,0.15); color: var(--green-bright); }
+        .pnl-change-pill.red { background: rgba(239,83,80,0.15); color: var(--red-bright); }
+        .pnl-chart-wrap {
+            height: 180px;
+            position: relative;
+            margin: 1rem 0;
+        }
+        .pnl-chart-wrap canvas {
+            width: 100%;
+            height: 100%;
+        }
+        .pnl-range-btns {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .pnl-range-btn {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 4px;
+            background: var(--bg-card-hover);
+            color: var(--text-dim);
+            cursor: pointer;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+        .pnl-range-btn:hover { border-color: var(--accent); color: var(--text-bright); }
+        .pnl-range-btn.active {
+            background: var(--accent-deep);
+            color: var(--text-bright);
+            border-color: var(--accent);
+            box-shadow: 0 0 8px rgba(74,158,255,0.3);
+        }
+        .pnl-summary {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.65rem;
+        }
+        .pnl-summary-item .pnl-summary-label {
+            color: var(--text-dim);
+            font-size: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .pnl-summary-item .pnl-summary-val {
+            color: var(--text-bright);
+            font-weight: 700;
+        }
+
         /* ============ TOP PICKS ============ */
         .picks-actions-row {
             display: grid;
@@ -1440,6 +1541,9 @@
             .ticker-grid { grid-template-columns: 1fr; }
             .top-picks-grid { grid-template-columns: 1fr; }
             .stats-bar { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+            .pnl-chart-wrap { height: 140px; }
+            .pnl-chart-value { font-size: 1.8rem; }
+            .pnl-summary { gap: 1rem; }
             .ticker-grid { max-height: 500px; overflow-y: auto; }
             .command-bar { display: none; }
             body::before { top: 0; left: 0; right: 0; bottom: 0; background: url('wave-bg-mobile.png') center center / cover no-repeat; filter: brightness(0.95); }
@@ -1576,10 +1680,26 @@
             <div class="stat-value" id="statToday">-</div>
             <div class="stat-label">Today's Signals</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-value" id="statPnL">-</div>
-            <div class="stat-label">Total P&L</div>
+    </div>
+
+    <!-- P&L Chart -->
+    <div class="pnl-chart-section" id="pnlChartSection">
+        <div class="pnl-chart-header">
+            <div class="pnl-chart-title">Total P&L</div>
+            <div class="pnl-chart-value" id="pnlChartValue">--</div>
+            <div class="pnl-change-pill" id="pnlChangePill"></div>
         </div>
+        <div class="pnl-chart-wrap">
+            <canvas id="pnlCanvas"></canvas>
+        </div>
+        <div class="pnl-range-btns">
+            <button class="pnl-range-btn active" onclick="setPnlRange('1M')">1M</button>
+            <button class="pnl-range-btn" onclick="setPnlRange('3M')">3M</button>
+            <button class="pnl-range-btn" onclick="setPnlRange('6M')">6M</button>
+            <button class="pnl-range-btn" onclick="setPnlRange('1Y')">1Y</button>
+            <button class="pnl-range-btn" onclick="setPnlRange('AT')">AT</button>
+        </div>
+        <div class="pnl-summary" id="pnlSummary"></div>
     </div>
 
     <!-- Trading Context Banner -->
@@ -2652,10 +2772,8 @@ const BACKTEST = {
         document.getElementById('statTotal').textContent = stats.totalTrades || 0;
         document.getElementById('statToday').textContent = stats.todaySignals || 0;
 
-        const pnlEl = document.getElementById('statPnL');
-        const pnl = parseFloat(stats.netPnl) || 0;
-        pnlEl.textContent = typeof pnl === 'number' ? (pnl >= 0 ? '+$' + pnl : '-$' + Math.abs(pnl)) : pnl;
-        pnlEl.className = 'stat-value' + (typeof pnl === 'number' && pnl > 0 ? ' green' : typeof pnl === 'number' && pnl < 0 ? ' red' : '');
+        // P&L chart
+        renderPnlChart(stats);
 
         // Won/Lost now rendered in perfGrid via renderPerformance()
 
@@ -4627,6 +4745,210 @@ const BACKTEST = {
             overlay.style.opacity = '';
             overlay.style.transition = '';
         }, 400);
+    }
+
+    // ====== P&L CHART ======
+    let pnlRange = '1M';
+    let pnlCumulativeCache = null;
+    let pnlStatsCache = null;
+
+    function setPnlRange(range) {
+        pnlRange = range;
+        document.querySelectorAll('.pnl-range-btn').forEach(b => b.classList.toggle('active', b.textContent === range));
+        if (pnlCumulativeCache && pnlStatsCache) renderPnlChart(pnlStatsCache);
+    }
+
+    function filterByRange(data, range) {
+        if (range === 'AT' || !data.length) return data;
+        const now = new Date();
+        const days = { '1M': 30, '3M': 90, '6M': 180, '1Y': 365 }[range] || 30;
+        const cutoff = new Date(now - days * 86400000);
+        const year = cutoff.getFullYear();
+        const thisYear = now.getFullYear();
+        return data.filter(d => {
+            const parts = d.date.split('/');
+            const m = parseInt(parts[0]) - 1, day = parseInt(parts[1]);
+            // Guess year: if month is ahead of cutoff month, assume this year
+            const dt = new Date(thisYear, m, day);
+            if (dt > now) dt.setFullYear(thisYear - 1);
+            return dt >= cutoff;
+        });
+    }
+
+    function renderPnlChart(stats) {
+        pnlStatsCache = stats;
+        const cumulative = (stats.trend && stats.trend.cumulative) || [];
+        pnlCumulativeCache = cumulative;
+
+        const filtered = filterByRange(cumulative, pnlRange);
+        const pnl = parseFloat(stats.netPnl) || 0;
+        const valueEl = document.getElementById('pnlChartValue');
+        const pillEl = document.getElementById('pnlChangePill');
+        const summaryEl = document.getElementById('pnlSummary');
+
+        // Big P&L value
+        valueEl.textContent = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2);
+        valueEl.className = 'pnl-chart-value' + (pnl >= 0 ? ' green' : ' red');
+
+        // Change pill
+        if (filtered.length >= 2) {
+            const startPnl = filtered[0].pnl;
+            const endPnl = filtered[filtered.length - 1].pnl;
+            const change = endPnl - startPnl;
+            const labels = { '1M': '1 month', '3M': '3 months', '6M': '6 months', '1Y': '1 year', 'AT': 'all time' };
+            pillEl.textContent = (change >= 0 ? '\u25B2 +$' : '\u25BC -$') + Math.abs(change).toFixed(2) + ' over ' + (labels[pnlRange] || pnlRange);
+            pillEl.className = 'pnl-change-pill ' + (change >= 0 ? 'green' : 'red');
+            pillEl.style.display = '';
+        } else {
+            pillEl.style.display = 'none';
+        }
+
+        // Summary stats
+        const wr = stats.winRate || '0%';
+        const avgTrade = stats.trend ? stats.trend.allTime.avgPerTrade : 0;
+        const streak = stats.currentStreak || '--';
+        const best = stats.bestTradePnl ? '+$' + parseFloat(stats.bestTradePnl).toFixed(2) : '--';
+        summaryEl.innerHTML = `
+            <div class="pnl-summary-item"><div class="pnl-summary-label">Win Rate</div><div class="pnl-summary-val">${wr}</div></div>
+            <div class="pnl-summary-item"><div class="pnl-summary-label">Avg Trade</div><div class="pnl-summary-val" style="color:${avgTrade >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'}">${avgTrade >= 0 ? '+' : ''}$${avgTrade.toFixed(3)}</div></div>
+            <div class="pnl-summary-item"><div class="pnl-summary-label">Streak</div><div class="pnl-summary-val">${streak}</div></div>
+            <div class="pnl-summary-item"><div class="pnl-summary-label">Best</div><div class="pnl-summary-val" style="color:var(--green-bright)">${best}</div></div>
+        `;
+
+        // Draw chart
+        drawPnlChart(filtered);
+    }
+
+    function drawPnlChart(series) {
+        const canvas = document.getElementById('pnlCanvas');
+        if (!canvas) return;
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = rect.height + 'px';
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        const W = rect.width, H = rect.height;
+
+        ctx.clearRect(0, 0, W, H);
+
+        if (series.length < 2) {
+            ctx.fillStyle = 'rgba(200,200,200,0.3)';
+            ctx.font = '12px Space Mono';
+            ctx.textAlign = 'center';
+            ctx.fillText('Not enough data', W / 2, H / 2);
+            return;
+        }
+
+        const pad = { top: 15, right: 10, bottom: 25, left: 50 };
+        const plotW = W - pad.left - pad.right;
+        const plotH = H - pad.top - pad.bottom;
+
+        const pnls = series.map(d => d.pnl);
+        let pnlMin = Math.min(...pnls, 0);
+        let pnlMax = Math.max(...pnls, 0);
+        const pnlPad = (pnlMax - pnlMin) * 0.1 || 1;
+        pnlMin -= pnlPad;
+        pnlMax += pnlPad;
+        const pnlRange = pnlMax - pnlMin;
+
+        const toX = i => pad.left + (i / (series.length - 1)) * plotW;
+        const toY = v => pad.top + plotH * (1 - (v - pnlMin) / pnlRange);
+
+        // Zero line
+        const zeroY = toY(0);
+        if (zeroY > pad.top && zeroY < pad.top + plotH) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(pad.left, zeroY);
+            ctx.lineTo(pad.left + plotW, zeroY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = 'rgba(200,200,200,0.4)';
+            ctx.font = '9px Space Mono';
+            ctx.textAlign = 'right';
+            ctx.fillText('$0', pad.left - 6, zeroY + 3);
+        }
+
+        // Grid lines (3 horizontal)
+        ctx.strokeStyle = 'rgba(74,158,255,0.08)';
+        ctx.lineWidth = 1;
+        const gridSteps = 3;
+        for (let i = 0; i <= gridSteps; i++) {
+            const val = pnlMin + (pnlRange * i / gridSteps);
+            const gy = toY(val);
+            ctx.beginPath();
+            ctx.moveTo(pad.left, gy);
+            ctx.lineTo(pad.left + plotW, gy);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(200,200,200,0.35)';
+            ctx.font = '9px Space Mono';
+            ctx.textAlign = 'right';
+            ctx.fillText('$' + val.toFixed(val > 100 || val < -100 ? 0 : 2), pad.left - 6, gy + 3);
+        }
+
+        // Area fill
+        const lastPnl = series[series.length - 1].pnl;
+        const fillColor = lastPnl >= 0 ? '38,166,154' : '239,83,80';
+        const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + plotH);
+        grad.addColorStop(0, 'rgba(' + fillColor + ',0.2)');
+        grad.addColorStop(1, 'rgba(' + fillColor + ',0.02)');
+        ctx.beginPath();
+        ctx.moveTo(toX(0), toY(0));
+        for (let i = 0; i < series.length; i++) ctx.lineTo(toX(i), toY(series[i].pnl));
+        ctx.lineTo(toX(series.length - 1), toY(0));
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Line
+        const lineColor = lastPnl >= 0 ? '#26a69a' : '#ef5350';
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        for (let i = 0; i < series.length; i++) {
+            const x = toX(i), y = toY(series[i].pnl);
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Dots (only if few enough data points)
+        if (series.length <= 60) {
+            for (let i = 0; i < series.length; i++) {
+                ctx.beginPath();
+                ctx.arc(toX(i), toY(series[i].pnl), 3, 0, Math.PI * 2);
+                ctx.fillStyle = lineColor;
+                ctx.fill();
+                ctx.strokeStyle = '#0d1b2a';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+        }
+
+        // End dot always
+        const ex = toX(series.length - 1), ey = toY(lastPnl);
+        ctx.beginPath();
+        ctx.arc(ex, ey, 4, 0, Math.PI * 2);
+        ctx.fillStyle = lineColor;
+        ctx.fill();
+        ctx.strokeStyle = '#0d1b2a';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // X-axis date labels
+        ctx.fillStyle = 'rgba(200,200,200,0.4)';
+        ctx.font = '9px Space Mono';
+        ctx.textAlign = 'center';
+        const labelCount = Math.min(5, series.length);
+        for (let i = 0; i < labelCount; i++) {
+            const idx = Math.floor(i * (series.length - 1) / (labelCount - 1));
+            ctx.fillText(series[idx].date, toX(idx), H - 4);
+        }
     }
 
     // ====== STRATEGY REVIEW ======
