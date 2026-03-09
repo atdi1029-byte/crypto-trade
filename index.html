@@ -2548,6 +2548,14 @@ const BACKTEST = {
             localStorage.setItem('pokeball_used', JSON.stringify(data.pokeballUsed));
         }
 
+        // Sync strategy review state from API
+        if (data.lastReviewTrades !== undefined) {
+            const local = parseInt(localStorage.getItem(REVIEW_KEY) || '0');
+            const cloud = parseInt(data.lastReviewTrades) || 0;
+            const best = Math.max(local, cloud);
+            localStorage.setItem(REVIEW_KEY, String(best));
+        }
+
         // Sync DCA state from API (skip if user just toggled — cooldown prevents race condition)
         if (Date.now() > dcaSyncCooldown) {
             if (data.dcaMode !== undefined) {
@@ -4570,6 +4578,7 @@ const BACKTEST = {
         const total = parseInt(totalEl?.textContent) || 0;
         const milestone = Math.floor(total / REVIEW_INTERVAL) * REVIEW_INTERVAL;
         localStorage.setItem(REVIEW_KEY, String(milestone));
+        fireGet(POST_URL + '?action=set_review&milestone=' + milestone);
         banner.classList.remove('visible');
     }
 

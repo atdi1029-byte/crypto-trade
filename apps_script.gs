@@ -325,7 +325,7 @@ function updatePosition_(ss, data) {
   var entry  = data.entry || data.price || '';
   var field  = (data.field || '').toLowerCase();   // 'action' or 'outcome'
   var value  = data.value || '';                    // 'Entered','Skipped','Won','Lost','Open'
-  var realizedPnl = data.realized_pnl || data.realizedPnl || data.profitLocked || '';
+  var realizedPnl = data.realized_pnl || data.realizedPnl || data.profitLocked || data.profit || '';
 
   var posSheet = ss.getSheetByName(POSITIONS);
   var posData  = posSheet.getDataRange().getValues();
@@ -477,7 +477,7 @@ function addTrade_(ss, data) {
   var tp2        = data.tp2 || '';
   var score      = data.score || '';
   var outcome    = (data.outcome || '').toLowerCase();
-  var realizedPnl = data.realized_pnl || data.realizedPnl || '';
+  var realizedPnl = data.realized_pnl || data.realizedPnl || data.profitLocked || data.profit || '';
 
   if (!symbol || !signal || !outcome) {
     return ContentService
@@ -599,6 +599,14 @@ function doGet(e) {
     setConfig_('dca_history', '[]');
     return ContentService
       .createTextOutput(JSON.stringify({ status: 'ok', dcaTotal: 0 }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (action === 'set_review') {
+    var milestone = e.parameter.milestone || '0';
+    setConfig_('last_review_trades', milestone);
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'ok' }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 
@@ -1246,6 +1254,9 @@ function serveDashboardJSON_() {
   var dcaMode = String(getConfig_('dca_mode')).toLowerCase() === 'true';
   var dcaTotal = parseFloat(getConfig_('dca_total')) || 0;
 
+  // --- Strategy Review state ---
+  var lastReviewTrades = parseInt(getConfig_('last_review_trades')) || 0;
+
   var payload = {
     status:        'ok',
     timestamp:     new Date().toISOString(),
@@ -1257,7 +1268,8 @@ function serveDashboardJSON_() {
     stats:         stats,
     pokeballUsed:  pokeballUsed,
     dcaMode:       dcaMode,
-    dcaTotal:      dcaTotal
+    dcaTotal:      dcaTotal,
+    lastReviewTrades: lastReviewTrades
   };
 
   return ContentService
