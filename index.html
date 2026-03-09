@@ -1617,6 +1617,7 @@
             <button class="dca-toggle-btn" id="dcaToggleBtn" onclick="toggleDCAMode()">DCA: OFF</button>
             <button class="dca-levelup-btn" id="dcaLevelUpBtn" onclick="dcaLevelUp()" style="display:none">Level Up</button>
             <button class="dca-reset-btn" id="dcaResetBtn" onclick="dcaReset()" style="display:none">Reset DCA</button>
+            <span id="shortCapBadge" style="font-size:0.7rem;font-weight:600;margin-left:6px;letter-spacing:0.5px">Shorts: 0/2</span>
         </div>
         <div class="pokemon-box" id="pokemonBox"></div>
     </div>
@@ -1732,6 +1733,71 @@
     let dcaMode = localStorage.getItem('dca_mode') === 'true';
     let dcaTotal = parseFloat(localStorage.getItem('dca_total')) || 0;
     let dcaSyncCooldown = 0; // timestamp — skip API overwrite until this passes
+
+    // ====== WEEKLY SHORT CAP ======
+    // [minLevel, maxShortsPerWeek] — first match wins (checked high-to-low)
+    const SHORT_CAPS = [[16, Infinity], [15, 8], [14, 5], [13, 4], [8, 3], [0, 2]];
+
+    function getISOWeek() {
+        const d = new Date();
+        const day = d.getDay() || 7;
+        d.setDate(d.getDate() + 4 - day);
+        const yr = d.getFullYear();
+        const wk = Math.ceil((((d - new Date(yr,0,1)) / 86400000) + 1) / 7);
+        return yr + '-W' + String(wk).padStart(2, '0');
+    }
+
+    function getWeeklyShortCap() {
+        if (!window._lastStats) return 2;
+        const pnl = parseFloat(window._lastStats.netPnl) || 0;
+        const activePnl = dcaMode ? pnl + dcaTotal : pnl;
+        const level = getPokemonLevel(activePnl);
+        const levelIdx = POKEMON_LEVELS.indexOf(level) + 1;
+        for (const [minLv, cap] of SHORT_CAPS) {
+            if (levelIdx >= minLv) return cap;
+        }
+        return 2;
+    }
+
+    function getWeekShortCount() {
+        try {
+            const stored = JSON.parse(localStorage.getItem('crypto_short_week') || '{}');
+            if (stored.week === getISOWeek()) return stored.count || 0;
+        } catch(e) {}
+        return 0;
+    }
+
+    function bumpWeekShortCount() {
+        const week = getISOWeek();
+        const count = getWeekShortCount() + 1;
+        localStorage.setItem('crypto_short_week', JSON.stringify({ week, count }));
+        updateShortCapBadge();
+    }
+
+    function isShortSignal(sig) {
+        const s = (sig || '').toLowerCase();
+        return s.includes('sell') || s.includes('short');
+    }
+
+    function shortsAtCap() {
+        const cap = getWeeklyShortCap();
+        if (cap === Infinity) return false;
+        return getWeekShortCount() >= cap;
+    }
+
+    function updateShortCapBadge() {
+        const el = document.getElementById('shortCapBadge');
+        if (!el) return;
+        const cap = getWeeklyShortCap();
+        const count = getWeekShortCount();
+        if (cap === Infinity) {
+            el.textContent = 'Shorts: Unlimited';
+            el.style.color = 'var(--green-bright)';
+        } else {
+            el.textContent = 'Shorts: ' + count + '/' + cap;
+            el.style.color = count >= cap ? '#ffa726' : 'var(--green-bright)';
+        }
+    }
 
     // GET request that reads response and alerts on error
     async function fireGet(url) {
@@ -2635,6 +2701,7 @@ const BACKTEST = {
 
         // --- Pokemon Trainer Level ---
         renderPokemon(stats);
+        updateShortCapBadge();
 
         // --- Strategy Review Check ---
         checkReviewDue(stats.totalTrades || 0);
@@ -2659,7 +2726,10 @@ const BACKTEST = {
             const sig = (s.signal || s.direction || '').toLowerCase();
             const key = sym + '|' + sig;
             // Hide if acted locally OR if not in pending actions from sheet
-            return !isActed(sym, sig) && pendingSet.has(key);
+            if (isActed(sym, sig) || !pendingSet.has(key)) return false;
+            // Weekly short cap — hide sell/short picks when at cap
+            if (shortsAtCap() && isShortSignal(sig)) return false;
+            return true;
         });
         countEl.textContent = picks.length;
 
@@ -2742,6 +2812,10 @@ const BACKTEST = {
         const actionList = document.getElementById('actionList');
         const actionCount = document.getElementById('actionCount');
         actionNeeded = actionNeeded.filter(a => !isActed(a.ticker || a.symbol || '', a.signal || ''));
+        // Weekly short cap — hide sell/short signals when at cap
+        if (shortsAtCap()) {
+            actionNeeded = actionNeeded.filter(a => !isShortSignal(a.signal));
+        }
         actionCount.textContent = actionNeeded.length;
 
         if (actionNeeded.length === 0) {
@@ -3773,6 +3847,7 @@ const BACKTEST = {
         addActedItem(ticker, signal);
         // If Entered, open Bitunix and copy ticker pair
         if (value === 'Entered') {
+            if (isShortSignal(signal)) bumpWeekShortCount();
             const pair = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'') + 'USDT';
             navigator.clipboard.writeText(pair);
             window.open(DEFAULT_BX(ticker), '_blank');
@@ -3936,6 +4011,7 @@ const BACKTEST = {
         addActedItem(ticker, signal);
         // If Entered, open Bitunix and copy ticker pair
         if (value === 'Entered') {
+            if (isShortSignal(signal)) bumpWeekShortCount();
             const pair = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'') + 'USDT';
             navigator.clipboard.writeText(pair);
             window.open(DEFAULT_BX(ticker), '_blank');
