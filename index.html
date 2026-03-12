@@ -875,7 +875,7 @@
         }
         .action-item .message { display: none; }
         .action-item .meta { font-size: 0.7rem; color: var(--text-dim); margin-top: 0.25rem; }
-        .tap-copy { cursor: pointer; padding: 1px 4px; border-radius: 3px; -webkit-tap-highlight-color: transparent; }
+        .tap-copy { cursor: pointer; padding: 1px 4px; border-radius: 3px; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
         .tap-copy:active { background: var(--green-dim); }
         .action-buttons {
             display: flex;
@@ -3939,7 +3939,7 @@ const BACKTEST = {
     // ====== HELPERS ======
     function copyVal(el) {
         const v = el.textContent.trim();
-        navigator.clipboard.writeText(v).then(() => {
+        function showCopied() {
             const orig = el.style.cssText;
             el.style.cssText += 'background:var(--green-dim);border-radius:4px;transition:background 0.2s';
             const lbl = el.parentElement;
@@ -3949,7 +3949,25 @@ const BACKTEST = {
             lbl.appendChild(tag);
             setTimeout(() => { tag.style.opacity = '0'; }, 600);
             setTimeout(() => { el.style.cssText = orig; tag.remove(); }, 900);
-        });
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(v).then(showCopied).catch(() => {
+                // Fallback for mobile
+                const ta = document.createElement('textarea');
+                ta.value = v; ta.style.cssText = 'position:fixed;left:-9999px';
+                document.body.appendChild(ta); ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showCopied();
+            });
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = v; ta.style.cssText = 'position:fixed;left:-9999px';
+            document.body.appendChild(ta); ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            showCopied();
+        }
     }
 
     function esc(str) {
