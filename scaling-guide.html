@@ -631,6 +631,7 @@
     ];
 
     // Scout trade size — power curve: $1 early, $3-5 mid, $14-16 at Mewtwo/Mew
+    // Scout trade size — power curve: $1 early, $3-5 mid, $14-16 at Mewtwo/Mew
     function getScoutSize(profit) {
         if (profit <= 0) return 1;
         return Math.max(1, Math.floor(1 + Math.pow(profit / 1200, 0.85)));
@@ -720,7 +721,7 @@
     function buildGuide() {
         const container = document.getElementById('phases');
         let html = '';
-        let lockedAt225 = false;
+        let lockedAt200 = false;
         let lockProfit = 0;
         let maxScoutSeen = 0;
         let maxScoutCount = 0;
@@ -806,25 +807,25 @@
                 maxBudgetSeen = buffer;
                 const scoutSz = getScoutSize(lvl.min);
 
-                // Check if 225 scouts is first reached
+                // Check if 200 scouts is first reached
                 const rawScoutBudget = Math.max(0, buffer - total);
                 const rawBudgetScouts = scoutSz > 0 ? Math.floor(rawScoutBudget / scoutSz) : 0;
-                if (!lockedAt225 && rawBudgetScouts >= 225) {
-                    lockedAt225 = true;
+                if (!lockedAt200 && rawBudgetScouts >= 200) {
+                    lockedAt200 = true;
                     lockProfit = lvl.min;
                 }
 
                 let maxScouts, effectiveScout;
-                if (lockedAt225) {
+                if (lockedAt200) {
                     // T5 grows from 250 toward 500 after lock
                     const t5Progress = lockProfit < endProfit
                         ? Math.min(1, (lvl.min - lockProfit) / (endProfit - lockProfit)) : 0;
                     sizes[4] = Math.min(500, Math.round(250 + t5Progress * 250));
                     total = sizes.reduce((a, b) => a + b, 0);
-                    // Lock at 225 scouts, scout $ = remaining budget / 225
-                    maxScouts = 225;
+                    // Lock at 200 scouts, scout $ = remaining budget / 200
+                    maxScouts = 200;
                     const scoutBudget = Math.max(0, buffer - total);
-                    effectiveScout = Math.max(maxScoutSeen, Math.min(500, Math.floor(scoutBudget / 225)));
+                    effectiveScout = Math.max(maxScoutSeen, Math.min(500, Math.floor(scoutBudget / 200)));
                 } else {
                     const scoutBudget = Math.max(0, buffer - total);
                     const budgetScouts = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
@@ -1022,9 +1023,9 @@
         const scoutSz = getScoutSize(val);
         const scoutBudget = Math.max(0, buffer - total);
         const budgetScouts2 = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
-        const maxScouts = Math.min(225, budgetScouts2);
-        let effectiveScout = maxScouts === 225 && budgetScouts2 > 225
-            ? Math.min(Math.floor(scoutBudget / 225), 500) : scoutSz;
+        const maxScouts = Math.min(200, budgetScouts2);
+        let effectiveScout = maxScouts === 200 && budgetScouts2 > 200
+            ? Math.min(Math.floor(scoutBudget / 200), 500) : scoutSz;
         // Force +$1/level — scouts always progress
         effectiveScout = Math.max(effectiveScout, lv);
         let displayHtml = `<img src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}"> ${dcaMode ? 'DCA ' : ''}Lv.${levelIdx + 1} <strong>${level.pokemon}</strong> \u2014 ${sizesStr} = $${total} total${nextStr}<br><span style="font-size:0.6rem;color:#6a8aaa;">${(capPct*100).toFixed(0)}% Budget: $${buffer} \u2014 Scout: $${effectiveScout} \u2014 Max ${maxScouts} scouts</span>`;
@@ -1109,7 +1110,9 @@
                 const prevBuffer = Math.max(estMaxBudget, prevRawBuf);
                 estMaxBudget = prevBuffer;
                 const prevScoutBudget = Math.max(0, prevBuffer - prevTotal);
-                const numScouts = Math.min(225, prevScoutBudget > 0 ? 225 : 0);
+                const prevScoutSz = getScoutSize(prevMin);
+                const rawNumScouts = prevScoutSz > 0 ? Math.floor(prevScoutBudget / prevScoutSz) : 0;
+                const numScouts = Math.min(200, rawNumScouts);
                 const scoutSz = numScouts > 0 ? Math.max(1, Math.floor(prevScoutBudget / numScouts)) : 0;
 
                 // Daily profit from main trades
