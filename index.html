@@ -2064,6 +2064,11 @@
     }
 
     function getWeekShortCount() {
+        // Use API data (source of truth) if available
+        if (window._lastStats && typeof window._lastStats.weeklyShorts === 'number') {
+            return window._lastStats.weeklyShorts;
+        }
+        // Fallback to localStorage
         try {
             const stored = JSON.parse(localStorage.getItem('crypto_short_week') || '{}');
             if (stored.week === getISOWeek()) return stored.count || 0;
@@ -2072,6 +2077,7 @@
     }
 
     function bumpWeekShortCount() {
+        // Keep localStorage as fallback for immediate UI update before next API fetch
         const week = getISOWeek();
         const count = getWeekShortCount() + 1;
         localStorage.setItem('crypto_short_week', JSON.stringify({ week, count }));
