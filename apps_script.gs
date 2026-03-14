@@ -941,6 +941,22 @@ function serveDashboardJSON_() {
     totalOpen += tickerMap[ot].openPositions;
   }
 
+  // Count shorts entered this ISO week
+  var now = new Date();
+  var dayOfWeek = now.getDay() || 7; // Mon=1 .. Sun=7
+  var weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek + 1);
+  weekStart.setHours(0, 0, 0, 0);
+  var weeklyShorts = 0;
+  for (var ws = 1; ws < posData.length; ws++) {
+    var wsAction = String(posData[ws][8]).toLowerCase().trim();
+    if (wsAction !== 'entered') continue;
+    var wsSignal = String(posData[ws][2]).toLowerCase();
+    if (wsSignal.indexOf('sell') === -1 && wsSignal.indexOf('short') === -1 && wsSignal.indexOf('reduce') === -1) continue;
+    var wsTs = posData[ws][0];
+    if (!(wsTs instanceof Date)) wsTs = new Date(wsTs);
+    if (!isNaN(wsTs.getTime()) && wsTs >= weekStart) weeklyShorts++;
+  }
+
   // Average score of winning vs losing trades
   var avgWinScore = 0, avgLossScore = 0;
   if (wins.length > 0) {
@@ -979,6 +995,7 @@ function serveDashboardJSON_() {
     maxPositions:    maxPositions,
     slotsAvailable:  maxPositions - totalOpen,
     todaySignals:    todaySignals,
+    weeklyShorts:    weeklyShorts,
     bestWinStreak:   streaks.bestWin,
     worstLossStreak: streaks.worstLoss,
     currentStreak:   streaks.current > 0 ? streaks.current + 'W' : (streaks.current < 0 ? Math.abs(streaks.current) + 'L' : '0'),
