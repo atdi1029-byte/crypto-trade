@@ -2967,6 +2967,10 @@ const BACKTEST = {
         renderContextBanner(stats);
 
         // --- Top Picks (Claude's recommendations) ---
+        // Set stats early so shortsAtCap() works in renderActions/renderTopPicks
+        window._lastStats = stats;
+        updateShortCapBadge();
+
         renderTopPicks(claudePicks || [], scoredSignals, actionNeeded || []);
 
         // --- Split actions: new signals vs open trades ---
