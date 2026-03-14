@@ -2086,7 +2086,7 @@
 
     function isShortSignal(sig) {
         const s = (sig || '').toLowerCase();
-        return s.includes('sell') || s.includes('short');
+        return s.includes('sell') || s.includes('short') || s.includes('reduce');
     }
 
     function shortsAtCap() {
