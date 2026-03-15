@@ -3190,12 +3190,14 @@ const BACKTEST = {
                 const blendedWr = getBlendedWR(tkr, signalType);
                 const wrHtml = blendedWr !== null ? `<span style="color:var(--accent);font-weight:700">WR ${blendedWr}%</span>` : '';
                 const btSide = isBuy ? 'buy' : 'sell';
-                const btDataAttr = bt ? `data-sl="${bt.sl}" data-tp="${bt.tp}" data-half="${bt.halfTp}" data-side="${btSide}"` : '';
+                // Use bt if available, otherwise fall back to BT_DEFAULTS so levels always show
+                const lvl = bt || BT_DEFAULTS[btSide];
+                const btDataAttr = lvl ? `data-sl="${lvl.sl}" data-tp="${lvl.tp}" data-half="${lvl.halfTp}" data-side="${btSide}"` : '';
                 let btHtml = '';
-                if (bt && p > 0) {
-                    const slPrice = isBuy ? p * (1 - bt.sl / 100) : p * (1 + bt.sl / 100);
-                    const tpPrice = isBuy ? p * (1 + bt.tp / 100) : p * (1 - bt.tp / 100);
-                    const halfPrice = isBuy ? p * (1 + bt.halfTp / 100) : p * (1 - bt.halfTp / 100);
+                if (lvl && p > 0) {
+                    const slPrice = isBuy ? p * (1 - lvl.sl / 100) : p * (1 + lvl.sl / 100);
+                    const tpPrice = isBuy ? p * (1 + lvl.tp / 100) : p * (1 - lvl.tp / 100);
+                    const halfPrice = isBuy ? p * (1 + lvl.halfTp / 100) : p * (1 - lvl.halfTp / 100);
                     const fmt = v => v >= 100 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v >= 0.01 ? v.toFixed(4) : v.toPrecision(4);
                     btHtml = `<div class="meta" style="margin-top:0.2rem"><span class="bt-levels" ${btDataAttr}><span style="color:var(--red-bright)">SL <span class="bt-sl tap-copy" onclick="copyVal(this)">${fmt(slPrice)}</span></span> &middot; <span style="color:var(--green-bright)">TP1 <span class="bt-half tap-copy" onclick="copyVal(this)">${fmt(halfPrice)}</span></span> &middot; <span style="color:var(--green-bright)">TP2 <span class="bt-tp tap-copy" onclick="copyVal(this)">${fmt(tpPrice)}</span></span></span></div>`;
                 }
@@ -3218,11 +3220,11 @@ const BACKTEST = {
                             </div>
                             <div class="meta" style="margin-top:0.15rem">${wrHtml} ${contextTag}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}${indStr}</div>
                             ${noteHtml ? `<div class="meta" style="margin-top:0.15rem">${noteHtml}</div>` : ''}
-                            ${!bt && levelsStr ? `<div class="meta" style="margin-top:0.15rem;font-size:0.7rem">${levelsStr}</div>` : ''}
+                            ${!lvl && levelsStr ? `<div class="meta" style="margin-top:0.15rem;font-size:0.7rem">${levelsStr}</div>` : ''}
                             ${btHtml}
                             <div class="action-buttons">
                                 <input type="text" class="entry-input" placeholder="Size $" id="${id}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
-                                ${bt ? `<input type="text" class="entry-input" placeholder="Entry $" id="${id}-entry" value="${p}" style="width:80px" oninput="recalcLevels('${id}')">` : ''}
+                                ${lvl ? `<input type="text" class="entry-input" placeholder="Entry $" id="${id}-entry" value="${p}" style="width:80px" oninput="recalcLevels('${id}')">` : ''}
                                 <button class="action-btn entered" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Entered','${id}')">Entered</button>
                                 <button class="action-btn skipped" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Skipped','${id}')">Skipped</button>
                             </div>
@@ -5005,9 +5007,8 @@ const BACKTEST = {
 
         // Change pill
         if (filtered.length >= 2) {
-            const startPnl = filtered[0].pnl;
             const endPnl = filtered[filtered.length - 1].pnl;
-            const change = endPnl - startPnl;
+            const change = pnlRange === 'AT' ? endPnl : endPnl - filtered[0].pnl;
             const labels = { '1M': '1 month', '3M': '3 months', '6M': '6 months', '1Y': '1 year', 'AT': 'all time' };
             pillEl.textContent = (change >= 0 ? '\u25B2 +$' : '\u25BC -$') + Math.abs(change).toFixed(2) + ' over ' + (labels[pnlRange] || pnlRange);
             pillEl.className = 'pnl-change-pill ' + (change >= 0 ? 'green' : 'red');
