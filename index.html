@@ -3035,7 +3035,7 @@ const BACKTEST = {
             const key = sym + '|' + sig;
             // Hide if acted locally OR if not in pending actions from sheet
             if (isActed(sym, sig) || !pendingSet.has(key)) return false;
-            // Weekly short cap — hide sell/short picks when at cap
+            // Weekly short cap — auto-skip (handled in renderActions)
             if (shortsAtCap() && isShortSignal(sig)) return false;
             return true;
         });
@@ -3120,8 +3120,19 @@ const BACKTEST = {
         const actionList = document.getElementById('actionList');
         const actionCount = document.getElementById('actionCount');
         actionNeeded = actionNeeded.filter(a => !isActed(a.ticker || a.symbol || '', a.signal || ''));
-        // Weekly short cap — hide sell/short signals when at cap
+        // Weekly short cap — auto-skip shorts over cap (marks Skipped in sheet)
         if (shortsAtCap()) {
+            const shorts = actionNeeded.filter(a => isShortSignal(a.signal));
+            shorts.forEach(a => {
+                const tkr = a.ticker || a.symbol || '';
+                const prc = a.price || a.entry || 0;
+                addActedItem(tkr, a.signal);
+                const params = new URLSearchParams({
+                    action: 'update', ticker: tkr, signal: a.signal,
+                    price: prc, field: 'action', value: 'Skipped'
+                });
+                fireGet(POST_URL + '?' + params);
+            });
             actionNeeded = actionNeeded.filter(a => !isShortSignal(a.signal));
         }
         actionCount.textContent = actionNeeded.length;
