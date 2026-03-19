@@ -2875,6 +2875,9 @@ const BACKTEST = {
     }
 
     // ====== FETCH DATA ======
+    const CACHE_KEY = 'crypto_dashboard_cache';
+    const FETCH_TIMEOUT = 15000; // 15s max wait
+
     async function fetchData() {
         const dot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
@@ -2882,11 +2885,17 @@ const BACKTEST = {
         statusText.textContent = 'Fetching...';
 
         try {
-            const resp = await fetch(API_URL);
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+            const resp = await fetch(API_URL, { signal: controller.signal });
+            clearTimeout(timer);
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
             const data = await resp.json();
 
             if (data.status !== 'ok') throw new Error(data.message || 'Bad response');
+
+            // Cache for instant load next time
+            try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); } catch(e) {}
 
             renderDashboard(data);
             checkNewPicks(data);
@@ -2897,12 +2906,13 @@ const BACKTEST = {
             document.getElementById('errorBanner').className = 'error-banner';
             document.getElementById('loading').className = 'loading-overlay hidden';
         } catch (err) {
-            renderDashboard(EMPTY_DATA);
+            // Only render empty if we have no cached data already on screen
+            if (!window._hasCachedRender) renderDashboard(EMPTY_DATA);
             dot.className = 'status-dot';
-            statusText.textContent = 'Error';
-            document.getElementById('lastUpdate').textContent = 'No data';
+            statusText.textContent = err.name === 'AbortError' ? 'Timeout' : 'Error';
+            document.getElementById('lastUpdate').textContent = window._hasCachedRender ? 'Cached' : 'No data';
             const banner = document.getElementById('errorBanner');
-            banner.textContent = 'Fetch failed: ' + err.message;
+            banner.textContent = err.name === 'AbortError' ? 'Fetch timed out — using cached data' : 'Fetch failed: ' + err.message;
             banner.className = 'error-banner show';
             document.getElementById('loading').className = 'loading-overlay hidden';
         }
@@ -5248,6 +5258,19 @@ const BACKTEST = {
     }
 
     // ====== INIT ======
+    // Instant render from cache — no waiting for API
+    try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+            const data = JSON.parse(cached);
+            renderDashboard(data);
+            window._hasCachedRender = true;
+            document.getElementById('loading').className = 'loading-overlay hidden';
+            document.getElementById('statusText').textContent = 'Cached';
+            document.getElementById('lastUpdate').textContent = 'Cached — refreshing...';
+        }
+    } catch(e) {}
+    // Then fetch fresh data in background
     fetchData();
     fetchWeeklyTasks();
 
