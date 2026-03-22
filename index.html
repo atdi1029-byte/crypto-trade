@@ -3234,7 +3234,19 @@ const BACKTEST = {
             const sessWrStr = _sess.winRate ? ' ' + _sess.winRate : '';
             const contextTag = `<span style="font-size:0.5rem;padding:1px 5px;border-radius:3px;background:${tipColors[dayTip]}22;color:${tipColors[dayTip]};font-weight:700;margin-left:4px">${dayName}${dayWrStr}</span><span style="font-size:0.5rem;padding:1px 5px;border-radius:3px;background:${tipColors[sessTip]}22;color:${tipColors[sessTip]};font-weight:700;margin-left:3px">${session}${sessWrStr}</span>`;
 
-
+            // RSI zone verdict
+            const _rsi = _st.rsiAnalysis || {};
+            const _rsiVal = Number(a.rsi || 0);
+            let rsiZoneTag = '';
+            if (_rsiVal > 0) {
+                const zone = _rsiVal < 25 ? _rsi.deepOversold : _rsiVal < 35 ? _rsi.moderate : _rsiVal < 50 ? _rsi.shallow : _rsi.overbought;
+                if (zone && zone.total >= 3) {
+                    const zwr = parseInt(zone.winRate);
+                    const zColor = zwr >= 95 ? '#4caf50' : zwr >= 85 ? '#64b5f6' : zwr < 80 ? '#ef5350' : '#f9c846';
+                    const zLabel = zwr >= 95 ? 'SAFE' : zwr >= 85 ? 'OK' : zwr < 80 ? 'DANGER' : 'MIXED';
+                    rsiZoneTag = `<span style="font-size:0.5rem;padding:1px 5px;border-radius:3px;background:${zColor}22;color:${zColor};font-weight:700;margin-left:3px">RSI zone ${zone.winRate} \u00b7 ${zLabel}</span>`;
+                }
+            }
 
             // Use RSI/MACD/Vol from action item directly (from Apps Script), fall back to signal match
             const matched = (allSignals || []).find(s => (s.symbol || s.ticker || '').toUpperCase() === tkr.toUpperCase() && Math.abs(Number(s.entry || s.price || 0) - prc) < 0.001)
@@ -3293,7 +3305,7 @@ const BACKTEST = {
                                 <span class="signal-tag ${signalClass}">${signalLabel(signalType)}</span>
                                 ${isDCA ? '' : `<span class="score-tag">Score: ${score}</span>`}
                             </div>
-                            <div class="meta" style="margin-top:0.15rem">${wrHtml} ${contextTag}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}${indStr}</div>
+                            <div class="meta" style="margin-top:0.15rem">${wrHtml} ${contextTag}${rsiZoneTag}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}${indStr}</div>
                             ${noteHtml ? `<div class="meta" style="margin-top:0.15rem">${noteHtml}</div>` : ''}
                             ${!lvl && levelsStr ? `<div class="meta" style="margin-top:0.15rem;font-size:0.7rem">${levelsStr}</div>` : ''}
                             ${btHtml}
