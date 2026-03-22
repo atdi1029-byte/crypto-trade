@@ -401,6 +401,10 @@ function updatePosition_(ss, data) {
     if (realizedPnl !== '') {
       posSheet.getRange(matchRows[0], 11).setValue(Number(realizedPnl)); // Column K
     }
+    // Stamp closed_at timestamp (Column N = 14) for hold duration tracking
+    if (value.toLowerCase() === 'won' || value.toLowerCase() === 'lost' || value.toLowerCase() === 'closed' || value.toLowerCase() === '0x0') {
+      posSheet.getRange(matchRows[0], 14).setValue(new Date()); // Column N = closed_at
+    }
   }
 
   return ContentService
@@ -1016,7 +1020,7 @@ function serveDashboardJSON_() {
       trades.forEach(function(t) {
         runningPnl += t.realizedPnl;
         var ts = t.timestamp instanceof Date ? t.timestamp : new Date(t.timestamp);
-        cumulative.push({ date: Utilities.formatDate(ts, Session.getScriptTimeZone(), 'MM/dd'), pnl: Math.round(runningPnl * 100) / 100 });
+        cumulative.push({ date: Utilities.formatDate(ts, Session.getScriptTimeZone(), 'MM/dd'), pnl: runningPnl });
         if (ts >= d30) { pnl30 += t.realizedPnl; cnt30++; }
         if (ts >= d14) { pnl14 += t.realizedPnl; cnt14++; }
         if (ts >= d7)  { pnl7  += t.realizedPnl; cnt7++;  }
@@ -1394,6 +1398,13 @@ function getAllCompletedTrades_() {
       }
     }
 
+    // Hold duration: Column N (13) = closed_at timestamp
+    var closedAt = posData[j][13] || '';
+    var holdHours = null;
+    if (closedAt instanceof Date && posData[j][0] instanceof Date) {
+      holdHours = Math.round((closedAt.getTime() - posData[j][0].getTime()) / (1000 * 60 * 60) * 10) / 10;
+    }
+
     trades.push({
       timestamp:   posData[j][0],
       ticker:      symbol,
@@ -1408,7 +1419,9 @@ function getAllCompletedTrades_() {
       realizedPnl: pnl ? Number(pnl) : 0,
       rsi:         rsi !== '' ? Number(rsi) : null,
       timeframe:   timeframe || 'unknown',
-      macd:        macd || ''
+      macd:        macd || '',
+      closedAt:    closedAt instanceof Date ? closedAt : null,
+      holdHours:   holdHours
     });
   }
 
