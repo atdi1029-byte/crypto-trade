@@ -3951,6 +3951,34 @@ const BACKTEST = {
                 ` exceeds avg loss (${ratio}x).`));
         }
 
+        // --- Kelly Criterion ---
+        if (avgW > 0 && avgL > 0) {
+            const totalT = (stats.totalWins || 0) +
+                (stats.totalLosses || 0);
+            const wr = totalT > 0
+                ? (stats.totalWins || 0) / totalT : 0;
+            const lr = 1 - wr;
+            const b = avgW / avgL;
+            const kelly = ((b * wr) - lr) / b;
+            const kellyPct = (kelly * 100).toFixed(1);
+            const halfK = (kelly * 50).toFixed(1);
+            const qtrK = (kelly * 25).toFixed(1);
+            if (kelly > 0) {
+                insights.push(row('info', '\uD83C\uDFB0',
+                    `<strong>Kelly Criterion:</strong>` +
+                    ` full <span class="num-good">` +
+                    `${kellyPct}%</span>` +
+                    ` | half <span class="num-good">` +
+                    `${halfK}%</span>` +
+                    ` | quarter <span class="num-good">` +
+                    `${qtrK}%</span>` +
+                    ` of bankroll per trade.` +
+                    ` (${totalT} trades,` +
+                    ` ${(wr*100).toFixed(1)}% WR,` +
+                    ` ${b.toFixed(2)}x W/L ratio)`));
+            }
+        }
+
         // --- Best/worst day ---
         const dow = stats.dayOfWeekAnalysis || {};
         const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
