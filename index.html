@@ -580,6 +580,43 @@
             to { box-shadow: 0 0 20px rgba(255, 152, 0, 0.7), 0 0 40px rgba(255, 152, 0, 0.2); text-shadow: 0 0 12px rgba(255, 152, 0, 0.6); }
         }
 
+        /* ============ STRATEGY INSIGHTS ============ */
+        .insights-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .insight-row {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.5rem 0.7rem;
+            border-radius: 6px;
+            background: rgba(0,0,0,0.25);
+            border-left: 3px solid var(--border);
+            font-size: 0.65rem;
+            line-height: 1.4;
+        }
+        .insight-row.good { border-left-color: #4caf50; }
+        .insight-row.warn { border-left-color: #ff9800; }
+        .insight-row.bad { border-left-color: #ef5350; }
+        .insight-row.info { border-left-color: #64b5f6; }
+        .insight-icon {
+            font-size: 1rem;
+            flex-shrink: 0;
+            width: 1.4rem;
+            text-align: center;
+        }
+        .insight-text {
+            color: var(--text);
+        }
+        .insight-text strong {
+            color: var(--text-bright);
+        }
+        .insight-text .num-good { color: #4caf50; font-weight: 700; }
+        .insight-text .num-bad { color: #ef5350; font-weight: 700; }
+        .insight-text .num-warn { color: #ff9800; font-weight: 700; }
+
         .open-trades-list {
             display: flex;
             flex-direction: column;
@@ -1930,6 +1967,10 @@
                 <div class="section-box">
                     <div style="font-size:0.7rem;color:#ce93d8;margin-bottom:0.5rem;font-weight:700">MACD Confirmation</div>
                     <div class="perf-grid" id="macdGrid"></div>
+                </div>
+                <div class="section-box" style="margin-top:0.75rem">
+                    <div style="font-size:0.7rem;color:#f9c846;margin-bottom:0.5rem;font-weight:700">Strategy Insights</div>
+                    <div class="insights-grid" id="insightsGrid"></div>
                 </div>
             </div>
         </div>
@@ -3849,6 +3890,207 @@ const BACKTEST = {
                 const colors = {Mon:'#42a5f5',Tue:'#66bb6a',Wed:'#ffca28',Thu:'#ff7043',Fri:'#ab47bc',Sat:'#78909c',Sun:'#ef5350'};
                 return card(d, dow[d], colors[d]);
             }).join('');
+
+        // Strategy Insights
+        renderInsights(stats);
+    }
+
+    function renderInsights(stats) {
+        const el = document.getElementById('insightsGrid');
+        if (!el) return;
+        const insights = [];
+        const row = (cls, icon, html) =>
+            `<div class="insight-row ${cls}">` +
+            `<span class="insight-icon">${icon}</span>` +
+            `<span class="insight-text">${html}</span></div>`;
+
+        // --- Win/Loss size ratio ---
+        const eff = stats.slTpEfficiency || {};
+        const avgW = eff.avgWinAmount || 0;
+        const avgL = eff.avgLossAmount || 0;
+        const ratio = eff.winLossRatio || 0;
+        if (avgL > 0 && ratio < 1) {
+            const multip = (avgL / avgW).toFixed(1);
+            const breakeven = (avgL / (avgW + avgL) * 100).toFixed(0);
+            insights.push(row('bad', '\u26A0',
+                `<strong>Loss size problem:</strong> avg loss ` +
+                `<span class="num-bad">$${avgL.toFixed(3)}</span>` +
+                ` is <span class="num-bad">${multip}x</span>` +
+                ` your avg win ` +
+                `<span class="num-good">$${avgW.toFixed(3)}</span>.` +
+                ` Need <span class="num-warn">${breakeven}%</span>` +
+                ` WR just to break even.`));
+        } else if (ratio >= 1) {
+            insights.push(row('good', '\u2714',
+                `<strong>Great risk/reward:</strong> avg win` +
+                ` exceeds avg loss (${ratio}x).`));
+        }
+
+        // --- Best/worst day ---
+        const dow = stats.dayOfWeekAnalysis || {};
+        const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+        let bestDay = null, worstDay = null;
+        days.forEach(d => {
+            const dd = dow[d];
+            if (!dd || dd.total < 5) return;
+            const wr = parseInt(dd.winRate);
+            if (!bestDay || wr > parseInt(dow[bestDay].winRate))
+                bestDay = d;
+            if (!worstDay || wr < parseInt(dow[worstDay].winRate))
+                worstDay = d;
+        });
+        if (bestDay && dow[bestDay]) {
+            const bd = dow[bestDay];
+            insights.push(row('good', '\uD83D\uDCC5',
+                `<strong>Best day:</strong> <strong>${bestDay}</strong>` +
+                ` \u2014 <span class="num-good">${bd.winRate}</span>` +
+                ` WR (${bd.wins}W/${bd.losses}L),` +
+                ` P&L <span class="${bd.pnl >= 0 ? 'num-good' : 'num-bad'}">` +
+                `${bd.pnl >= 0 ? '+' : ''}$${bd.pnl.toFixed(2)}</span>`));
+        }
+        if (worstDay && dow[worstDay] &&
+            parseInt(dow[worstDay].winRate) < 85) {
+            const wd = dow[worstDay];
+            insights.push(row('bad', '\uD83D\uDCC5',
+                `<strong>Worst day:</strong> ` +
+                `<strong>${worstDay}</strong>` +
+                ` \u2014 <span class="num-bad">${wd.winRate}</span>` +
+                ` WR (${wd.wins}W/${wd.losses}L),` +
+                ` P&L <span class="${wd.pnl >= 0 ? 'num-good' : 'num-bad'}">` +
+                `${wd.pnl >= 0 ? '+' : ''}$${wd.pnl.toFixed(2)}</span>.` +
+                ` Consider being more selective.`));
+        }
+
+        // --- Best/worst session ---
+        const sess = stats.sessionAnalysis || {};
+        const sessNames = {
+            asian: 'Asian (0-8 UTC)',
+            europe: 'Europe (8-14)',
+            us: 'US (14-21)',
+            night: 'Night (21-0)'
+        };
+        let bestSess = null, worstSess = null;
+        let bestPpt = -Infinity, worstPpt = Infinity;
+        Object.keys(sessNames).forEach(s => {
+            const sd = sess[s];
+            if (!sd || sd.total < 5) return;
+            const ppt = sd.pnl / sd.total;
+            if (ppt > bestPpt) { bestPpt = ppt; bestSess = s; }
+            if (ppt < worstPpt) { worstPpt = ppt; worstSess = s; }
+        });
+        if (bestSess && sess[bestSess]) {
+            const bs = sess[bestSess];
+            insights.push(row('good', '\u23F0',
+                `<strong>Best session:</strong> ` +
+                `<strong>${sessNames[bestSess]}</strong>` +
+                ` \u2014 <span class="num-good">${bs.winRate}</span>` +
+                ` WR, <span class="num-good">+$${bs.pnl.toFixed(2)}</span>` +
+                ` on ${bs.total} trades` +
+                ` ($${(bs.pnl/bs.total).toFixed(3)}/trade)`));
+        }
+        if (worstSess && sess[worstSess] && worstSess !== bestSess) {
+            const ws = sess[worstSess];
+            const wppt = (ws.pnl / ws.total).toFixed(3);
+            insights.push(row(
+                parseFloat(wppt) < 0 ? 'bad' : 'warn', '\u23F0',
+                `<strong>Weakest session:</strong> ` +
+                `<strong>${sessNames[worstSess]}</strong>` +
+                ` \u2014 <span class="${parseFloat(wppt) < 0 ? 'num-bad' : 'num-warn'}">${ws.winRate}</span>` +
+                ` WR, $${wppt}/trade on ${ws.total} trades`));
+        }
+
+        // --- RSI danger zone ---
+        const rsi = stats.rsiAnalysis || {};
+        if (rsi.overbought && rsi.overbought.total >= 3) {
+            const ob = rsi.overbought;
+            const wr = parseInt(ob.winRate);
+            if (wr < 80) {
+                insights.push(row('bad', '\uD83D\uDCC9',
+                    `<strong>RSI > 50 danger zone:</strong>` +
+                    ` <span class="num-bad">${ob.winRate}</span>` +
+                    ` WR, P&L <span class="num-bad">` +
+                    `${ob.pnl >= 0 ? '+' : ''}$${ob.pnl.toFixed(2)}</span>` +
+                    ` on ${ob.total} trades.` +
+                    ` Avoid entering when RSI is elevated.`));
+            }
+        }
+
+        // --- Shorts profitability ---
+        const sides = stats.sideBreakdown || {};
+        if (sides.sell && sides.sell.total >= 10) {
+            const s = sides.sell;
+            if (s.pnl < 0) {
+                insights.push(row('warn', '\u2935',
+                    `<strong>Shorts are net negative:</strong>` +
+                    ` <span class="num-bad">`+
+                    `-$${Math.abs(s.pnl).toFixed(2)}</span>` +
+                    ` on ${s.total} trades (${s.winRate} WR).` +
+                    ` All profit comes from buy side.`));
+            } else {
+                insights.push(row('good', '\u2935',
+                    `<strong>Shorts profitable:</strong>` +
+                    ` <span class="num-good">` +
+                    `+$${s.pnl.toFixed(2)}</span>` +
+                    ` on ${s.total} trades (${s.winRate} WR).`));
+            }
+        }
+
+        // --- Trend direction ---
+        const trend = stats.trend || {};
+        if (trend.direction) {
+            const pnl7 = trend.avg7d ? trend.avg7d.pnl : 0;
+            if (trend.direction === 'declining' && pnl7 < 0) {
+                insights.push(row('warn', '\uD83D\uDCC9',
+                    `<strong>Trend declining:</strong>` +
+                    ` last 7d P&L <span class="num-bad">` +
+                    `${pnl7 >= 0 ? '+' : ''}$${pnl7.toFixed(2)}</span>.` +
+                    ` Consider reducing position sizes.`));
+            } else if (trend.direction === 'improving') {
+                const pnl14 = trend.avg14d ? trend.avg14d.pnl : 0;
+                insights.push(row('good', '\uD83D\uDCC8',
+                    `<strong>Trend improving:</strong>` +
+                    ` 14d P&L <span class="num-good">` +
+                    `+$${pnl14.toFixed(2)}</span>.` +
+                    ` Strategy performing well.`));
+            }
+        }
+
+        // --- Streak info ---
+        const streak = stats.currentStreak || '0';
+        const streakNum = parseInt(streak);
+        if (streak.includes('W') && streakNum >= 10) {
+            insights.push(row('good', '\uD83D\uDD25',
+                `<strong>On fire:</strong>` +
+                ` <span class="num-good">${streakNum} wins</span>` +
+                ` in a row! Best ever:` +
+                ` ${stats.bestWinStreak || '?'}.`));
+        } else if (streak.includes('L') && streakNum >= 2) {
+            insights.push(row('bad', '\u2744',
+                `<strong>Cold streak:</strong>` +
+                ` <span class="num-bad">${streakNum} losses</span>` +
+                ` in a row. Consider pausing.`));
+        }
+
+        // --- Friday overtrading check ---
+        const friData = dow['Fri'];
+        if (friData && friData.total >= 20 && friData.losses >= 8) {
+            const pct = (friData.losses / friData.total * 100)
+                .toFixed(0);
+            insights.push(row('warn', '\uD83D\uDEA8',
+                `<strong>Friday overtrading:</strong>` +
+                ` ${friData.total} trades with` +
+                ` <span class="num-bad">${friData.losses}</span>` +
+                ` losses (${pct}% loss rate).` +
+                ` Consider a daily cap.`));
+        }
+
+        if (insights.length === 0) {
+            insights.push(row('info', '\u2139',
+                'Not enough data yet for insights.' +
+                ' Keep trading!'));
+        }
+
+        el.innerHTML = insights.join('');
     }
 
     // ====== TICKER GRID ======
