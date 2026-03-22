@@ -3248,6 +3248,32 @@ const BACKTEST = {
                 }
             }
 
+            // Kelly tag on HOT days
+            let kellyTag = '';
+            if (dayTip === 'hot') {
+                const _eff = (_st.slTpEfficiency || {});
+                const _aW = _eff.avgWinAmount || 0;
+                const _aL = _eff.avgLossAmount || 0;
+                if (_aW > 0 && _aL > 0) {
+                    const _tW = _st.totalWins || 0;
+                    const _tL = _st.totalLosses || 0;
+                    const _tT = _tW + _tL;
+                    if (_tT > 0) {
+                        const _wr = _tW / _tT;
+                        const _b = _aW / _aL;
+                        const _k = ((_b * _wr) - (1 - _wr)) / _b;
+                        if (_k > 0) {
+                            const _pnl = parseFloat(_st.netPnl) || 0;
+                            const _ap = dcaMode ? _pnl + dcaTotal : _pnl;
+                            const _qk = _ap * _k * 0.25;
+                            const _sz = Math.max(1, Math.floor(_qk));
+                            const _lvl = getPokemonLevel(_ap);
+                            kellyTag = `<span style="font-size:0.5rem;padding:1px 5px;border-radius:3px;background:#ffab4022;color:#ffab40;font-weight:700;margin-left:3px">Kelly $${_sz} (${_lvl.pokemon})</span>`;
+                        }
+                    }
+                }
+            }
+
             // Use RSI/MACD/Vol from action item directly (from Apps Script), fall back to signal match
             const matched = (allSignals || []).find(s => (s.symbol || s.ticker || '').toUpperCase() === tkr.toUpperCase() && Math.abs(Number(s.entry || s.price || 0) - prc) < 0.001)
                 || (allSignals || []).find(s => (s.symbol || s.ticker || '').toUpperCase() === tkr.toUpperCase());
@@ -3305,7 +3331,7 @@ const BACKTEST = {
                                 <span class="signal-tag ${signalClass}">${signalLabel(signalType)}</span>
                                 ${isDCA ? '' : `<span class="score-tag">Score: ${score}</span>`}
                             </div>
-                            <div class="meta" style="margin-top:0.15rem">${wrHtml} ${contextTag}${rsiZoneTag}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}${indStr}</div>
+                            <div class="meta" style="margin-top:0.15rem">${wrHtml} ${contextTag}${rsiZoneTag}${kellyTag}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}${indStr}</div>
                             ${noteHtml ? `<div class="meta" style="margin-top:0.15rem">${noteHtml}</div>` : ''}
                             ${!lvl && levelsStr ? `<div class="meta" style="margin-top:0.15rem;font-size:0.7rem">${levelsStr}</div>` : ''}
                             ${btHtml}
@@ -3949,34 +3975,6 @@ const BACKTEST = {
             insights.push(row('good', '\u2714',
                 `<strong>Great risk/reward:</strong> avg win` +
                 ` exceeds avg loss (${ratio}x).`));
-        }
-
-        // --- Kelly Criterion ---
-        if (avgW > 0 && avgL > 0) {
-            const totalT = (stats.totalWins || 0) +
-                (stats.totalLosses || 0);
-            const wr = totalT > 0
-                ? (stats.totalWins || 0) / totalT : 0;
-            const lr = 1 - wr;
-            const b = avgW / avgL;
-            const kelly = ((b * wr) - lr) / b;
-            const kellyPct = (kelly * 100).toFixed(1);
-            const halfK = (kelly * 50).toFixed(1);
-            const qtrK = (kelly * 25).toFixed(1);
-            if (kelly > 0) {
-                insights.push(row('info', '\uD83C\uDFB0',
-                    `<strong>Kelly Criterion:</strong>` +
-                    ` full <span class="num-good">` +
-                    `${kellyPct}%</span>` +
-                    ` | half <span class="num-good">` +
-                    `${halfK}%</span>` +
-                    ` | quarter <span class="num-good">` +
-                    `${qtrK}%</span>` +
-                    ` of bankroll per trade.` +
-                    ` (${totalT} trades,` +
-                    ` ${(wr*100).toFixed(1)}% WR,` +
-                    ` ${b.toFixed(2)}x W/L ratio)`));
-            }
         }
 
         // --- Best/worst day ---
