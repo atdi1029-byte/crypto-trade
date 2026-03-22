@@ -3209,19 +3209,44 @@ const BACKTEST = {
             const isDCA = signalType.includes('reduce') || signalType.includes('add');
             const score = a.score || a._score || '-';
 
-            // Context tips based on analysis data
+            // Context tips — DATA-DRIVEN from actual stats
             const now = new Date();
             const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getDay()];
             const utcH = now.getUTCHours();
             const session = utcH < 8 ? 'Asian' : utcH < 14 ? 'Europe' : utcH < 21 ? 'US' : 'Night';
-            const dayTips = {Sun:'caution',Mon:'good',Tue:'hot',Wed:'hot',Thu:'good',Fri:'caution',Sat:'caution'};
-            const sessTips = {Asian:'ok',Europe:'good',US:'good',Night:'caution'};
-            const dayTip = dayTips[dayName] || 'ok';
-            const sessTip = sessTips[session] || 'ok';
+            const _st = window._lastStats || {};
+            const _dow = (_st.dayOfWeekAnalysis || {})[dayName] || {};
+            const _sess = (_st.sessionAnalysis || {})[session.toLowerCase()] || {};
+            function _tip(data) {
+                if (!data || !data.total || data.total < 3) return 'ok';
+                const wr = parseInt(data.winRate);
+                if (wr >= 95) return 'hot';
+                if (wr >= 85) return 'good';
+                if (wr >= 80) return 'ok';
+                return 'caution';
+            }
+            const dayTip = _tip(_dow);
+            const sessTip = _tip(_sess);
             const tipColors = {hot:'#4caf50',good:'#64b5f6',ok:'#f9c846',caution:'#ef5350'};
             const tipLabels = {hot:'STRONG',good:'GOOD',ok:'OK',caution:'CAUTION'};
-            const worstTip = dayTip === 'caution' || sessTip === 'caution' ? 'caution' : dayTip === 'hot' ? 'hot' : sessTip === 'good' ? 'good' : 'ok';
-            const contextTag = `<span style="font-size:0.5rem;padding:1px 5px;border-radius:3px;background:${tipColors[worstTip]}22;color:${tipColors[worstTip]};font-weight:700;margin-left:4px">${dayName} ${session} · ${tipLabels[worstTip]}</span>`;
+            const worstTip = dayTip === 'caution' || sessTip === 'caution' ? 'caution' : dayTip === 'hot' || sessTip === 'hot' ? (dayTip === 'caution' || sessTip === 'caution' ? 'ok' : 'hot') : dayTip === 'good' || sessTip === 'good' ? 'good' : 'ok';
+            const dayWrStr = _dow.winRate ? ' ' + _dow.winRate : '';
+            const sessWrStr = _sess.winRate ? ' ' + _sess.winRate : '';
+            const contextTag = `<span style="font-size:0.5rem;padding:1px 5px;border-radius:3px;background:${tipColors[dayTip]}22;color:${tipColors[dayTip]};font-weight:700;margin-left:4px">${dayName}${dayWrStr}</span><span style="font-size:0.5rem;padding:1px 5px;border-radius:3px;background:${tipColors[sessTip]}22;color:${tipColors[sessTip]};font-weight:700;margin-left:3px">${session}${sessWrStr}</span>`;
+
+            // RSI zone verdict
+            const _rsi = _st.rsiAnalysis || {};
+            const rsiVal = Number(a.rsi || (matched ? matched.rsi : 0));
+            let rsiZoneTag = '';
+            if (rsiVal > 0) {
+                const zone = rsiVal < 25 ? _rsi.deepOversold : rsiVal < 35 ? _rsi.moderate : rsiVal < 50 ? _rsi.shallow : _rsi.overbought;
+                if (zone && zone.total >= 3) {
+                    const zwr = parseInt(zone.winRate);
+                    const zColor = zwr >= 95 ? '#4caf50' : zwr >= 85 ? '#64b5f6' : zwr < 80 ? '#ef5350' : '#f9c846';
+                    const zLabel = zwr >= 95 ? 'SAFE' : zwr >= 85 ? 'OK' : zwr < 80 ? 'DANGER' : 'MIXED';
+                    rsiZoneTag = `<span style="font-size:0.5rem;padding:1px 5px;border-radius:3px;background:${zColor}22;color:${zColor};font-weight:700;margin-left:3px">RSI zone ${zone.winRate} · ${zLabel}</span>`;
+                }
+            }
 
             // Use RSI/MACD/Vol from action item directly (from Apps Script), fall back to signal match
             const matched = (allSignals || []).find(s => (s.symbol || s.ticker || '').toUpperCase() === tkr.toUpperCase() && Math.abs(Number(s.entry || s.price || 0) - prc) < 0.001)
@@ -3280,7 +3305,7 @@ const BACKTEST = {
                                 <span class="signal-tag ${signalClass}">${signalLabel(signalType)}</span>
                                 ${isDCA ? '' : `<span class="score-tag">Score: ${score}</span>`}
                             </div>
-                            <div class="meta" style="margin-top:0.15rem">${wrHtml} ${contextTag}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}${indStr}</div>
+                            <div class="meta" style="margin-top:0.15rem">${wrHtml} ${contextTag}${rsiZoneTag}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}${indStr}</div>
                             ${noteHtml ? `<div class="meta" style="margin-top:0.15rem">${noteHtml}</div>` : ''}
                             ${!lvl && levelsStr ? `<div class="meta" style="margin-top:0.15rem;font-size:0.7rem">${levelsStr}</div>` : ''}
                             ${btHtml}
