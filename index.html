@@ -3046,7 +3046,17 @@ const BACKTEST = {
                 latestByTicker[sym] = t || (i + 1);
             }
         });
-        allTickers = (tickers || []).slice().sort((a, b) => {
+        // Deduplicate tickers by name (keep most recent per ticker)
+        const tickerMap = {};
+        (tickers || []).forEach(t => {
+            const key = (t.ticker || '').toUpperCase();
+            if (!key) return;
+            const time = t.lastSignalTime ? new Date(t.lastSignalTime).getTime() : 0;
+            if (!tickerMap[key] || time > (tickerMap[key].lastSignalTime ? new Date(tickerMap[key].lastSignalTime).getTime() : 0)) {
+                tickerMap[key] = t;
+            }
+        });
+        allTickers = Object.values(tickerMap).sort((a, b) => {
             const aKey = (a.ticker || '').toUpperCase();
             const bKey = (b.ticker || '').toUpperCase();
             const aTime = (a.lastSignalTime ? new Date(a.lastSignalTime).getTime() : 0) || latestByTicker[aKey] || 0;
