@@ -3046,14 +3046,26 @@ const BACKTEST = {
                 latestByTicker[sym] = t || (i + 1);
             }
         });
-        // Deduplicate tickers by name (keep most recent per ticker)
+        // Deduplicate tickers by name (merge P&L + trades, keep most recent signal)
         const tickerMap = {};
         (tickers || []).forEach(t => {
             const key = (t.ticker || '').toUpperCase().replace(/\.P$/, '');
             if (!key) return;
             const time = t.lastSignalTime ? new Date(t.lastSignalTime).getTime() : 0;
-            if (!tickerMap[key] || time > (tickerMap[key].lastSignalTime ? new Date(tickerMap[key].lastSignalTime).getTime() : 0)) {
-                tickerMap[key] = t;
+            if (!tickerMap[key]) {
+                tickerMap[key] = Object.assign({}, t);
+            } else {
+                const existing = tickerMap[key];
+                existing.totalPnl = (parseFloat(existing.totalPnl) || 0) + (parseFloat(t.totalPnl) || 0);
+                existing.totalTrades = (parseInt(existing.totalTrades) || 0) + (parseInt(t.totalTrades) || 0);
+                const existTime = existing.lastSignalTime ? new Date(existing.lastSignalTime).getTime() : 0;
+                if (time > existTime) {
+                    existing.lastSignal = t.lastSignal;
+                    existing.lastSignalTime = t.lastSignalTime;
+                    existing.lastTimestamp = t.lastTimestamp;
+                    existing.lastDirection = t.lastDirection;
+                    existing.avgScore = t.avgScore;
+                }
             }
         });
         allTickers = Object.values(tickerMap).sort((a, b) => {
