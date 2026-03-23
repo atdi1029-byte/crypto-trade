@@ -3049,7 +3049,7 @@ const BACKTEST = {
         // Deduplicate tickers by name (keep most recent per ticker)
         const tickerMap = {};
         (tickers || []).forEach(t => {
-            const key = (t.ticker || '').toUpperCase();
+            const key = (t.ticker || '').toUpperCase().replace(/\.P$/, '');
             if (!key) return;
             const time = t.lastSignalTime ? new Date(t.lastSignalTime).getTime() : 0;
             if (!tickerMap[key] || time > (tickerMap[key].lastSignalTime ? new Date(tickerMap[key].lastSignalTime).getTime() : 0)) {
