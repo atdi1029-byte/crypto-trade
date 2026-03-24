@@ -5611,8 +5611,7 @@ const BACKTEST = {
         const halfKellyPct = Math.max(0, bKellyF / 2);
         const kellyBudget = Math.floor(activePnl * halfKellyPct);
 
-        // Calculate deployed from actual open positions
-        const openCount = parseInt(stats.openPositions) || 0;
+        // Calculate deployed from actual open positions (openCount from line 5499)
         const avgSize = totalRisk > 0 ? totalRisk / 5 : 1;
         const mainOpen = Math.min(openCount, 5);
         const scoutOpen = Math.max(0, openCount - 5);
