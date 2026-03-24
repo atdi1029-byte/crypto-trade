@@ -1262,6 +1262,129 @@
             white-space: nowrap;
         }
 
+        /* ============ KELLY EDGE OPTIMIZER ============ */
+        .kelly-section { margin-bottom: 1.5rem; }
+        .kelly-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .kelly-stat {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.5rem 0.4rem;
+            text-align: center;
+        }
+        .kelly-stat .kval {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-bright);
+            line-height: 1.2;
+        }
+        .kelly-stat .klbl {
+            font-size: 0.5rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 3px;
+        }
+        .kelly-compare {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.6rem 0.75rem;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+        }
+        .kelly-compare-label {
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            min-width: 70px;
+        }
+        .kelly-bar-track {
+            flex: 1;
+            height: 8px;
+            background: var(--bg-deep);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        .kelly-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        .kelly-bar-marker {
+            position: absolute;
+            top: -3px;
+            width: 2px;
+            height: 14px;
+            background: #fff;
+            border-radius: 1px;
+            opacity: 0.7;
+        }
+        .kelly-compare-val {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 700;
+            min-width: 50px;
+            text-align: right;
+        }
+        .kelly-verdict {
+            text-align: center;
+            padding: 0.6rem;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-top: 0.5rem;
+        }
+        .kelly-verdict.safe {
+            background: rgba(77,208,196,0.1);
+            border: 1px solid var(--green-bright);
+            color: var(--green-bright);
+        }
+        .kelly-verdict.optimal {
+            background: rgba(74,158,255,0.1);
+            border: 1px solid var(--accent);
+            color: var(--accent-glow);
+        }
+        .kelly-verdict.hot {
+            background: rgba(255,107,107,0.1);
+            border: 1px solid var(--red-bright);
+            color: var(--red-bright);
+        }
+        .kelly-milestone {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.6rem;
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            margin-top: 0.5rem;
+        }
+        .kelly-milestone .km-val {
+            color: var(--green-bright);
+            font-weight: 700;
+            font-family: 'Space Mono', monospace;
+        }
+        @media (max-width: 768px) {
+            .kelly-grid { grid-template-columns: repeat(2, 1fr); gap: 0.35rem; }
+            .kelly-stat .kval { font-size: 0.9rem; }
+            .kelly-compare { flex-wrap: wrap; gap: 0.4rem; }
+            .kelly-compare-label { min-width: 60px; font-size: 0.5rem; }
+        }
+
         /* ============ LOADING / ERROR ============ */
         .loading-overlay {
             position: fixed;
@@ -1918,8 +2041,8 @@
     </div>
     <div class="ticker-grid" id="tickerGrid"></div>
 
-    <!-- All Signals Table -->
-    <div class="signals-section">
+    <!-- All Signals Table (hidden — replaced by Kelly panel) -->
+    <div class="signals-section" style="display:none">
         <div class="section-header">All Signals</div>
         <div class="section-box" style="max-height: 250px; overflow-y: auto;">
             <table class="signals-table" id="signalsTable">
@@ -1939,6 +2062,18 @@
                 </thead>
                 <tbody id="signalsBody"></tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- Kelly Edge Optimizer -->
+    <div class="kelly-section" id="kellySection">
+        <div class="section-header" style="cursor:pointer;border-left-color:var(--green-bright)" onclick="const c=document.getElementById('kellyContent');c.style.display=c.style.display==='none'?'block':'none';this.querySelector('.toggle-arrow').textContent=c.style.display==='none'?'▶':'▼'">
+            <span class="toggle-arrow">▼</span> Kelly Edge Optimizer
+        </div>
+        <div id="kellyContent">
+            <div class="section-box" id="kellyBox" style="background:rgba(20,35,55,0.95)">
+                <div style="text-align:center;color:var(--text-dim);font-size:0.7rem">Loading stats...</div>
+            </div>
         </div>
     </div>
 
@@ -3072,6 +3207,9 @@ const BACKTEST = {
         renderPerformance(stats);
         renderDeepAnalysis(stats);
 
+        // --- Kelly Edge Optimizer ---
+        renderKelly(stats);
+
         // --- Pokemon Trainer Level ---
         renderPokemon(stats);
         updateShortCapBadge();
@@ -3905,6 +4043,176 @@ const BACKTEST = {
             <span style="color:var(--text-dim)">|</span>
             <span style="color:var(--text-dim)">${totalTrades} trades</span>
             ${milestoneHtml}
+        `;
+    }
+
+    // ====== KELLY EDGE OPTIMIZER ======
+    function renderKelly(stats) {
+        const box = document.getElementById('kellyBox');
+        if (!box) return;
+
+        const wins = parseInt(stats.wins) || 0;
+        const losses = parseInt(stats.losses) || 0;
+        const total = wins + losses;
+        if (total < 5) {
+            box.innerHTML = '<div style="text-align:center;color:var(--text-dim);font-size:0.7rem;padding:0.5rem">Need at least 5 completed trades for Kelly calculation</div>';
+            return;
+        }
+
+        const gw = parseFloat(stats.grossWin) || 0;
+        const gl = Math.abs(parseFloat(stats.grossLoss) || 0);
+        const pnl = parseFloat(stats.netPnl) || 0;
+        const activePnl = dcaMode ? pnl + dcaTotal : pnl;
+
+        const wr = wins / total;
+        const avgWin = wins > 0 ? gw / wins : 0;
+        const avgLoss = losses > 0 ? gl / losses : 0;
+        const rr = avgLoss > 0 ? avgWin / avgLoss : 0;
+        const ev = avgWin * wr - avgLoss * (1 - wr);
+        const profitFactor = gl > 0 ? gw / gl : Infinity;
+
+        // Kelly
+        const b = rr;
+        const kellyF = b > 0 ? (b * wr - (1 - wr)) / b : 0;
+        const halfKelly = kellyF / 2;
+
+        // Pokemon curve sizes at current P&L
+        const pokeSizes = getCryptoSizes(Math.max(0, activePnl));
+        const pokeTotal = pokeSizes.reduce((a, c) => a + c, 0);
+
+        // Half-Kelly $ amount
+        const halfKellyDollar = Math.max(0, activePnl * halfKelly);
+        // What Pokemon is as % of Kelly
+        const pokeVsKelly = kellyF > 0 ? (pokeTotal / (activePnl * kellyF)) * 100 : 0;
+        const pokeVsHalf = halfKelly > 0 ? (pokeTotal / halfKellyDollar) * 100 : 0;
+
+        // Edge rate per $1
+        const edgeRate = ev;
+
+        // Geometric mean per trade (approximate)
+        // g = (1 + avgWin)^wr × (1 - avgLoss)^(1-wr) for $1 bets
+        // But with fractional wins/losses we use: g = wr * ln(1 + avgWin) + (1-wr) * ln(1 - min(avgLoss, 0.99))
+        const lnG = wr * Math.log(1 + avgWin) + (1 - wr) * Math.log(1 - Math.min(avgLoss, 0.99));
+        const geoMean = Math.exp(lnG);
+        const tradesToDouble = lnG > 0 ? Math.ceil(Math.log(2) / lnG) : Infinity;
+
+        // Find sweet spot: where does Pokemon total = half-Kelly $?
+        // Scan from $50 to $50,000
+        let sweetSpot = null;
+        for (let p = 50; p <= 50000; p += 25) {
+            const ps = getCryptoSizes(p);
+            const pt = ps.reduce((a, c) => a + c, 0);
+            const hk = p * halfKelly;
+            if (pt <= hk && !sweetSpot) {
+                sweetSpot = p;
+            }
+        }
+
+        // Verdict
+        let verdictText, verdictClass;
+        if (activePnl <= 0) {
+            verdictText = 'BUILD P&L FIRST — Kelly needs positive bankroll';
+            verdictClass = 'hot';
+        } else if (pokeVsHalf > 150) {
+            verdictText = 'OVER KELLY — early grind levels, this is fine at tiny $';
+            verdictClass = 'hot';
+        } else if (pokeVsHalf >= 70 && pokeVsHalf <= 130) {
+            verdictText = 'OPTIMAL ZONE — Pokemon curve matches Kelly';
+            verdictClass = 'optimal';
+        } else {
+            verdictText = 'CONSERVATIVE — room to push harder if WR holds';
+            verdictClass = 'safe';
+        }
+
+        // Reliability warning
+        let reliabilityNote = '';
+        if (total < 50) {
+            reliabilityNote = `<div style="font-size:0.55rem;color:#ffa726;text-align:center;margin-top:0.4rem">&#9888; ${total} trades — Kelly needs 50+ for reliability (Taleb: small samples lie)</div>`;
+        } else if (total < 100) {
+            reliabilityNote = `<div style="font-size:0.55rem;color:var(--accent);text-align:center;margin-top:0.4rem">${total} trades — getting reliable. 100+ = strong confidence.</div>`;
+        } else {
+            reliabilityNote = `<div style="font-size:0.55rem;color:var(--green-bright);text-align:center;margin-top:0.4rem">${total} trades — statistically reliable edge</div>`;
+        }
+
+        box.innerHTML = `
+            <div class="kelly-grid">
+                <div class="kelly-stat">
+                    <div class="kval" style="color:var(--green-bright)">${(wr * 100).toFixed(1)}%</div>
+                    <div class="klbl">Win Rate</div>
+                </div>
+                <div class="kelly-stat">
+                    <div class="kval" style="color:${rr >= 1 ? 'var(--green-bright)' : '#ffa726'}">${rr.toFixed(2)}x</div>
+                    <div class="klbl">Reward/Risk</div>
+                </div>
+                <div class="kelly-stat">
+                    <div class="kval" style="color:var(--accent-glow)">${(kellyF * 100).toFixed(1)}%</div>
+                    <div class="klbl">Kelly f*</div>
+                </div>
+                <div class="kelly-stat">
+                    <div class="kval" style="color:var(--green-bright)">${(halfKelly * 100).toFixed(1)}%</div>
+                    <div class="klbl">Half-Kelly</div>
+                </div>
+                <div class="kelly-stat">
+                    <div class="kval" style="color:var(--text-bright)">${profitFactor === Infinity ? '∞' : profitFactor.toFixed(2)}x</div>
+                    <div class="klbl">Profit Factor</div>
+                </div>
+                <div class="kelly-stat">
+                    <div class="kval" style="color:${ev > 0 ? 'var(--green-bright)' : 'var(--red-bright)'}">$${ev.toFixed(3)}</div>
+                    <div class="klbl">EV / Trade</div>
+                </div>
+                <div class="kelly-stat">
+                    <div class="kval" style="color:var(--accent-glow)">${(edgeRate * 100).toFixed(1)}%</div>
+                    <div class="klbl">Edge / $1</div>
+                </div>
+                <div class="kelly-stat">
+                    <div class="kval" style="color:#f9c846">${tradesToDouble < 10000 ? tradesToDouble : '∞'}</div>
+                    <div class="klbl">Trades to 2x</div>
+                </div>
+            </div>
+
+            <div style="font-size:0.6rem;color:var(--accent-glow);font-weight:700;margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:1px">Pokemon vs Kelly</div>
+
+            <div class="kelly-compare">
+                <div class="kelly-compare-label">Pokemon</div>
+                <div class="kelly-bar-track">
+                    <div class="kelly-bar-fill" style="width:${Math.min(100, activePnl > 0 ? (pokeTotal / Math.max(1, activePnl)) * 100 / 0.5 : 0)}%;background:var(--accent)"></div>
+                </div>
+                <div class="kelly-compare-val" style="color:var(--accent)">$${pokeTotal}</div>
+            </div>
+            <div class="kelly-compare">
+                <div class="kelly-compare-label">Half-Kelly</div>
+                <div class="kelly-bar-track">
+                    <div class="kelly-bar-fill" style="width:${Math.min(100, halfKelly * 100 / 0.5)}%;background:var(--green-bright)"></div>
+                </div>
+                <div class="kelly-compare-val" style="color:var(--green-bright)">$${halfKellyDollar.toFixed(0)}</div>
+            </div>
+            <div class="kelly-compare">
+                <div class="kelly-compare-label">Full Kelly</div>
+                <div class="kelly-bar-track">
+                    <div class="kelly-bar-fill" style="width:${Math.min(100, kellyF * 100 / 0.5)}%;background:var(--red-bright);opacity:0.6"></div>
+                </div>
+                <div class="kelly-compare-val" style="color:var(--red-bright)">$${(activePnl * kellyF).toFixed(0)}</div>
+            </div>
+
+            <div style="text-align:center;font-size:0.65rem;color:var(--text-dim);margin-top:0.4rem">
+                You're at <span style="color:var(--accent-glow);font-weight:700">${pokeVsHalf.toFixed(0)}%</span> of Half-Kelly
+                ${pokeVsHalf > 130 ? ' (over — fine at micro $)' : pokeVsHalf >= 70 ? ' (optimal zone)' : ' (conservative)'}
+            </div>
+
+            <div class="kelly-verdict ${verdictClass}">${verdictText}</div>
+            ${reliabilityNote}
+
+            ${sweetSpot ? `<div class="kelly-milestone">
+                <span>Half-Kelly sweet spot:</span>
+                <span class="km-val">$${sweetSpot.toLocaleString()} P&L</span>
+                <span>— Pokemon curve matches Kelly above this. DCA here to skip the grind.</span>
+            </div>` : ''}
+
+            <div class="kelly-milestone">
+                <span>Optimal next trade:</span>
+                <span class="km-val">$${Math.max(1, halfKellyDollar / 5).toFixed(0)} each</span>
+                <span style="color:var(--text-dim)">vs Pokemon $${pokeSizes[0]}/$${pokeSizes[2]}/$${pokeSizes[4]}</span>
+            </div>
         `;
     }
 
