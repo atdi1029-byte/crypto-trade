@@ -5598,26 +5598,28 @@ const BACKTEST = {
         const scoutTotal = maxScouts * scoutSz;
 
         // Kelly budget calculation from live stats
-        const wins = parseInt(stats.totalWins) || 0;
-        const losses = parseInt(stats.totalLosses) || 0;
-        const totalTrades = wins + losses;
-        const wr = totalTrades > 0 ? wins / totalTrades : 0;
-        const grossW = parseFloat(stats.grossWinning) || 0;
-        const grossL = Math.abs(parseFloat(stats.grossLosing) || 0);
-        const avgW = wins > 0 ? grossW / wins : 0;
-        const avgL = losses > 0 ? grossL / losses : 0;
-        const rr = avgL > 0 ? avgW / avgL : 0;
-        const kellyF = rr > 0 ? (rr * wr - (1 - wr)) / rr : 0;
-        const halfKellyPct = Math.max(0, kellyF / 2);
+        const bWins = parseInt(stats.wins) || 0;
+        const bLosses = parseInt(stats.losses) || 0;
+        const bTotal = bWins + bLosses;
+        const bWr = bTotal > 0 ? bWins / bTotal : 0;
+        const bGw = parseFloat(stats.grossWin) || 0;
+        const bGl = Math.abs(parseFloat(stats.grossLoss) || 0);
+        const bAvgW = bWins > 0 ? bGw / bWins : 0;
+        const bAvgL = bLosses > 0 ? bGl / bLosses : 0;
+        const bRr = bAvgL > 0 ? bAvgW / bAvgL : 0;
+        const bKellyF = bRr > 0 ? (bRr * bWr - (1 - bWr)) / bRr : 0;
+        const halfKellyPct = Math.max(0, bKellyF / 2);
         const kellyBudget = Math.floor(activePnl * halfKellyPct);
 
-        // Calculate deployed from used pokeball slots
-        const usedMainDollars = usedSlots.reduce((sum, used, i) => sum + (used ? sizes[i] : 0), 0);
-        const mainSlotsUsed = usedSlots.filter(Boolean).length;
-        const totalDeployed = usedMainDollars; // scouts not tracked per-slot
+        // Calculate deployed from actual open positions
+        const openCount = parseInt(stats.openPositions) || 0;
+        const avgSize = totalRisk > 0 ? totalRisk / 5 : 1;
+        const mainOpen = Math.min(openCount, 5);
+        const scoutOpen = Math.max(0, openCount - 5);
+        const deployedMain = mainOpen > 0 ? sizes.slice(0, mainOpen).reduce((a, b) => a + b, 0) : 0;
+        const deployedScout = scoutOpen * scoutSz;
+        const totalDeployed = deployedMain + deployedScout;
         const remaining = Math.max(0, exposureBudget - totalDeployed);
-        const mainRemaining = totalRisk - usedMainDollars;
-
         if (activePnl > 0) {
             const pctUsed = exposureBudget > 0 ? Math.min(100, (totalDeployed / exposureBudget) * 100) : 0;
             const barColor = pctUsed > 90 ? 'var(--red-bright)' : pctUsed > 60 ? '#ffa726' : 'var(--green-bright)';
@@ -5628,9 +5630,9 @@ const BACKTEST = {
             html += `</div>`;
             html += `<div class="budget-bar-track"><div class="budget-bar-fill" style="width:${pctUsed}%;background:${barColor}"></div></div>`;
             html += `<div class="budget-rows">`;
-            html += `<div class="budget-row"><span>Main trades</span><span>$${totalRisk} <span style="color:var(--text-dim)">(${5 - mainSlotsUsed} of 5 open)</span></span></div>`;
+            html += `<div class="budget-row"><span>Main trades</span><span>$${totalRisk} <span style="color:var(--text-dim)">(${5 - mainOpen} of 5 open)</span></span></div>`;
             html += `<div class="budget-row"><span>Scout budget</span><span>$${scoutTotal} <span style="color:var(--text-dim)">(${maxScouts} × $${scoutSz})</span></span></div>`;
-            html += `<div class="budget-row"><span>Deployed</span><span style="color:#ffa726">$${totalDeployed}</span></div>`;
+            html += `<div class="budget-row"><span>Deployed</span><span style="color:#ffa726">$${totalDeployed} <span style="color:var(--text-dim)">(${openCount} trades)</span></span></div>`;
             html += `<div class="budget-row" style="border-top:1px solid var(--border);padding-top:4px;margin-top:2px"><span style="font-weight:700">Pokemon budget</span><span style="font-weight:700;color:var(--accent-glow)">$${exposureBudget} <span style="color:var(--text-dim);font-weight:400">(25%)</span></span></div>`;
             html += `<div class="budget-row"><span style="font-weight:700">Kelly budget</span><span style="font-weight:700;color:#ce93d8">$${kellyBudget} <span style="color:var(--text-dim);font-weight:400">(${(halfKellyPct * 100).toFixed(1)}%)</span></span></div>`;
             html += `</div>`;
