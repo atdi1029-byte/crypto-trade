@@ -1262,6 +1262,60 @@
             white-space: nowrap;
         }
 
+        /* ============ BUDGET PANEL ============ */
+        .pokemon-budget-panel {
+            background: rgba(10,18,30,0.85);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.5rem 0.65rem;
+            margin-top: 0.5rem;
+        }
+        .budget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.35rem;
+        }
+        .budget-title {
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .budget-total {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+        .budget-bar-track {
+            height: 4px;
+            background: var(--bg-deep);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 0.4rem;
+        }
+        .budget-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+        .budget-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .budget-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.6rem;
+            color: var(--text);
+            font-family: 'Space Mono', monospace;
+        }
+        .budget-row span:first-child {
+            color: var(--text-dim);
+        }
+
         /* ============ KELLY EDGE OPTIMIZER ============ */
         .kelly-section { margin-bottom: 1.5rem; }
         .kelly-grid {
@@ -5536,15 +5590,36 @@ const BACKTEST = {
             html += `<div class="pokemon-next-evolve">MAX LEVEL \u2014 You are the very best!</div>`;
         }
 
-        // Scout trade info (uses active P&L for budget)
+        // Budget breakdown (uses active P&L)
         const scoutSz = getScoutSize(activePnl);
         const exposureBudget = Math.floor(activePnl * 0.25);
-        const mainExposure = sizes.slice(0, Math.min(openCount, 5)).reduce((a, b) => a + b, 0);
-        const scoutBudget = Math.max(0, exposureBudget - mainExposure);
-        const scoutsAvail = scoutSz > 0 ? Math.floor(scoutBudget / scoutSz) : 0;
-        const scoutClass = scoutsAvail <= 0 ? 'scout-warn' : 'scout-val';
+        const scoutBudgetRaw = Math.max(0, exposureBudget - totalRisk);
+        const maxScouts = scoutSz > 0 ? Math.min(200, Math.floor(scoutBudgetRaw / scoutSz)) : 0;
+        const scoutTotal = maxScouts * scoutSz;
+
+        // Calculate deployed from used pokeball slots
+        const usedMainDollars = usedSlots.reduce((sum, used, i) => sum + (used ? sizes[i] : 0), 0);
+        const mainSlotsUsed = usedSlots.filter(Boolean).length;
+        const totalDeployed = usedMainDollars; // scouts not tracked per-slot
+        const remaining = Math.max(0, exposureBudget - totalDeployed);
+        const mainRemaining = totalRisk - usedMainDollars;
+
         if (activePnl > 0) {
-            html += `<div class="pokemon-scout-info">Scout: <span class="scout-val">$${scoutSz}</span> &middot; Budget: <span class="scout-val">$${exposureBudget}</span> (25%) &middot; <span class="${scoutClass}">${scoutsAvail} scouts</span> available</div>`;
+            const pctUsed = exposureBudget > 0 ? Math.min(100, (totalDeployed / exposureBudget) * 100) : 0;
+            const barColor = pctUsed > 90 ? 'var(--red-bright)' : pctUsed > 60 ? '#ffa726' : 'var(--green-bright)';
+            html += `<div class="pokemon-budget-panel">`;
+            html += `<div class="budget-header">`;
+            html += `<span class="budget-title">AVAILABLE</span>`;
+            html += `<span class="budget-total" style="color:var(--green-bright)">$${remaining}</span>`;
+            html += `</div>`;
+            html += `<div class="budget-bar-track"><div class="budget-bar-fill" style="width:${pctUsed}%;background:${barColor}"></div></div>`;
+            html += `<div class="budget-rows">`;
+            html += `<div class="budget-row"><span>Main trades</span><span>$${totalRisk} <span style="color:var(--text-dim)">(${5 - mainSlotsUsed} of 5 open)</span></span></div>`;
+            html += `<div class="budget-row"><span>Scout budget</span><span>$${scoutTotal} <span style="color:var(--text-dim)">(${maxScouts} × $${scoutSz})</span></span></div>`;
+            html += `<div class="budget-row"><span>Deployed</span><span style="color:#ffa726">$${totalDeployed}</span></div>`;
+            html += `<div class="budget-row" style="border-top:1px solid var(--border);padding-top:4px;margin-top:2px"><span style="font-weight:700">Total budget</span><span style="font-weight:700;color:var(--accent-glow)">$${exposureBudget} <span style="color:var(--text-dim);font-weight:400">(25%)</span></span></div>`;
+            html += `</div>`;
+            html += `</div>`;
         }
 
         if (level.location && LOCATION_BG[level.location]) {
