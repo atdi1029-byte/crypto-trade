@@ -4884,6 +4884,7 @@ const BACKTEST = {
         const params = new URLSearchParams({
             action: 'update', ticker, signal, price, field: 'action', value
         });
+        if (entrySize) params.set('entry_size', entrySize);
         fireGet(POST_URL + '?' + params).then(() => scheduleFetch());
     }
 
@@ -5047,6 +5048,7 @@ const BACKTEST = {
         const params2 = new URLSearchParams({
             action: 'update', ticker, signal, price, field: 'action', value
         });
+        if (entrySize) params2.set('entry_size', entrySize);
         fireGet(POST_URL + '?' + params2).then(() => scheduleFetch());
     }
 
@@ -5611,13 +5613,12 @@ const BACKTEST = {
         const halfKellyPct = Math.max(0, bKellyF / 2);
         const kellyBudget = Math.floor(activePnl * halfKellyPct);
 
-        // Calculate deployed from actual open positions (openCount from line 5499)
-        const avgSize = totalRisk > 0 ? totalRisk / 5 : 1;
+        // Use actual deployed total from sheet (entry_size column), fall back to estimate
+        const realDeployed = parseFloat(stats.totalDeployed) || 0;
         const mainOpen = Math.min(openCount, 5);
         const scoutOpen = Math.max(0, openCount - 5);
-        const deployedMain = mainOpen > 0 ? sizes.slice(0, mainOpen).reduce((a, b) => a + b, 0) : 0;
-        const deployedScout = scoutOpen * scoutSz;
-        const totalDeployed = deployedMain + deployedScout;
+        const estimatedDeployed = (mainOpen > 0 ? sizes.slice(0, mainOpen).reduce((a, b) => a + b, 0) : 0) + scoutOpen * scoutSz;
+        const totalDeployed = realDeployed > 0 ? realDeployed : estimatedDeployed;
         const remaining = Math.max(0, exposureBudget - totalDeployed);
         if (activePnl > 0) {
             const pctUsed = exposureBudget > 0 ? Math.min(100, (totalDeployed / exposureBudget) * 100) : 0;
