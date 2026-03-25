@@ -5626,7 +5626,8 @@ const BACKTEST = {
             html += `<div class="pokemon-budget-panel">`;
             html += `<div class="budget-header">`;
             html += `<span class="budget-title">AVAILABLE</span>`;
-            html += `<span class="budget-total" style="color:var(--green-bright)">$${remaining}</span>`;
+            const kellyRemaining = Math.max(0, kellyBudget - totalDeployed);
+            html += `<span class="budget-total"><span style="color:var(--accent-glow)">$${remaining}</span> <span style="color:var(--text-dim);font-size:0.7em">/</span> <span style="color:#ce93d8">$${kellyRemaining}</span></span>`;
             html += `</div>`;
             html += `<div class="budget-bar-track"><div class="budget-bar-fill" style="width:${pctUsed}%;background:${barColor}"></div></div>`;
             html += `<div class="budget-rows">`;
