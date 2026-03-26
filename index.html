@@ -5727,6 +5727,10 @@ const BACKTEST = {
         pnlCumulativeCache = cumulative;
 
         const filtered = filterByRange(cumulative, pnlRange);
+        // Group by day — keep end-of-day P&L
+        const byDay = {};
+        filtered.forEach(d => { byDay[d.date] = d; });
+        const daily = Object.values(byDay);
         const pnl = parseFloat(stats.netPnl) || 0;
         const valueEl = document.getElementById('pnlChartValue');
         const pillEl = document.getElementById('pnlChangePill');
@@ -5737,9 +5741,9 @@ const BACKTEST = {
         valueEl.className = 'pnl-chart-value' + (pnl >= 0 ? ' green' : ' red');
 
         // Change pill
-        if (filtered.length >= 2) {
-            const endPnl = filtered[filtered.length - 1].pnl;
-            const change = pnlRange === 'AT' ? endPnl : endPnl - filtered[0].pnl;
+        if (daily.length >= 2) {
+            const endPnl = daily[daily.length - 1].pnl;
+            const change = pnlRange === 'AT' ? endPnl : endPnl - daily[0].pnl;
             const labels = { '1M': '1 month', '3M': '3 months', '6M': '6 months', '1Y': '1 year', 'AT': 'all time' };
             pillEl.textContent = (change >= 0 ? '\u25B2 +$' : '\u25BC -$') + Math.abs(change).toFixed(2) + ' over ' + (labels[pnlRange] || pnlRange);
             pillEl.className = 'pnl-change-pill ' + (change >= 0 ? 'green' : 'red');
@@ -5760,8 +5764,8 @@ const BACKTEST = {
             <div class="pnl-summary-item"><div class="pnl-summary-label">Best</div><div class="pnl-summary-val" style="color:var(--green-bright)">${best}</div></div>
         `;
 
-        // Draw chart
-        drawPnlChart(filtered);
+        // Draw chart — one point per day
+        drawPnlChart(daily);
     }
 
     function drawPnlChart(series) {
