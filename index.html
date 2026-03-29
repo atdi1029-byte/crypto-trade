@@ -2165,6 +2165,10 @@
                     <div style="font-size:0.7rem;color:#f9c846;margin-bottom:0.5rem;font-weight:700">Strategy Insights</div>
                     <div class="insights-grid" id="insightsGrid"></div>
                 </div>
+                <div class="section-box" style="margin-top:0.75rem">
+                    <div style="font-size:0.7rem;color:#81c784;margin-bottom:0.5rem;font-weight:700">Action Plan</div>
+                    <div class="insights-grid" id="actionPlanGrid"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -4320,6 +4324,7 @@ const BACKTEST = {
 
         // Strategy Insights
         renderInsights(stats);
+        renderActionPlan(stats);
     }
 
     function renderInsights(stats) {
@@ -4518,6 +4523,118 @@ const BACKTEST = {
         }
 
         el.innerHTML = insights.join('');
+    }
+
+    function renderActionPlan(stats) {
+        const el = document.getElementById('actionPlanGrid');
+        if (!el) return;
+        const rules = [];
+        const rule = (cls, icon, html) =>
+            `<div class="insight-row ${cls}">` +
+            `<span class="insight-icon">${icon}</span>` +
+            `<span class="insight-text">${html}</span></div>`;
+
+        // 1. Shorts rule — if shorts are net negative
+        const sides = stats.sideBreakdown || {};
+        if (sides.sell && sides.sell.total >= 10 && sides.sell.pnl < 0) {
+            rules.push(rule('warn', '\u274C',
+                `<strong>Stop taking shorts.</strong>` +
+                ` ${sides.sell.total} shorts at` +
+                ` ${sides.sell.winRate} WR but still` +
+                ` <span class="num-bad">-$${Math.abs(sides.sell.pnl).toFixed(2)}</span>.` +
+                ` All profit comes from longs.`));
+        }
+
+        // 2. RSI > 50 rule
+        const rsi = stats.rsiAnalysis || {};
+        if (rsi.overbought && rsi.overbought.total >= 3) {
+            const ob = rsi.overbought;
+            const wr = parseInt(ob.winRate);
+            if (wr < 80 || ob.pnl < 0) {
+                rules.push(rule('warn', '\u26D4',
+                    `<strong>Skip RSI > 50 entries.</strong>` +
+                    ` <span class="num-bad">${ob.winRate}</span>` +
+                    ` WR, <span class="num-bad">` +
+                    `$${ob.pnl.toFixed(2)}</span> P&L.` +
+                    ` Wait for RSI pullback below 50.`));
+            }
+        }
+
+        // 3. Worst day rule — avoid or reduce
+        const dow = stats.dayOfWeekAnalysis || {};
+        const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+        let worstDay = null;
+        days.forEach(d => {
+            const dd = dow[d];
+            if (!dd || dd.total < 5) return;
+            const wr = parseInt(dd.winRate);
+            if (!worstDay || wr < parseInt(dow[worstDay].winRate))
+                worstDay = d;
+        });
+        if (worstDay && dow[worstDay] &&
+            parseInt(dow[worstDay].winRate) < 85) {
+            const wd = dow[worstDay];
+            rules.push(rule('warn', '\uD83D\uDCC5',
+                `<strong>Be selective on ${worstDay}s.</strong>` +
+                ` <span class="num-bad">${wd.winRate}</span>` +
+                ` WR, <span class="num-bad">` +
+                `$${wd.pnl.toFixed(2)}</span> P&L.` +
+                ` Only take A+ setups.`));
+        }
+
+        // 4. Friday overtrading cap
+        const friData = dow['Fri'];
+        if (friData && friData.total >= 20 && friData.losses >= 8) {
+            const avgPerDay = Math.round(friData.total /
+                Math.max(1, Math.ceil(
+                    (stats.tradingDays || friData.total) / 5)));
+            rules.push(rule('warn', '\uD83D\uDEA8',
+                `<strong>Cap Friday trades.</strong>` +
+                ` ${friData.total} Friday trades with` +
+                ` <span class="num-bad">${friData.losses}</span>` +
+                ` losses. Limit to best setups only.`));
+        }
+
+        // 5. Rhythm Filter reminder (always show)
+        rules.push(rule('info', '\uD83C\uDF0A',
+            `<strong>Check Rhythm Filter.</strong>` +
+            ` INHALE (score > 5) \u2192 take buys.` +
+            ` EXHALE (score < -5) \u2192 sells only.` +
+            ` BETWEEN \u2192 skip.` +
+            ` Sweet spot for buys: score 2-4.`));
+
+        // 6. Best session to focus on
+        const sess = stats.sessionAnalysis || {};
+        const sessNames = {
+            asian: 'Asian (0-8 UTC)',
+            europe: 'Europe (8-14)',
+            us: 'US (14-21)',
+            night: 'Night (21-0)'
+        };
+        let bestSess = null, bestPpt = -Infinity;
+        Object.keys(sessNames).forEach(s => {
+            const sd = sess[s];
+            if (!sd || sd.total < 5) return;
+            const ppt = sd.pnl / sd.total;
+            if (ppt > bestPpt) { bestPpt = ppt; bestSess = s; }
+        });
+        if (bestSess && sess[bestSess] && bestPpt > 0) {
+            const bs = sess[bestSess];
+            rules.push(rule('good', '\u2705',
+                `<strong>Focus on ${sessNames[bestSess]}.</strong>` +
+                ` <span class="num-good">${bs.winRate}</span>` +
+                ` WR, <span class="num-good">` +
+                `$${(bs.pnl/bs.total).toFixed(3)}</span>/trade.` +
+                ` Your most profitable window.`));
+        }
+
+        if (rules.length === 0) {
+            rules.push(rule('good', '\u2714',
+                'All clear \u2014 no red flags.' +
+                ' Keep executing the system.'));
+        }
+
+        el.innerHTML = rules.join('');
     }
 
     // ====== TICKER GRID ======
