@@ -3006,6 +3006,11 @@ const BACKTEST = {
         items.push({ t: ticker.toUpperCase(), s: signal.toLowerCase(), ts: Date.now() });
         localStorage.setItem(ACTED_KEY, JSON.stringify(items));
     }
+    function removeActedItem(ticker, signal) {
+        const t = ticker.toUpperCase(), s = signal.toLowerCase();
+        const items = getActedItems().filter(i => !(i.t === t && i.s === s));
+        localStorage.setItem(ACTED_KEY, JSON.stringify(items));
+    }
     function isActed(ticker, signal) {
         return getActedItems().some(i => i.t === ticker.toUpperCase() && i.s === signal.toLowerCase());
     }
@@ -4997,12 +5002,28 @@ const BACKTEST = {
         el.style.transition = 'opacity 0.3s';
         el.style.opacity = '0';
         setTimeout(() => el.style.display = 'none', 300);
-        // Send to server via GET (avoids CORS issues with POST)
+        // Send to server via GET — retry up to 2x, undo local hide on failure
         const params = new URLSearchParams({
             action: 'update', ticker, signal, price, field: 'action', value
         });
         if (entrySize) params.set('entry_size', entrySize);
-        fireGet(POST_URL + '?' + params).then(() => scheduleFetch());
+        const url = POST_URL + '?' + params;
+        let ok = false;
+        for (let attempt = 0; attempt < 3 && !ok; attempt++) {
+            if (attempt > 0) await new Promise(r => setTimeout(r, 1500));
+            const res = await fireGet(url);
+            if (res && res.status === 'ok') ok = true;
+        }
+        if (ok) {
+            scheduleFetch();
+        } else {
+            // Undo local hide so card comes back
+            removeActedItem(ticker, signal);
+            el.style.transition = 'opacity 0.3s';
+            el.style.opacity = '1';
+            el.style.display = '';
+            showToast(value + ' failed for ' + ticker + ' — card restored, try again');
+        }
     }
 
     async function confirmOutcome(ticker, signal, price, value, elemId, label) {
