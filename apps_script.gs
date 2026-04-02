@@ -371,10 +371,14 @@ function updatePosition_(ss, data) {
   }
 
   // Positions columns: A=timestamp, B=symbol, C=signal, D=entry, E=sl, F=tp1, G=tp2,
-  //                     H=score, I=action, J=outcome, K=realized_pnl
+  //                     H=score, I=action, J=outcome, K=realized_pnl, ..., O=entry_size
   if (field === 'action') {
+    var entrySize = data.entry_size || '';
     for (var m = 0; m < matchRows.length; m++) {
       posSheet.getRange(matchRows[m], 9).setValue(value);   // Column I = Action
+      if (entrySize !== '' && value === 'Entered') {
+        posSheet.getRange(matchRows[m], 15).setValue(Number(entrySize) || 0); // Column O = entry_size
+      }
     }
     // Also update Claude Picks status so skipped/entered picks disappear from Top Picks
     var cpSheet = ss.getSheetByName('Claude Picks');
@@ -542,14 +546,77 @@ function doGet(e) {
     return serveScalingJSON_();
   }
 
-  if (action === 'update') {
+  // Bulk-skip all un-acted signals older than 7 days
+  if (action === 'bulk_skip_old') {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    return updatePosition_(ss, e.parameter);
+    var posSheet = ss.getSheetByName(POSITIONS);
+    var posData = posSheet.getDataRange().getValues();
+    var cutoff = new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000);
+    var skipped = 0;
+    for (var i = 1; i < posData.length; i++) {
+      var act = String(posData[i][8] || '').trim();
+      if (act !== '') continue;
+      var ts = posData[i][0];
+      if (ts instanceof Date && ts < cutoff) {
+        posSheet.getRange(i + 1, 9).setValue('Skipped');
+        skipped++;
+      }
+    }
+    return ContentService.createTextOutput(JSON.stringify({ status: 'ok', skipped: skipped }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (action === 'update') {
+    var lock = LockService.getScriptLock();
+    if (!lock.tryLock(10000)) {
+      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Lock timeout' })).setMimeType(ContentService.MimeType.JSON);
+    }
+    try {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      return updatePosition_(ss, e.parameter);
+    } finally {
+      lock.releaseLock();
+    }
   }
 
   if (action === 'add_trade') {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    return addTrade_(ss, e.parameter);
+    var lock = LockService.getScriptLock();
+    if (!lock.tryLock(10000)) {
+      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Lock timeout' })).setMimeType(ContentService.MimeType.JSON);
+    }
+    try {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      return addTrade_(ss, e.parameter);
+    } finally {
+      lock.releaseLock();
+    }
+  }
+
+  if (action === 'set_entry_size') {
+    var lock = LockService.getScriptLock();
+    if (!lock.tryLock(10000)) {
+      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Lock timeout' })).setMimeType(ContentService.MimeType.JSON);
+    }
+    try {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var ticker = (e.parameter.ticker || '').toUpperCase();
+      var entrySize = Number(e.parameter.entry_size) || 0;
+      var posSheet = ss.getSheetByName(POSITIONS);
+      var posData = posSheet.getDataRange().getValues();
+      var updated = 0;
+      for (var i = posData.length - 1; i >= 1; i--) {
+        var sym = String(posData[i][1]).toUpperCase().trim();
+        var act = String(posData[i][8]).toLowerCase().trim();
+        var out = String(posData[i][9]).toLowerCase().trim();
+        if (sym === ticker && act === 'entered' && (out === '' || out === 'open')) {
+          posSheet.getRange(i + 1, 15).setValue(entrySize); // Column O
+          updated++;
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({ status: 'ok', ticker: ticker, entry_size: entrySize, rows: updated })).setMimeType(ContentService.MimeType.JSON);
+    } finally {
+      lock.releaseLock();
+    }
   }
 
   if (action === 'tasks') {
@@ -688,8 +755,9 @@ function serveDashboardJSON_() {
 
   // --- Build per-ticker stats from Positions tab ---
   // Positions columns: 0=timestamp, 1=symbol, 2=signal, 3=entry, 4=sl, 5=tp1, 6=tp2,
-  //                     7=score, 8=action, 9=outcome, 10=realized_pnl
+  //                     7=score, 8=action, 9=outcome, 10=realized_pnl, ..., 14=entry_size
   var tickerMap = {};
+  var totalDeployed = 0; // Sum of actual entry sizes for open positions
   for (var i = 1; i < posData.length; i++) {
     var sym = String(posData[i][1]).toUpperCase().trim();
     if (!sym || sym.length > 20 || sym.indexOf(' ') !== -1) continue;
@@ -706,6 +774,7 @@ function serveDashboardJSON_() {
         lastEntry: 0,
         lastScore: 0,
         openPositions: 0,
+        openEntrySize: 0,
         avgScore: { sum: 0, count: 0 }
       };
     }
@@ -747,6 +816,9 @@ function serveDashboardJSON_() {
         tickerMap[sym].totalPnl += Number(pnl) || 0;
       } else if (outcome === 'open' || outcome === '') {
         tickerMap[sym].openPositions++;
+        var rowEntrySize = Number(posData[i][14]) || 0; // Column O = entry_size
+        tickerMap[sym].openEntrySize += rowEntrySize;
+        totalDeployed += rowEntrySize;
       }
     }
   }
@@ -769,6 +841,7 @@ function serveDashboardJSON_() {
       lastEntry:    t.lastEntry,
       lastScore:    t.lastScore,
       openPositions: t.openPositions,
+      openEntrySize: t.openEntrySize,
       avgScore:     avgRR
     });
   }
@@ -852,6 +925,8 @@ function serveDashboardJSON_() {
 
   // --- Action needed (positions needing user input) ---
   var actionNeeded = [];
+  var sevenDaysAgo = new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000);
+  var actionSeen = {}; // dedup by symbol+signal
   for (var k = 1; k < posData.length; k++) {
     var pr = posData[k];
     var pSymbol  = String(pr[1] || '').toUpperCase().trim();
@@ -866,6 +941,15 @@ function serveDashboardJSON_() {
     var logRow = logIdx ? logData[logIdx] : null;
 
     if (pAction === '') {
+      // Only show signals from last 7 days
+      var sigTs = pr[0];
+      if (sigTs instanceof Date && sigTs < sevenDaysAgo) continue;
+
+      // Dedup: keep only the most recent per symbol+signal
+      var dedupKey = pSymbol + '|' + pSignal;
+      if (actionSeen[dedupKey]) continue;
+      actionSeen[dedupKey] = true;
+
       // Needs Entered/Skipped
       var pts = pr[0];
       var ptsStr = '';
@@ -996,6 +1080,7 @@ function serveDashboardJSON_() {
     winRate:         winRate + '%',
     netPnl:          totalPnl.toFixed(2),
     openPositions:   totalOpen,
+    totalDeployed:   totalDeployed,
     maxPositions:    maxPositions,
     slotsAvailable:  maxPositions - totalOpen,
     todaySignals:    todaySignals,
