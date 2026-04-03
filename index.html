@@ -3292,9 +3292,17 @@ const BACKTEST = {
             pendingSet.add((a.symbol || a.ticker || '').toUpperCase() + '|' + (a.signal || '').toLowerCase());
         });
 
+        // Build set of tickers the pipeline actually ran for
+        const pipelineSet = new Set();
+        (signals || []).forEach(s => {
+            pipelineSet.add((s.symbol || s.ticker || '').toUpperCase());
+        });
+
         // Use Claude picks if available, otherwise fall back to auto-scored
+        // Only show picks that have an active pipeline signal
         const hasClaude = claudePicks && claudePicks.length > 0;
-        const allPicks = hasClaude ? claudePicks : signals.filter(s => (s.score || s._score) >= 5);
+        const allPicks = (hasClaude ? claudePicks : signals.filter(s => (s.score || s._score) >= 5))
+            .filter(s => pipelineSet.has((s.symbol || s.ticker || '').toUpperCase()));
         const picks = allPicks.filter(s => {
             const sym = (s.symbol || s.ticker || '').toUpperCase();
             const sig = (s.signal || s.direction || '').toLowerCase();
