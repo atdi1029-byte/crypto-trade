@@ -2313,6 +2313,10 @@
     function bumpWeekShortCount() {
         // Keep localStorage as fallback for immediate UI update before next API fetch
         const week = getISOWeek();
+        // Also bump _lastStats so getWeekShortCount() returns the new value immediately
+        if (window._lastStats && typeof window._lastStats.weeklyShorts === 'number') {
+            window._lastStats.weeklyShorts++;
+        }
         const count = getWeekShortCount() + 1;
         localStorage.setItem('crypto_short_week', JSON.stringify({ week, count }));
         updateShortCapBadge();
@@ -5066,10 +5070,17 @@ const BACKTEST = {
                 pnlDisplay.innerHTML = `<span style="color:var(--green-bright)">TP</span><span style="color:${amtColor}">${amtStr}</span>`;
             }
 
-            // Save to localStorage + sheet
+            // Save to localStorage + sheet (retry up to 3x)
             saveTradeState(ticker, signal, { status: 'tp', pnl: newTotal });
             const tpParams = new URLSearchParams({ action: 'update', ticker, signal, price, field: 'pnl', profitLocked: newTotal.toFixed(2), tradeStatus: 'tp' });
-            fireGet(POST_URL + '?' + tpParams);
+            const tpUrl = POST_URL + '?' + tpParams;
+            let tpOk = false;
+            for (let attempt = 0; attempt < 3 && !tpOk; attempt++) {
+                if (attempt > 0) await new Promise(r => setTimeout(r, 1500));
+                const res = await fireGet(tpUrl);
+                if (res && res.status === 'ok') tpOk = true;
+            }
+            if (!tpOk) showToast('TP save failed for ' + ticker + ' — will retry on next action');
             if (profitInput) profitInput.value = '';
             return;
 
@@ -5099,10 +5110,17 @@ const BACKTEST = {
                 pnlDisplay.innerHTML = `<span style="color:var(--accent-glow)">0x0</span><span style="color:${amtColor}">${amtStr}</span>`;
             }
 
-            // Save to localStorage + sheet
+            // Save to localStorage + sheet (retry up to 3x)
             saveTradeState(ticker, signal, { status: '0x0', pnl: newTotal });
             const zParams = new URLSearchParams({ action: 'update', ticker, signal, price, field: 'pnl', profitLocked: newTotal.toFixed(2), tradeStatus: '0x0' });
-            fireGet(POST_URL + '?' + zParams);
+            const zUrl = POST_URL + '?' + zParams;
+            let zOk = false;
+            for (let attempt = 0; attempt < 3 && !zOk; attempt++) {
+                if (attempt > 0) await new Promise(r => setTimeout(r, 1500));
+                const res = await fireGet(zUrl);
+                if (res && res.status === 'ok') zOk = true;
+            }
+            if (!zOk) showToast('0x0 save failed for ' + ticker + ' — will retry on next action');
             if (profitInput) profitInput.value = '';
             return;
 
