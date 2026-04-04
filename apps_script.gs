@@ -163,9 +163,11 @@ function processQueue() {
       if (!isDupe) autoPickSignal_(ss, d, score);
     }
 
-    // Clear queue (keep header)
-    if (data.length > 1) {
-      queueSheet.deleteRows(2, data.length - 1);
+    // Clear queue (keep header) — use clearContent to avoid
+    // "cannot delete all non-frozen rows" error
+    var lastRow = queueSheet.getLastRow();
+    if (lastRow > 1) {
+      queueSheet.getRange(2, 1, lastRow - 1, queueSheet.getLastColumn()).clearContent();
     }
 
   } finally {
@@ -546,21 +548,17 @@ function doGet(e) {
     return serveScalingJSON_();
   }
 
-  // Bulk-skip all un-acted signals older than 7 days
+  // Bulk-skip all un-acted signals
   if (action === 'bulk_skip_old') {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var posSheet = ss.getSheetByName(POSITIONS);
     var posData = posSheet.getDataRange().getValues();
-    var cutoff = new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000);
     var skipped = 0;
     for (var i = 1; i < posData.length; i++) {
       var act = String(posData[i][8] || '').trim();
       if (act !== '') continue;
-      var ts = posData[i][0];
-      if (ts instanceof Date && ts < cutoff) {
-        posSheet.getRange(i + 1, 9).setValue('Skipped');
-        skipped++;
-      }
+      posSheet.getRange(i + 1, 9).setValue('Skipped');
+      skipped++;
     }
     return ContentService.createTextOutput(JSON.stringify({ status: 'ok', skipped: skipped }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -862,10 +860,12 @@ function serveDashboardJSON_() {
     signalLookup[logSym] = sl;
   }
 
-  // --- All signals from Positions tab (enriched with Signal Log data) ---
+  // --- Recent signals from Positions tab (enriched with Signal Log data) ---
   // Use Positions as primary source since Signal Log may have been cleared
+  // Cap at 500 most recent to keep payload under ~200KB
   var recentSignals = [];
-  for (var pj = posData.length - 1; pj >= 1; pj--) {
+  var MAX_SIGNALS = 500;
+  for (var pj = posData.length - 1; pj >= 1 && recentSignals.length < MAX_SIGNALS; pj--) {
     var pr = posData[pj];
     var pSym = String(pr[1] || '').toUpperCase().trim();
     if (!pSym || pSym.length > 20 || pSym.indexOf(' ') !== -1) continue;
