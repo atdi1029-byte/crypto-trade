@@ -2057,7 +2057,9 @@
             <div class="top-picks-grid" id="topPicksGrid" style="max-height: 480px; overflow-y: auto;"></div>
         </div>
         <div class="actions-col">
-            <div class="section-header">Action Needed <span class="count" id="actionCount">0</span></div>
+            <div class="section-header">Action Needed <span class="count" id="actionCount">0</span>
+                <button class="action-btn skipped" style="margin-left:0.5rem;font-size:0.65rem;padding:0.15rem 0.5rem;vertical-align:middle" onclick="skipAllActions()">Skip All</button>
+            </div>
             <div class="action-list" id="actionList" style="max-height: 480px; overflow-y: auto;"></div>
         </div>
     </div>
@@ -5027,6 +5029,19 @@ const BACKTEST = {
             el.style.opacity = '1';
             el.style.display = '';
             showToast(value + ' failed for ' + ticker + ' — card restored, try again');
+        }
+    }
+
+    async function skipAllActions() {
+        const items = document.querySelectorAll('#actionList .action-item');
+        const visible = [...items].filter(el => el.style.display !== 'none');
+        if (!visible.length) return;
+        const ok = await showModal({ message: 'Skip all ' + visible.length + ' action items?', okLabel: 'Skip All', okClass: 'modal-btn-danger' });
+        if (!ok) return;
+        for (const el of visible) {
+            const btn = el.querySelector('.action-btn.skipped');
+            if (btn) btn.click();
+            await new Promise(r => setTimeout(r, 200));
         }
     }
 
