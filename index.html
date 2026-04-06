@@ -5038,10 +5038,17 @@ const BACKTEST = {
         if (!visible.length) return;
         const ok = await showModal({ message: 'Skip all ' + visible.length + ' action items?', okLabel: 'Skip All', okClass: 'modal-btn-danger' });
         if (!ok) return;
-        for (const el of visible) {
-            const btn = el.querySelector('.action-btn.skipped');
-            if (btn) btn.click();
-            await new Promise(r => setTimeout(r, 200));
+        try {
+            const resp = await fetch(POST_URL + '?action=bulk_skip_old');
+            const data = await resp.json();
+            if (data.status === 'ok') {
+                visible.forEach(el => el.style.display = 'none');
+                document.getElementById('actionCount').textContent = '0';
+                showToast('Skipped ' + data.skipped + ' signals');
+                setTimeout(fetchData, 1000);
+            }
+        } catch (e) {
+            showToast('Skip all failed: ' + e.message);
         }
     }
 
