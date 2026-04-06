@@ -26,6 +26,25 @@ var MAX_AUTO_SCORE   = 7;
 var MIN_PICK_SCORE   = 4;   // Minimum score to auto-add to Claude Picks
 var MIN_PICK_RR      = 1.4; // Minimum R:R ratio to auto-add
 
+// === FAST DATE FORMATTING (avoids slow Utilities.formatDate) ===
+function fmtDateTime_(d) {
+  if (!(d instanceof Date)) return String(d);
+  var y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+  var h = d.getHours(), min = d.getMinutes();
+  return y + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day +
+         ' ' + (h < 10 ? '0' : '') + h + ':' + (min < 10 ? '0' : '') + min;
+}
+function fmtDate_(d) {
+  if (!(d instanceof Date)) return String(d);
+  var y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+  return y + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+}
+function fmtShortDate_(d) {
+  if (!(d instanceof Date)) return String(d);
+  var m = d.getMonth() + 1, day = d.getDate();
+  return (m < 10 ? '0' : '') + m + '/' + (day < 10 ? '0' : '') + day;
+}
+
 // ---------------------------------------------------------------
 // doPost — Webhook receiver (FAST — queue and return immediately)
 // TradingView sends JSON like:
@@ -744,12 +763,21 @@ function clearSignalLog_() {
 function serveDashboardJSON_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  // --- Load all tabs ---
+  // --- Load all tabs once ---
   var posSheet = ss.getSheetByName(POSITIONS);
   var posData  = posSheet ? posSheet.getDataRange().getValues() : [];
   var logSheet = ss.getSheetByName(SIGNAL_LOG);
   var logData  = logSheet ? logSheet.getDataRange().getValues() : [];
-  var maxPositions = Number(getConfig_('max_positions')) || 3;
+
+  // Pre-load Config tab once (avoids 5 separate getDataRange calls)
+  var cfgSheet = ss.getSheetByName(CONFIG);
+  var cfgData  = cfgSheet ? cfgSheet.getDataRange().getValues() : [];
+  var cfgMap = {};
+  for (var ci = 0; ci < cfgData.length; ci++) {
+    cfgMap[String(cfgData[ci][0]).toLowerCase()] = cfgData[ci][1];
+  }
+
+  var maxPositions = Number(cfgMap['max_positions']) || 3;
 
   // --- Build per-ticker stats from Positions tab ---
   // Positions columns: 0=timestamp, 1=symbol, 2=signal, 3=entry, 4=sl, 5=tp1, 6=tp2,
@@ -787,12 +815,7 @@ function serveDashboardJSON_() {
     tickerMap[sym].lastEntry  = posData[i][3] || 0;
     tickerMap[sym].lastScore  = score;
 
-    var ts = posData[i][0];
-    if (ts instanceof Date) {
-      tickerMap[sym].lastSignalTime = Utilities.formatDate(ts, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
-    } else {
-      tickerMap[sym].lastSignalTime = String(ts);
-    }
+    tickerMap[sym].lastSignalTime = fmtDateTime_(posData[i][0]);
 
     // Score tracking for averages
     if (score) {
@@ -869,13 +892,7 @@ function serveDashboardJSON_() {
     var pr = posData[pj];
     var pSym = String(pr[1] || '').toUpperCase().trim();
     if (!pSym || pSym.length > 20 || pSym.indexOf(' ') !== -1) continue;
-    var pts = pr[0];
-    var ptsStr = '';
-    if (pts instanceof Date) {
-      ptsStr = Utilities.formatDate(pts, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
-    } else {
-      ptsStr = String(pts);
-    }
+    var ptsStr = fmtDateTime_(pr[0]);
     // Enrich with Signal Log data (MACD, volume, RSI, etc.) if available
     var logIdx = signalLookup[pSym + '|' + (pr[3] || 0)] || signalLookup[pSym];
     var logRow = logIdx ? logData[logIdx] : null;
@@ -951,19 +968,12 @@ function serveDashboardJSON_() {
       actionSeen[dedupKey] = true;
 
       // Needs Entered/Skipped
-      var pts = pr[0];
-      var ptsStr = '';
-      if (pts instanceof Date) {
-        ptsStr = Utilities.formatDate(pts, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
-      } else {
-        ptsStr = String(pts);
-      }
       actionNeeded.push({
         symbol:    pSymbol,
         signal:    pSignal,
         entry:     pr[3] || 0,
         score:     pr[7] || 0,
-        timestamp: ptsStr,
+        timestamp: fmtDateTime_(pr[0]),
         type:      'mark_action',
         rsi:       logRow ? (logRow[11] || null) : null,
         macd:      logRow ? String(logRow[7] || '') : '',
@@ -973,19 +983,12 @@ function serveDashboardJSON_() {
     } else if (pAction.toLowerCase() === 'entered' && (pOutcome === '' || pOutcome.toLowerCase() === 'open')) {
       var savedPnl = pr[10] || 0;
       var savedStatus = pr[11] || '';
-      var entryTs = pr[0];
-      var entryTsStr = '';
-      if (entryTs instanceof Date) {
-        entryTsStr = entryTs.toISOString();
-      } else {
-        entryTsStr = String(entryTs);
-      }
       actionNeeded.push({
         symbol:    pSymbol,
         signal:    pSignal,
         entry:     pr[3] || 0,
         score:     pr[7] || 0,
-        timestamp: entryTsStr,
+        timestamp: pr[0] instanceof Date ? pr[0].toISOString() : String(pr[0]),
         type:      'mark_outcome',
         realizedPnl: savedPnl ? Number(savedPnl) : 0,
         tradeStatus: String(savedStatus).toLowerCase(),
@@ -997,8 +1000,8 @@ function serveDashboardJSON_() {
     }
   }
 
-  // --- Overall stats ---
-  var trades = getAllCompletedTrades_();
+  // --- Overall stats (reuse already-loaded sheet data) ---
+  var trades = getAllCompletedTrades_(posData, logData);
   var wins   = trades.filter(function(t) { return t.win; });
   var losses = trades.filter(function(t) { return !t.win && t.outcome === 'lost'; });
   var totalPnl = 0, grossWin = 0, grossLoss = 0;
@@ -1012,15 +1015,11 @@ function serveDashboardJSON_() {
   var streaks = trades.length > 0 ? calcStreaks_(trades) : { bestWin: 0, worstLoss: 0, current: 0 };
 
   // Today's signals count
-  var today = new Date();
-  var todayStr = Utilities.formatDate(today, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  var todayStr = fmtDate_(new Date());
   var todaySignals = 0;
   for (var m = 1; m < logData.length; m++) {
     var logTs = logData[m][0];
-    if (logTs instanceof Date) {
-      var logDay = Utilities.formatDate(logTs, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-      if (logDay === todayStr) todaySignals++;
-    }
+    if (logTs instanceof Date && fmtDate_(logTs) === todayStr) todaySignals++;
   }
 
   // Count total open positions
@@ -1105,7 +1104,7 @@ function serveDashboardJSON_() {
       trades.forEach(function(t) {
         runningPnl += t.realizedPnl;
         var ts = t.timestamp instanceof Date ? t.timestamp : new Date(t.timestamp);
-        cumulative.push({ date: Utilities.formatDate(ts, Session.getScriptTimeZone(), 'MM/dd'), pnl: runningPnl });
+        cumulative.push({ date: fmtShortDate_(ts), pnl: runningPnl });
         if (ts >= d30) { pnl30 += t.realizedPnl; cnt30++; }
         if (ts >= d14) { pnl14 += t.realizedPnl; cnt14++; }
         if (ts >= d7)  { pnl7  += t.realizedPnl; cnt7++;  }
@@ -1325,13 +1324,7 @@ function serveDashboardJSON_() {
       var cpStatus = String(cpr[11] || '').toLowerCase();
       if (cpStatus === 'entered' || cpStatus === 'skipped') continue;
       if (claudePicks.length >= 10) break; // Still cap at 10 visible picks
-      var cpTs = cpr[0];
-      var cpTsStr = '';
-      if (cpTs instanceof Date) {
-        cpTsStr = Utilities.formatDate(cpTs, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
-      } else {
-        cpTsStr = String(cpTs);
-      }
+      var cpTsStr = fmtDateTime_(cpr[0]);
       claudePicks.push({
         timestamp:      cpTsStr,
         symbol:         String(cpr[1] || '').toUpperCase(),
@@ -1349,19 +1342,19 @@ function serveDashboardJSON_() {
     }
   }
 
-  // --- Pokeball state from Config tab ---
-  var pokeballRaw = getConfig_('pokeball_used');
+  // --- Pokeball state (from pre-loaded Config) ---
+  var pokeballRaw = cfgMap['pokeball_used'];
   var pokeballUsed = [false,false,false,false,false];
   if (pokeballRaw) {
     try { pokeballUsed = JSON.parse(pokeballRaw); } catch(e) {}
   }
 
-  // --- DCA state from Config tab ---
-  var dcaMode = String(getConfig_('dca_mode')).toLowerCase() === 'true';
-  var dcaTotal = parseFloat(getConfig_('dca_total')) || 0;
+  // --- DCA state (from pre-loaded Config) ---
+  var dcaMode = String(cfgMap['dca_mode'] || '').toLowerCase() === 'true';
+  var dcaTotal = parseFloat(cfgMap['dca_total']) || 0;
 
-  // --- Strategy Review state ---
-  var lastReviewTrades = parseInt(getConfig_('last_review_trades')) || 0;
+  // --- Strategy Review state (from pre-loaded Config) ---
+  var lastReviewTrades = parseInt(cfgMap['last_review_trades']) || 0;
 
   var payload = {
     status:        'ok',
@@ -1419,12 +1412,15 @@ function setConfig_(label, value) {
 // Helper: get ALL completed trades across all symbols
 // Returns array of enriched trade objects
 // ---------------------------------------------------------------
-function getAllCompletedTrades_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function getAllCompletedTrades_(optPosData, optLogData) {
+  var ss = optPosData ? null : SpreadsheetApp.getActiveSpreadsheet();
 
   // Load Signal Log for cross-referencing extra fields
-  var logSheet = ss.getSheetByName(SIGNAL_LOG);
-  var logData  = logSheet.getDataRange().getValues();
+  var logData = optLogData;
+  if (!logData) {
+    var logSheet = ss.getSheetByName(SIGNAL_LOG);
+    logData = logSheet.getDataRange().getValues();
+  }
   // Build lookup: key = "SYMBOL|signal|entry" -> {macd, volume, cross, inZone, rsi, timeframe}
   var logLookup = {};
   for (var i = 1; i < logData.length; i++) {
@@ -1446,8 +1442,11 @@ function getAllCompletedTrades_() {
   // Load Positions
   // Columns: 0=timestamp, 1=symbol, 2=signal, 3=entry, 4=sl, 5=tp1, 6=tp2,
   //          7=score, 8=action, 9=outcome, 10=realized_pnl
-  var posSheet = ss.getSheetByName(POSITIONS);
-  var posData  = posSheet.getDataRange().getValues();
+  var posData = optPosData;
+  if (!posData) {
+    var posSheet = ss.getSheetByName(POSITIONS);
+    posData = posSheet.getDataRange().getValues();
+  }
   var trades = [];
 
   for (var j = 1; j < posData.length; j++) {
