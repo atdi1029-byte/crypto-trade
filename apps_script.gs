@@ -199,7 +199,7 @@ function processQueue() {
 // that were never entered (empty action or "Skipped").
 // Run daily via time-based trigger.
 // ---------------------------------------------------------------
-function cleanupOldSignals_() {
+function cleanupOldSignals() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(POSITIONS);
   var data = sheet.getDataRange().getValues();
