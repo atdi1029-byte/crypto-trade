@@ -195,6 +195,34 @@ function processQueue() {
 }
 
 // ---------------------------------------------------------------
+// cleanupOldSignals_ — Delete Positions rows older than 30 days
+// that were never entered (empty action or "Skipped").
+// Run daily via time-based trigger.
+// ---------------------------------------------------------------
+function cleanupOldSignals_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(POSITIONS);
+  var data = sheet.getDataRange().getValues();
+  var cutoff = new Date(new Date().getTime() - 30 * 24 * 60 * 60 * 1000);
+  var rowsToDelete = [];
+
+  for (var i = 1; i < data.length; i++) {
+    var action = String(data[i][8] || '').toLowerCase().trim();
+    if (action === 'entered') continue; // keep all entered trades
+    var ts = data[i][0];
+    if (!(ts instanceof Date)) continue;
+    if (ts < cutoff) rowsToDelete.push(i + 1); // 1-indexed sheet row
+  }
+
+  // Delete bottom-up so row indices stay valid
+  for (var j = rowsToDelete.length - 1; j >= 0; j--) {
+    sheet.deleteRow(rowsToDelete[j]);
+  }
+
+  Logger.log('Cleaned up ' + rowsToDelete.length + ' old unentered signals');
+}
+
+// ---------------------------------------------------------------
 // calcSignalScore_ — Auto-score an incoming signal (max 6)
 // MACD rising/falling: +2, cross <= 5: +2, in_zone: +1, volume above: +1
 // ---------------------------------------------------------------
