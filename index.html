@@ -3798,7 +3798,7 @@ const BACKTEST = {
             lvlBtn.style.display = dcaMode ? '' : 'none';
             if (dcaMode && window._lastStats) {
                 const pnl = parseFloat(window._lastStats.netPnl) || 0;
-                const boostedPnl = pnl + dcaTotal;
+                const boostedPnl = Math.round((pnl + dcaTotal) * 100) / 100;
                 const currentDCALevel = getPokemonLevel(boostedPnl);
                 const nextDCALevel = getNextPokemonLevel(currentDCALevel);
                 if (nextDCALevel) {
@@ -3832,7 +3832,7 @@ const BACKTEST = {
     async function dcaLevelUp() {
         if (!dcaMode || !window._lastStats) return;
         const pnl = parseFloat(window._lastStats.netPnl) || 0;
-        const boostedPnl = pnl + dcaTotal;
+        const boostedPnl = Math.round((pnl + dcaTotal) * 100) / 100;
         const currentDCALevel = getPokemonLevel(boostedPnl);
         const nextDCALevel = getNextPokemonLevel(currentDCALevel);
         if (!nextDCALevel) return;
@@ -5708,7 +5708,8 @@ const BACKTEST = {
         const openCount = parseInt(stats.openPositions) || 0;
 
         // Determine active P&L (organic or DCA-boosted)
-        const activePnl = dcaMode ? pnl + dcaTotal : pnl;
+        // Round to 2 decimals to avoid floating point precision issues at level boundaries
+        const activePnl = dcaMode ? Math.round((pnl + dcaTotal) * 100) / 100 : pnl;
         const organicLevel = getPokemonLevel(pnl);
         const organicIdx = POKEMON_LEVELS.indexOf(organicLevel) + 1;
 
