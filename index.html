@@ -2216,6 +2216,11 @@
     const POST_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec';
     const REFRESH_INTERVAL = 60000;
 
+    // Action interaction cooldown — prevents auto-refresh from rebuilding
+    // the action list while user is actively working through cards
+    let actionCooldownUntil = 0;
+    const ACTION_COOLDOWN_MS = 30000; // 30s after last action click
+
     // DCA state
     let dcaMode = localStorage.getItem('dca_mode') === 'true';
     let dcaTotal = parseFloat(localStorage.getItem('dca_total')) || 0;
@@ -3292,6 +3297,11 @@ const BACKTEST = {
         const grid = document.getElementById('topPicksGrid');
         const countEl = document.getElementById('topPicksCount');
 
+        // During cooldown, don't rebuild — user is actively working through cards
+        if (Date.now() < actionCooldownUntil && grid.querySelector('.pick-card')) {
+            return;
+        }
+
         // Build set of symbols still needing action (from Google Sheet)
         const pendingSet = new Set();
         (actionNeeded || []).filter(a => a.type === 'mark_action').forEach(a => {
@@ -3391,6 +3401,10 @@ const BACKTEST = {
     function renderActions(actionNeeded, allSignals) {
         const actionList = document.getElementById('actionList');
         const actionCount = document.getElementById('actionCount');
+        // During cooldown, don't rebuild — user is actively working through cards
+        if (Date.now() < actionCooldownUntil && actionList.querySelector('.action-item')) {
+            return;
+        }
         actionNeeded = actionNeeded.filter(a => !isActed(a.ticker || a.symbol || '', a.signal || ''));
         // Weekly short cap — auto-skip shorts over cap (marks Skipped in sheet)
         if (shortsAtCap()) {
@@ -3592,6 +3606,11 @@ const BACKTEST = {
     function renderOpenTrades(trades) {
         const list = document.getElementById('openTradesList');
         const countEl = document.getElementById('openTradesCount');
+
+        // During cooldown, don't rebuild — user is actively working through cards
+        if (Date.now() < actionCooldownUntil && list.querySelector('.open-trade-item')) {
+            return;
+        }
 
         // Save any typed P&L input values before re-render
         const savedInputs = {};
@@ -4995,6 +5014,8 @@ const BACKTEST = {
         const entrySize = sizeInput ? sizeInput.value : '';
         const el = document.getElementById(elemId);
         addActedItem(ticker, signal);
+        // Set cooldown so auto-refresh doesn't rebuild the action list
+        actionCooldownUntil = Date.now() + ACTION_COOLDOWN_MS;
         // If Entered, open Bitunix and copy ticker pair
         if (value === 'Entered') {
             if (isShortSignal(signal)) bumpWeekShortCount();
@@ -5021,7 +5042,13 @@ const BACKTEST = {
             if (res && res.status === 'ok') ok = true;
         }
         if (ok) {
-            scheduleFetch();
+            // Don't scheduleFetch here — the card is already hidden locally
+            // and a premature re-render can wipe other cards the user hasn't
+            // acted on yet. The next normal refresh (60s) will sync state.
+            // Update the visible count instead:
+            const remaining = document.querySelectorAll('#actionList .action-item:not([style*="display: none"])');
+            const actionCount = document.getElementById('actionCount');
+            if (actionCount) actionCount.textContent = remaining.length;
         } else {
             // Undo local hide so card comes back
             removeActedItem(ticker, signal);
@@ -5196,7 +5223,8 @@ const BACKTEST = {
                     setTimeout(() => el.remove(), 600);
                 }, 1200);
 
-                scheduleFetch();
+                // Delay the refresh so action cards aren't wiped mid-interaction
+                actionCooldownUntil = Date.now() + ACTION_COOLDOWN_MS;
             } catch (err) {
                 el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
                 showToast('Failed to update: ' + err.message);
@@ -5227,7 +5255,8 @@ const BACKTEST = {
             action: 'update', ticker, signal, price, field: 'action', value
         });
         if (entrySize) params2.set('entry_size', entrySize);
-        fireGet(POST_URL + '?' + params2).then(() => scheduleFetch());
+        actionCooldownUntil = Date.now() + ACTION_COOLDOWN_MS;
+        fireGet(POST_URL + '?' + params2);
     }
 
     // ====== EMPTY FALLBACK ======
