@@ -3093,16 +3093,16 @@ const BACKTEST = {
             statusText.textContent = 'Live';
             document.getElementById('lastUpdate').textContent = 'Updated ' + new Date().toLocaleTimeString();
             document.getElementById('errorBanner').className = 'error-banner';
-            document.getElementById('loading').className = 'loading-overlay hidden';
         } catch (err) {
             // Only render empty if we have no cached data already on screen
-            if (!window._hasCachedRender) renderDashboard(EMPTY_DATA);
+            try { if (!window._hasCachedRender) renderDashboard(EMPTY_DATA); } catch(e) {}
             dot.className = 'status-dot';
             statusText.textContent = err.name === 'AbortError' ? 'Timeout' : 'Error';
             document.getElementById('lastUpdate').textContent = window._hasCachedRender ? 'Cached' : 'No data';
             const banner = document.getElementById('errorBanner');
             banner.textContent = err.name === 'AbortError' ? 'Fetch timed out — using cached data' : 'Fetch failed: ' + err.message;
             banner.className = 'error-banner show';
+        } finally {
             document.getElementById('loading').className = 'loading-overlay hidden';
         }
 
