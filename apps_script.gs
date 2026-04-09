@@ -246,8 +246,10 @@ function deduplicateSignalLog() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(SIGNAL_LOG);
   var data = sheet.getDataRange().getValues();
-  var rowsToDelete = [];
-  var seen = {}; // key = symbol|signal|entry|4h_bucket
+  var header = data[0];
+  var seen = {};
+  var keep = [];
+  var dupeCount = 0;
 
   for (var i = 1; i < data.length; i++) {
     var ts = data[i][0];
@@ -256,7 +258,6 @@ function deduplicateSignalLog() {
     var entry = String(data[i][3] || '');
     if (!sym) continue;
 
-    // 4-hour bucket: floor timestamp to nearest 4h
     var bucket = '';
     if (ts instanceof Date) {
       bucket = String(Math.floor(ts.getTime() / (4 * 3600000)));
@@ -264,19 +265,21 @@ function deduplicateSignalLog() {
     var key = sym + '|' + sig + '|' + entry + '|' + bucket;
 
     if (seen[key]) {
-      rowsToDelete.push(i + 1); // 1-indexed sheet row
+      dupeCount++;
     } else {
       seen[key] = true;
+      keep.push(data[i]);
     }
   }
 
-  // Delete from bottom up so row numbers don't shift
-  for (var d = rowsToDelete.length - 1; d >= 0; d--) {
-    sheet.deleteRow(rowsToDelete[d]);
+  // Bulk rewrite: clear everything below header, write unique rows back
+  if (dupeCount > 0 && keep.length > 0) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
+    sheet.getRange(2, 1, keep.length, keep[0].length).setValues(keep);
   }
 
-  Logger.log('Deleted ' + rowsToDelete.length + ' duplicate rows from Signal Log');
-  return rowsToDelete.length;
+  Logger.log('Deleted ' + dupeCount + ' duplicate rows from Signal Log (' + keep.length + ' kept)');
+  return dupeCount;
 }
 
 // ---------------------------------------------------------------
