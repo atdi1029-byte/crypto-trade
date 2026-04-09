@@ -288,7 +288,7 @@ function cleanupOldSignals() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(POSITIONS);
   var data = sheet.getDataRange().getValues();
-  var cutoff = new Date(new Date().getTime() - 30 * 24 * 60 * 60 * 1000);
+  var cutoff = new Date(new Date().getTime() - 14 * 24 * 60 * 60 * 1000);
   var rowsToDelete = [];
 
   for (var i = 1; i < data.length; i++) {
