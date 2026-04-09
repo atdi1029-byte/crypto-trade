@@ -79,15 +79,20 @@ function doPost(e) {
       return addTrade_(ss, data);
     }
 
-    // --- Webhook signal: just queue the raw JSON and return fast ---
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var queueSheet = ss.getSheetByName(QUEUE);
-    if (!queueSheet) {
-      queueSheet = ss.insertSheet(QUEUE);
-      queueSheet.appendRow(['Timestamp', 'Raw JSON']);
-      queueSheet.setFrozenRows(1);
+    // --- Webhook signal: queue via CacheService (sub-100ms) ---
+    var cache = CacheService.getScriptCache();
+    var key = 'wh_' + new Date().getTime() + '_' + Math.random().toString(36).substr(2, 6);
+    cache.put(key, raw, 600); // 10 min TTL
+
+    // Append key to index so processQueue can find all queued items
+    var lock = LockService.getScriptLock();
+    lock.waitLock(5000);
+    try {
+      var idx = cache.get('wh_index') || '';
+      cache.put('wh_index', idx ? idx + ',' + key : key, 600);
+    } finally {
+      lock.releaseLock();
     }
-    queueSheet.appendRow([new Date(), raw]);
 
     return ContentService
       .createTextOutput(JSON.stringify({ status: 'ok', queued: true }))
@@ -106,96 +111,176 @@ function doPost(e) {
 // Set up trigger: Triggers → Add → processQueue → Time-driven → Every minute
 // ---------------------------------------------------------------
 function processQueue() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var queueSheet = ss.getSheetByName(QUEUE);
-  if (!queueSheet) return;
-
-  var data = queueSheet.getDataRange().getValues();
-  if (data.length <= 1) return; // header only
-
+  // --- Read queued items from CacheService ---
+  var cache = CacheService.getScriptCache();
   var lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) return; // skip if another instance is running
+  if (!lock.tryLock(10000)) return;
 
+  var idx;
   try {
-    var posSheet = ss.getSheetByName(POSITIONS);
-    var logSheet = ss.getSheetByName(SIGNAL_LOG);
-    var posData = posSheet.getDataRange().getValues();
-    var now = new Date();
-    var fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+    idx = cache.get('wh_index');
+    if (!idx) { lock.releaseLock(); return; }
+    cache.remove('wh_index'); // claim the batch
+  } catch (e) {
+    lock.releaseLock(); return;
+  }
 
-    for (var i = 1; i < data.length; i++) {
-      var timestamp = data[i][0];
-      var raw = data[i][1];
-      if (!raw) continue;
+  var keys = idx.split(',');
+  var items = cache.getAll(keys);
 
-      try {
-        var d = JSON.parse(raw);
-      } catch (parseErr) {
-        continue; // skip malformed JSON
-      }
+  // Clean up cache keys
+  for (var ki = 0; ki < keys.length; ki++) cache.remove(keys[ki]);
+  lock.releaseLock();
 
-      var symbol    = (d.symbol || '').toUpperCase();
-      var signal    = (d.signal || '').toLowerCase();
-      var entry     = d.entry || '';
-      var sl        = d.sl || '';
-      var tp1       = d.tp1 || '';
-      var tp2       = d.tp2 || '';
-      var macd      = (d.macd || '').toLowerCase();
-      var volume    = (d.volume || '').toLowerCase();
-      var cross     = d.cross;
-      var inZone    = d.in_zone;
-      var rsi       = d.rsi || '';
-      var timeframe = d.timeframe || '';
-      var signalsUsed = d.signals_used || '';
+  // Filter to valid items
+  var queued = [];
+  var now = new Date();
+  for (var qi = 0; qi < keys.length; qi++) {
+    var raw = items[keys[qi]];
+    if (raw) queued.push({ timestamp: now, raw: raw });
+  }
+  if (queued.length === 0) return;
 
-      var score = calcSignalScore_(macd, cross, inZone, volume, signalsUsed);
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var posSheet = ss.getSheetByName(POSITIONS);
+  var logSheet = ss.getSheetByName(SIGNAL_LOG);
+  var posData = posSheet.getDataRange().getValues();
+  var logData = logSheet.getDataRange().getValues();
+  var fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000);
 
-      // Dedup check against current Positions data
-      var isDupe = false;
-      for (var p = posData.length - 1; p >= 1; p--) {
-        var dTs = posData[p][0];
-        if (dTs instanceof Date && dTs >= fourHoursAgo) {
-          if (String(posData[p][1]).toUpperCase() === symbol && String(posData[p][2]).toLowerCase() === signal) {
-            isDupe = true;
-            break;
-          }
+  // Also drain any leftover rows from old Queue sheet
+  var queueSheet = ss.getSheetByName(QUEUE);
+  if (queueSheet) {
+    var sheetData = queueSheet.getDataRange().getValues();
+    for (var si = 1; si < sheetData.length; si++) {
+      if (sheetData[si][1]) queued.push({ timestamp: sheetData[si][0], raw: sheetData[si][1] });
+    }
+    if (sheetData.length > 1) {
+      queueSheet.getRange(2, 1, sheetData.length - 1, queueSheet.getLastColumn()).clearContent();
+    }
+  }
+
+  for (var i = 0; i < queued.length; i++) {
+    var timestamp = queued[i].timestamp;
+    var raw = queued[i].raw;
+
+    try {
+      var d = JSON.parse(raw);
+    } catch (parseErr) {
+      continue; // skip malformed JSON
+    }
+
+    var symbol    = (d.symbol || '').toUpperCase();
+    var signal    = (d.signal || '').toLowerCase();
+    var entry     = d.entry || '';
+    var sl        = d.sl || '';
+    var tp1       = d.tp1 || '';
+    var tp2       = d.tp2 || '';
+    var macd      = (d.macd || '').toLowerCase();
+    var volume    = (d.volume || '').toLowerCase();
+    var cross     = d.cross;
+    var inZone    = d.in_zone;
+    var rsi       = d.rsi || '';
+    var timeframe = d.timeframe || '';
+    var signalsUsed = d.signals_used || '';
+
+    var score = calcSignalScore_(macd, cross, inZone, volume, signalsUsed);
+
+    // Dedup check against current Positions data
+    var isDupe = false;
+    for (var p = posData.length - 1; p >= 1; p--) {
+      var dTs = posData[p][0];
+      if (dTs instanceof Date && dTs >= fourHoursAgo) {
+        if (String(posData[p][1]).toUpperCase() === symbol && String(posData[p][2]).toLowerCase() === signal) {
+          isDupe = true;
+          break;
         }
       }
+    }
 
-      // Signal Log (always log)
+    // Signal Log (dedup: skip if same symbol+signal+entry logged in last 4 hours)
+    var logDupe = false;
+    for (var li = logData.length - 1; li >= 1; li--) {
+      var lTs = logData[li][0];
+      if (lTs instanceof Date && lTs < fourHoursAgo) break;
+      if (String(logData[li][1]).toUpperCase() === symbol &&
+          String(logData[li][2]).toLowerCase() === signal &&
+          String(logData[li][3]) === String(entry)) {
+        logDupe = true;
+        break;
+      }
+    }
+    if (!logDupe) {
       logSheet.appendRow([
         timestamp, symbol, signal, entry, sl, tp1, tp2,
         macd, volume, cross, inZone, rsi, timeframe, score, raw
       ]);
-
-      // Positions (skip if duplicate)
-      if (!isDupe) {
-        posSheet.appendRow([
-          timestamp, symbol, signal, entry, sl, tp1, tp2, score,
-          '', '', '', rsi || '', macd || ''
-        ]);
-        // Update posData so subsequent items in this batch can dedup correctly
-        posData.push([timestamp, symbol, signal, entry, sl, tp1, tp2, score, '', '', '', rsi, macd]);
-      }
-
-      // Auto-pick
-      if (!isDupe) autoPickSignal_(ss, d, score);
+      logData.push([timestamp, symbol, signal, entry, sl, tp1, tp2,
+        macd, volume, cross, inZone, rsi, timeframe, score, raw]);
     }
 
-    // Clear queue (keep header) — use clearContent to avoid
-    // "cannot delete all non-frozen rows" error
-    var lastRow = queueSheet.getLastRow();
-    if (lastRow > 1) {
-      queueSheet.getRange(2, 1, lastRow - 1, queueSheet.getLastColumn()).clearContent();
+    // Positions (skip if duplicate)
+    if (!isDupe) {
+      posSheet.appendRow([
+        timestamp, symbol, signal, entry, sl, tp1, tp2, score,
+        '', '', '', rsi || '', macd || ''
+      ]);
+      // Update posData so subsequent items in this batch can dedup correctly
+      posData.push([timestamp, symbol, signal, entry, sl, tp1, tp2, score, '', '', '', rsi, macd]);
     }
 
-  } finally {
-    lock.releaseLock();
+    // Auto-pick
+    if (!isDupe) autoPickSignal_(ss, d, score);
   }
+
+  // Cache-based queue already cleared above; old sheet queue drained inline
 }
 
 // ---------------------------------------------------------------
-// cleanupOldSignals_ — Delete Positions rows older than 30 days
+// deduplicateSignalLog — Remove duplicate rows from Signal Log.
+// A duplicate = same symbol + signal + entry price within the same
+// 4-hour window. Keeps the first occurrence, deletes the rest.
+// Run manually or via trigger once to clean up existing dupes.
+// ---------------------------------------------------------------
+function deduplicateSignalLog() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(SIGNAL_LOG);
+  var data = sheet.getDataRange().getValues();
+  var rowsToDelete = [];
+  var seen = {}; // key = symbol|signal|entry|4h_bucket
+
+  for (var i = 1; i < data.length; i++) {
+    var ts = data[i][0];
+    var sym = String(data[i][1] || '').toUpperCase();
+    var sig = String(data[i][2] || '').toLowerCase();
+    var entry = String(data[i][3] || '');
+    if (!sym) continue;
+
+    // 4-hour bucket: floor timestamp to nearest 4h
+    var bucket = '';
+    if (ts instanceof Date) {
+      bucket = String(Math.floor(ts.getTime() / (4 * 3600000)));
+    }
+    var key = sym + '|' + sig + '|' + entry + '|' + bucket;
+
+    if (seen[key]) {
+      rowsToDelete.push(i + 1); // 1-indexed sheet row
+    } else {
+      seen[key] = true;
+    }
+  }
+
+  // Delete from bottom up so row numbers don't shift
+  for (var d = rowsToDelete.length - 1; d >= 0; d--) {
+    sheet.deleteRow(rowsToDelete[d]);
+  }
+
+  Logger.log('Deleted ' + rowsToDelete.length + ' duplicate rows from Signal Log');
+  return rowsToDelete.length;
+}
+
+// ---------------------------------------------------------------
+// cleanupOldSignals — Delete Positions rows older than 30 days
 // that were never entered (empty action or "Skipped").
 // Run daily via time-based trigger.
 // ---------------------------------------------------------------
@@ -579,6 +664,12 @@ function doGet(e) {
 
   if (action === 'clear') {
     return clearSignalLog_();
+  }
+
+  if (action === 'dedup') {
+    var deleted = deduplicateSignalLog();
+    return ContentService.createTextOutput(JSON.stringify({ status: 'ok', deleted: deleted }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 
   if (action === 'performance') {
