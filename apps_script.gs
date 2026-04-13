@@ -437,16 +437,7 @@ function autoPickSignal_(ss, data, score) {
     score, rrStr, analysis, rec, 'new'
   ]);
 
-  // Send email alert for new auto-pick
-  try {
-    var email = Session.getActiveUser().getEmail();
-    if (email) {
-      MailApp.sendEmail(email,
-        'Trade Alert: ' + symbol + ' ' + signal.toUpperCase(),
-        rec + '\n\n' + analysis + '\n\nEntry: ' + entry + ' | SL: ' + sl + ' | TP1: ' + tp1 + ' | TP2: ' + tp2
-      );
-    }
-  } catch(e) { /* skip if email fails */ }
+  // Email alert disabled — alerts go to dashboard only
 }
 
 // ---------------------------------------------------------------
@@ -1333,14 +1324,15 @@ function serveDashboardJSON_() {
     })(),
     // RSI at entry: deep oversold vs moderate
     rsiAnalysis: (function() {
-      var deep = { w:0, l:0, pnl:0 };   // RSI < 25
-      var mid = { w:0, l:0, pnl:0 };    // RSI 25-35
-      var shallow = { w:0, l:0, pnl:0 }; // RSI 35-50
-      var ob = { w:0, l:0, pnl:0 };     // RSI > 50 (overbought side / shorts)
+      var deep = { w:0, l:0, pnl:0 };      // RSI < 25
+      var mid = { w:0, l:0, pnl:0 };       // RSI 25-35
+      var shallow = { w:0, l:0, pnl:0 };   // RSI 35-40
+      var sweet = { w:0, l:0, pnl:0 };     // RSI 40-50
+      var ob = { w:0, l:0, pnl:0 };        // RSI > 50 (overbought side / shorts)
       trades.forEach(function(t) {
         if (t.rsi === null || t.rsi === undefined) return;
         var r = Number(t.rsi);
-        var bucket = r < 25 ? deep : r < 35 ? mid : r < 50 ? shallow : ob;
+        var bucket = r < 25 ? deep : r < 35 ? mid : r < 40 ? shallow : r < 50 ? sweet : ob;
         if (t.win) bucket.w++;
         else if (t.outcome === 'lost') bucket.l++;
         bucket.pnl += t.realizedPnl;
@@ -1349,7 +1341,7 @@ function serveDashboardJSON_() {
         var total = b.w + b.l;
         return { wins: b.w, losses: b.l, total: total, winRate: total > 0 ? (b.w/total*100).toFixed(0)+'%' : 'N/A', pnl: Math.round(b.pnl*100)/100 };
       }
-      return { deepOversold: fmt(deep), moderate: fmt(mid), shallow: fmt(shallow), overbought: fmt(ob) };
+      return { deepOversold: fmt(deep), moderate: fmt(mid), shallow: fmt(shallow), sweetSpot: fmt(sweet), overbought: fmt(ob) };
     })(),
     // MACD confirmation
     macdAnalysis: (function() {
@@ -1388,6 +1380,22 @@ function serveDashboardJSON_() {
         return { wins: b.w, losses: b.l, total: total, winRate: total > 0 ? (b.w/total*100).toFixed(0)+'%' : 'N/A', pnl: Math.round(b.pnl*100)/100 };
       }
       return { asian: fmt(asian), europe: fmt(europe), us: fmt(us), night: fmt(night) };
+    })(),
+    // $/trade per session (for quick comparison)
+    sessionPpt: (function() {
+      var buckets = { asian:{pnl:0,n:0}, europe:{pnl:0,n:0}, us:{pnl:0,n:0}, night:{pnl:0,n:0} };
+      trades.forEach(function(t) {
+        var ts = t.timestamp instanceof Date ? t.timestamp : new Date(t.timestamp);
+        var h = ts.getUTCHours();
+        var key = h < 8 ? 'asian' : h < 14 ? 'europe' : h < 21 ? 'us' : 'night';
+        buckets[key].pnl += t.realizedPnl;
+        buckets[key].n++;
+      });
+      var result = {};
+      ['asian','europe','us','night'].forEach(function(k) {
+        result[k] = buckets[k].n > 0 ? Math.round(buckets[k].pnl / buckets[k].n * 1000) / 1000 : 0;
+      });
+      return result;
     })(),
     // Day of week analysis
     dayOfWeekAnalysis: (function() {
@@ -1428,6 +1436,32 @@ function serveDashboardJSON_() {
         }
       });
       return result;
+    })(),
+    // Coin concentration
+    coinConcentration: (function() {
+      var tickers = {};
+      trades.forEach(function(t) {
+        if (!tickers[t.ticker]) tickers[t.ticker] = 0;
+        tickers[t.ticker]++;
+      });
+      var uniqueCoins = Object.keys(tickers).length;
+      var avgTradesPerCoin = trades.length > 0 ? Math.round(trades.length / uniqueCoins * 10) / 10 : 0;
+      var oneTrade = 0, twoTrades = 0, threePlus = 0;
+      Object.keys(tickers).forEach(function(k) {
+        if (tickers[k] === 1) oneTrade++;
+        else if (tickers[k] === 2) twoTrades++;
+        else threePlus++;
+      });
+      return { uniqueCoins: uniqueCoins, totalTrades: trades.length, avgPerCoin: avgTradesPerCoin, oneTrade: oneTrade, twoTrades: twoTrades, threePlus: threePlus };
+    })(),
+    // Breakeven WR needed
+    breakevenWR: (function() {
+      var avgW = wins.length > 0 ? wins.reduce(function(a,t){return a+t.realizedPnl},0) / wins.length : 0;
+      var avgL = losses.length > 0 ? losses.reduce(function(a,t){return a+Math.abs(t.realizedPnl)},0) / losses.length : 0;
+      var beWR = avgL > 0 ? Math.round(avgL / (avgW + avgL) * 1000) / 10 : 0;
+      var currentWR = trades.length > 0 ? Math.round(wins.length / trades.length * 1000) / 10 : 0;
+      var margin = Math.round((currentWR - beWR) * 10) / 10;
+      return { breakevenWR: beWR, currentWR: currentWR, margin: margin };
     })()
   };
 
@@ -1621,7 +1655,7 @@ function getAllCompletedTrades_(optPosData, optLogData) {
       tp2:         tp2,
       score:       Number(score),
       outcome:     outcome,
-      win:         outcome === 'won' || outcome === 'closed',
+      win:         outcome === 'won' || (outcome === 'closed' && (pnl ? Number(pnl) : 0) >= 0),
       realizedPnl: pnl ? Number(pnl) : 0,
       rsi:         rsi !== '' ? Number(rsi) : null,
       timeframe:   timeframe || 'unknown',
