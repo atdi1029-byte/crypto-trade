@@ -2228,6 +2228,7 @@
     let dcaMode = localStorage.getItem('dca_mode') === 'true';
     let dcaTotal = parseFloat(localStorage.getItem('dca_total')) || 0;
     let dcaSyncCooldown = 0; // timestamp — skip API overwrite until this passes
+    let pokeballSyncCooldown = 0; // timestamp — skip API overwrite until this passes
 
     // ====== TOAST (non-blocking replacement for alert) ======
     function showToast(msg, type = 'error', duration = 3500) {
@@ -3117,8 +3118,8 @@ const BACKTEST = {
     function renderDashboard(data) {
         const { tickers, recentSignals, actionNeeded, stats, claudePicks } = data;
 
-        // Sync pokeball state from API → localStorage cache
-        if (data.pokeballUsed) {
+        // Sync pokeball state from API → localStorage cache (skip if user just toggled)
+        if (data.pokeballUsed && Date.now() > pokeballSyncCooldown) {
             localStorage.setItem('pokeball_used', JSON.stringify(data.pokeballUsed));
         }
 
@@ -3687,6 +3688,7 @@ const BACKTEST = {
         const used = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false,false]');
         used[idx] = !used[idx];
         localStorage.setItem('pokeball_used', JSON.stringify(used));
+        pokeballSyncCooldown = Date.now() + 10000;
         // Re-render the pokemon section
         const pokemonEl = document.getElementById('pokemonSection');
         if (pokemonEl && window._lastStats) renderPokemon(window._lastStats);
