@@ -2147,6 +2147,10 @@
                     <div class="perf-grid" id="scoreGrid"></div>
                 </div>
                 <div class="section-box" style="margin-bottom:0.75rem">
+                    <div style="font-size:0.7rem;color:#80cbc4;margin-bottom:0.5rem;font-weight:700">Factor Analysis — What Actually Predicts Wins</div>
+                    <div class="perf-grid" id="factorGrid"></div>
+                </div>
+                <div class="section-box" style="margin-bottom:0.75rem">
                     <div style="font-size:0.7rem;color:#f9c846;margin-bottom:0.5rem;font-weight:700">Trading Session</div>
                     <div class="perf-grid" id="sessionGrid"></div>
                 </div>
@@ -4307,6 +4311,32 @@ const BACKTEST = {
             const avgLabel = d.avgPnl !== undefined ? ' · $'+d.avgPnl.toFixed(3)+'/t' : '';
             return `<div class="perf-item"><div class="perf-val" style="color:${colors[k]}">${d.winRate}</div><div class="perf-label">Score ${k} (${d.total})</div><div style="font-size:0.55rem;color:${colors[k]};margin-top:2px">${fmtPnl(d.pnl)}${avgLabel}</div></div>`;
         }).join('');
+
+        // Factor analysis — shows which scoring criteria actually matter
+        const fa = stats.factorAnalysis || {};
+        const factorEl = document.getElementById('factorGrid');
+        if (factorEl) {
+            let html = '';
+            const fc = (label, data, color) => {
+                if (!data || data.total === 0) return `<div class="perf-item"><div class="perf-val" style="color:#666">-</div><div class="perf-label">${label} (0)</div></div>`;
+                const wr = parseInt(data.winRate);
+                const col = wr >= 90 ? '#4caf50' : wr >= 80 ? '#8bc34a' : wr >= 70 ? '#f9c846' : '#ef5350';
+                return `<div class="perf-item"><div class="perf-val" style="color:${col}">${data.winRate}</div><div class="perf-label">${label} (${data.total})</div><div style="font-size:0.5rem;color:${col};margin-top:2px">${fmtPnl(data.pnl)}</div></div>`;
+            };
+            // Touches
+            if (fa.touches) html += fc('4+ Touches', fa.touches['4+']) + fc('3 Touches', fa.touches['3']) + fc('≤2 Touches', fa.touches['≤2']);
+            // R:R
+            if (fa.riskReward) html += fc('R:R ≥3', fa.riskReward['3+']) + fc('R:R 2-3', fa.riskReward['2-3']) + fc('R:R <2', fa.riskReward['<2']);
+            // Divergence
+            if (fa.divergence) html += fc('Divergence ✓', fa.divergence.yes) + fc('No Divergence', fa.divergence.no);
+            // DMI
+            if (fa.dmi) html += fc('DMI Safe', fa.dmi.safe) + fc('DMI Caution', fa.dmi.caution);
+            // Cross
+            if (fa.crossRecency) html += fc('Cross 0-2', fa.crossRecency['0-2']) + fc('Cross 3-5', fa.crossRecency['3-5']);
+            // Volume
+            if (fa.volume) html += fc('Vol Above', fa.volume.above) + fc('Vol Below', fa.volume.below);
+            factorEl.innerHTML = html;
+        }
 
         // RSI analysis
         const rsi = stats.rsiAnalysis || {};

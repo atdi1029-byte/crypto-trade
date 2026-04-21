@@ -215,13 +215,19 @@ function processQueue() {
     }
 
     // Positions (skip if duplicate)
+    // Columns: A=ts, B=sym, C=signal, D=entry, E=sl, F=tp1, G=tp2, H=score,
+    //          I=action, J=outcome, K=pnl, L=rsi, M=macd, N=closed_at,
+    //          O=touches, P=divergence, Q=dmi, R=cross
     if (!isDupe) {
+      var touches = d.touches || '';
+      var divergence = d.divergence || false;
+      var dmiVal = d.dmi || '';
       posSheet.appendRow([
         timestamp, symbol, signal, entry, sl, tp1, tp2, score,
-        '', '', '', rsi || '', macd || ''
+        '', '', '', rsi || '', macd || '', '',
+        touches, divergence, dmiVal, cross
       ]);
-      // Update posData so subsequent items in this batch can dedup correctly
-      posData.push([timestamp, symbol, signal, entry, sl, tp1, tp2, score, '', '', '', rsi, macd]);
+      posData.push([timestamp, symbol, signal, entry, sl, tp1, tp2, score, '', '', '', rsi, macd, '', touches, divergence, dmiVal, cross]);
     }
 
     // Auto-pick
@@ -1456,6 +1462,68 @@ function serveDashboardJSON_() {
       });
       return result;
     })(),
+    // Factor analysis — shows which scoring criteria actually predict wins
+    factorAnalysis: (function() {
+      function bucket(arr) {
+        var w = 0, l = 0, pnl = 0;
+        arr.forEach(function(t) { if (t.win) w++; else l++; pnl += t.realizedPnl; });
+        var total = w + l;
+        return { wins: w, losses: l, total: total, winRate: total > 0 ? (w/total*100).toFixed(0)+'%' : 'N/A', pnl: Math.round(pnl*100)/100 };
+      }
+
+      // Touches
+      var t2 = [], t3 = [], t4plus = [];
+      trades.forEach(function(t) {
+        if (t.touches === null) return;
+        if (t.touches >= 4) t4plus.push(t);
+        else if (t.touches >= 3) t3.push(t);
+        else t2.push(t);
+      });
+
+      // Divergence
+      var divYes = [], divNo = [];
+      trades.forEach(function(t) {
+        if (t.divergence) divYes.push(t); else divNo.push(t);
+      });
+
+      // DMI
+      var dmiSafe = [], dmiCaution = [];
+      trades.forEach(function(t) {
+        if (t.dmi === 'caution') dmiCaution.push(t); else dmiSafe.push(t);
+      });
+
+      // Cross recency
+      var crossTight = [], crossLoose = [];
+      trades.forEach(function(t) {
+        if (t.cross === null) return;
+        if (t.cross <= 2) crossTight.push(t); else crossLoose.push(t);
+      });
+
+      // R:R ratio
+      var rrHigh = [], rrMid = [], rrLow = [];
+      trades.forEach(function(t) {
+        if (t.rr === null) return;
+        if (t.rr >= 3) rrHigh.push(t);
+        else if (t.rr >= 2) rrMid.push(t);
+        else rrLow.push(t);
+      });
+
+      // Volume
+      var volAbove = [], volBelow = [];
+      trades.forEach(function(t) {
+        var v = String(t.volume || '').toLowerCase();
+        if (v === 'above') volAbove.push(t); else volBelow.push(t);
+      });
+
+      return {
+        touches: { '4+': bucket(t4plus), '3': bucket(t3), '≤2': bucket(t2) },
+        divergence: { yes: bucket(divYes), no: bucket(divNo) },
+        dmi: { safe: bucket(dmiSafe), caution: bucket(dmiCaution) },
+        crossRecency: { '0-2': bucket(crossTight), '3-5': bucket(crossLoose) },
+        riskReward: { '3+': bucket(rrHigh), '2-3': bucket(rrMid), '<2': bucket(rrLow) },
+        volume: { above: bucket(volAbove), below: bucket(volBelow) }
+      };
+    })(),
     // Coin concentration
     coinConcentration: (function() {
       var tickers = {};
@@ -1645,15 +1713,45 @@ function getAllCompletedTrades_(optPosData, optLogData) {
     // Fall back to Signal Log cross-reference for older trades
     var rsi = posData[j][11] || '';
     var macd = posData[j][12] || '';
+    var volume = '';
     var timeframe = '';
-    if (!rsi && !macd) {
-      var lookupKey = symbol + '|' + signal + '|' + String(entry);
-      if (logLookup[lookupKey] && logLookup[lookupKey].length > 0) {
-        var match = logLookup[lookupKey][0];
-        rsi = match.rsi;
-        timeframe = match.timeframe;
-        macd = match.macd;
-        logLookup[lookupKey].shift();
+    var touches = posData[j][14] || '';
+    var divergence = posData[j][15] || false;
+    var dmi = posData[j][16] || '';
+    var cross = posData[j][17] || '';
+
+    // Always try log lookup for volume (not stored in Positions) and fallback fields
+    var lookupKey = symbol + '|' + signal + '|' + String(entry);
+    if (logLookup[lookupKey] && logLookup[lookupKey].length > 0) {
+      var match = logLookup[lookupKey][0];
+      if (!rsi) rsi = match.rsi;
+      if (!macd) macd = match.macd;
+      volume = match.volume || '';
+      timeframe = match.timeframe || '';
+      if (!cross) cross = match.cross || '';
+      logLookup[lookupKey].shift();
+    }
+
+    // For older trades missing new fields, try parsing raw JSON from Signal Log
+    if (!touches && !divergence) {
+      var rawKey = symbol + '|' + signal + '|' + String(entry);
+      // Search Signal Log raw column for this trade
+      for (var li = 1; li < logData.length; li++) {
+        if (String(logData[li][1]).toUpperCase() === symbol &&
+            String(logData[li][2]).toLowerCase() === signal &&
+            String(logData[li][3]) === String(entry)) {
+          var rawJson = logData[li][14];
+          if (rawJson) {
+            try {
+              var parsed = JSON.parse(rawJson);
+              touches = parsed.touches || '';
+              divergence = parsed.divergence || false;
+              dmi = parsed.dmi || '';
+              cross = cross || parsed.cross || '';
+            } catch(e) {}
+          }
+          break;
+        }
       }
     }
 
@@ -1662,6 +1760,15 @@ function getAllCompletedTrades_(optPosData, optLogData) {
     var holdHours = null;
     if (closedAt instanceof Date && posData[j][0] instanceof Date) {
       holdHours = Math.round((closedAt.getTime() - posData[j][0].getTime()) / (1000 * 60 * 60) * 10) / 10;
+    }
+
+    // Calculate R:R for analysis
+    var rr = null;
+    if (entry && sl && tp1) {
+      var eNum = Number(entry), sNum = Number(sl), tNum = Number(tp1);
+      var risk = signal === 'short' ? (sNum - eNum) : (eNum - sNum);
+      var reward = signal === 'short' ? (eNum - tNum) : (tNum - eNum);
+      if (risk > 0) rr = Math.round(reward / risk * 100) / 100;
     }
 
     trades.push({
@@ -1679,8 +1786,14 @@ function getAllCompletedTrades_(optPosData, optLogData) {
       rsi:         rsi !== '' ? Number(rsi) : null,
       timeframe:   timeframe || 'unknown',
       macd:        macd || '',
+      volume:      String(volume || '').toLowerCase(),
       closedAt:    closedAt instanceof Date ? closedAt : null,
-      holdHours:   holdHours
+      holdHours:   holdHours,
+      touches:     touches ? Number(touches) : null,
+      divergence:  divergence === true || divergence === 'true',
+      dmi:         String(dmi || ''),
+      cross:       cross !== '' && cross !== 'no' ? Number(cross) : null,
+      rr:          rr
     });
   }
 
