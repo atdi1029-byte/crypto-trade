@@ -18,8 +18,8 @@ var WEEKLY_TASKS = 'Weekly Tasks';
 var MAX_AUTO_SCORE   = 10;
 
 // === AUTO-PICK THRESHOLDS ===
-var MIN_PICK_SCORE   = 6;   // Minimum score to auto-add to Claude Picks (out of 10)
-var MIN_PICK_RR      = 1.4; // Minimum R:R ratio to auto-add
+var MIN_PICK_SCORE   = 5;   // Minimum score to auto-add (RSI 2+ and R:R 2+ = quality signal)
+var MIN_PICK_RR      = 1.5; // Minimum R:R ratio (below 1.5 not worth the risk given avg loss = 4x avg win)
 
 // === FAST DATE FORMATTING (avoids slow Utilities.formatDate) ===
 function fmtDateTime_(d) {
@@ -315,14 +315,25 @@ function cleanupOldSignals() {
 // calcSignalScore_ — Auto-score an incoming signal (max 6)
 // MACD rising/falling: +2, cross <= 5: +2, in_zone: +1, volume above: +1
 // ---------------------------------------------------------------
-// calcSignalScore_ v2 — Scores based on factors that actually vary
-// between signals. Takes full data object now.
-// RSI depth: 0-2, R:R: 0-2, Touches: 0-2, Divergence: 0-1,
-// Cross recency: 0-1, Volume: 0-1, DMI: 0-1. Max = 10.
+// calcSignalScore_ v3 — DATA-DRIVEN scoring based on 326 real trades.
+//
+// Key insight: avg win = $0.08, avg loss = $0.34.
+// Score should identify the 13% of trades that become big losses.
+//
+// PROVEN factors (from historical win rate data):
+//   RSI depth:  92% WR at <25, 85% at 25-35, 78% at 35-40 (14pp spread!)
+//   R:R ratio:  huge variance (0.02 to 160x), bad R:R = devastating losses
+//
+// UNPROVEN factors (data not yet available, kept at lower weight):
+//   Touches, Divergence, DMI
+//
+// DEAD factors (no variance in data — always same value):
+//   Cross (always "no"), Volume (always "below")
+//
+// Scale: 0-10. Realistic range with current data: 1-9.
 // ---------------------------------------------------------------
 function calcSignalScore_(macd, cross, inZone, volume, signalsUsed, data) {
   var score = 0;
-  // Use full data object if available, fall back to individual params
   var d = data || {};
   var rsi = d.rsi !== undefined ? Number(d.rsi) : null;
   var signal = (d.signal || '').toLowerCase();
@@ -332,47 +343,55 @@ function calcSignalScore_(macd, cross, inZone, volume, signalsUsed, data) {
   var touches = d.touches !== undefined ? Number(d.touches) : 0;
   var divergence = d.divergence === true || d.divergence === 'true';
   var dmi = (d.dmi || '').toLowerCase();
-  var crossNum = (cross !== undefined && cross !== null && cross !== '' && cross !== 'no') ? Number(cross) : 99;
 
-  // 1. RSI depth (0-2) — deeper oversold/overbought = stronger signal
+  // === PROVEN: RSI depth (0-3) ===
+  // Data: <25 = 92% WR, 25-35 = 85%, 35-40 = 78%, 40-50 = 94%
+  // For buys: deeper oversold = much better. 35-40 is a danger zone.
+  // For shorts: higher RSI = better.
   if (rsi !== null && !isNaN(rsi)) {
     if (signal === 'short') {
-      // For shorts: higher RSI = better
-      if (rsi >= 75) score += 2;
-      else if (rsi >= 65) score += 1;
+      if (rsi >= 70) score += 3;
+      else if (rsi >= 60) score += 2;
+      else if (rsi >= 50) score += 1;
+      // Short with RSI < 50 = bad setup, +0
     } else {
-      // For buys: lower RSI = better
-      if (rsi < 25) score += 2;
-      else if (rsi < 35) score += 1;
+      if (rsi < 25) score += 3;       // Deep oversold: 92% WR
+      else if (rsi < 30) score += 2;  // Solid oversold
+      else if (rsi < 35) score += 1;  // Moderate: 85% WR
+      // RSI 35-40 = danger zone (78% WR), +0
+      // RSI 40-50 shows 94% but small sample, treat as +1
+      else if (rsi >= 40 && rsi <= 50) score += 1;
     }
   }
 
-  // 2. R:R ratio (0-2) — better geometry = higher score
+  // === PROVEN: R:R ratio (0-4) ===
+  // Data: 19% of signals have R:R <1 (risk > reward — terrible!)
+  // With avg loss being 4.2x avg win, bad R:R is devastating.
+  // Weighted heavily because it directly determines P&L impact.
   if (entry && sl && tp1) {
     var risk = signal === 'short' ? (sl - entry) : (entry - sl);
     var reward = signal === 'short' ? (entry - tp1) : (tp1 - entry);
-    if (risk > 0) {
+    if (risk > 0 && reward > 0) {
       var rr = reward / risk;
-      if (rr >= 3) score += 2;
-      else if (rr >= 2) score += 1;
+      if (rr >= 4) score += 4;        // Excellent: one win covers 4 losses
+      else if (rr >= 3) score += 3;   // Great
+      else if (rr >= 2) score += 2;   // Good
+      else if (rr >= 1.5) score += 1; // Acceptable
+      // R:R < 1.5 = +0, and R:R < 1 is actively bad
     }
   }
 
-  // 3. Touches (0-2) — more trendline touches = more meaningful breakout
-  if (touches >= 4) score += 2;
-  else if (touches >= 3) score += 1;
+  // === UNPROVEN: Touches (0-1) — awaiting data validation ===
+  if (touches >= 4) score += 1;
 
-  // 4. Divergence (0-1) — bullish/bearish divergence is rare and powerful
+  // === UNPROVEN: Divergence (0-1) — rare, theoretically powerful ===
   if (divergence) score += 1;
 
-  // 5. Cross recency (0-1) — fresher cross = stronger momentum
-  if (crossNum <= 2) score += 1;
+  // === UNPROVEN: DMI safe (0-1) — penalize weak trends ===
+  if (dmi === 'safe' || (dmi !== 'caution' && dmi !== '')) score += 1;
 
-  // 6. Volume above average (0-1)
-  if (volume === 'above') score += 1;
-
-  // 7. DMI safe (0-1) — penalize when trend is weak
-  if (dmi !== 'caution') score += 1;
+  // Cross and Volume intentionally omitted — always "no"/"below" in data.
+  // Will re-add if indicator starts sending meaningful variance.
 
   return Math.min(score, MAX_AUTO_SCORE);
 }
@@ -1013,7 +1032,7 @@ function serveDashboardJSON_() {
 
   // --- Build Signal Log lookup by symbol+entry for RSI/MACD/Vol ---
   // Signal Log columns: 0=timestamp, 1=symbol, 2=signal, 3=entry, 4=sl, 5=tp1, 6=tp2,
-  //                     7=macd, 8=volume, 9=cross, 10=inZone, 11=rsi, 12=timeframe, 13=score
+  //                     7=macd, 8=volume, 9=cross, 10=inZone, 11=rsi, 12=timeframe, 13=score, 14=raw
   var signalLookup = {};
   for (var sl = 1; sl < logData.length; sl++) {
     var logSym = String(logData[sl][1] || '').toUpperCase().trim();
@@ -1035,6 +1054,17 @@ function serveDashboardJSON_() {
     // Enrich with Signal Log data (MACD, volume, RSI, etc.) if available
     var logIdx = signalLookup[pSym + '|' + (pr[3] || 0)] || signalLookup[pSym];
     var logRow = logIdx ? logData[logIdx] : null;
+    // Parse raw JSON (column 14) for fields not stored in individual columns
+    var rawData = {};
+    if (logRow && logRow[14]) {
+      try { rawData = JSON.parse(logRow[14]); } catch(e) {}
+    }
+    // Also check Positions columns O-R for newer trades
+    var touches = pr[14] || rawData.touches || null;
+    var divergence = pr[15] || rawData.divergence || false;
+    var dmiVal = pr[16] || rawData.dmi || '';
+    var crossVal = logRow ? logRow[9] : (rawData.cross || '');
+
     recentSignals.push({
       timestamp: ptsStr,
       symbol:    pSym,
@@ -1045,11 +1075,14 @@ function serveDashboardJSON_() {
       tp2:       pr[6] || 0,
       macd:      logRow ? String(logRow[7] || '') : '',
       volume:    logRow ? String(logRow[8] || '') : '',
-      cross:     logRow ? logRow[9] : '',
+      cross:     crossVal,
       inZone:    logRow ? logRow[10] : '',
       rsi:       logRow ? (logRow[11] || null) : null,
       timeframe: logRow ? String(logRow[12] || '') : '',
-      score:     pr[7] || 0
+      score:     pr[7] || 0,
+      touches:   touches ? Number(touches) : null,
+      divergence: divergence === true || divergence === 'true',
+      dmi:       String(dmiVal || '')
     });
   }
 
