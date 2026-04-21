@@ -2232,7 +2232,7 @@
     let dcaMode = localStorage.getItem('dca_mode') === 'true';
     let dcaTotal = parseFloat(localStorage.getItem('dca_total')) || 0;
     let dcaSyncCooldown = 0; // timestamp — skip API overwrite until this passes
-    let pokeballSyncCooldown = 0; // timestamp — skip API overwrite until this passes
+    let pokeballSyncCooldown = parseInt(localStorage.getItem('pokeball_cooldown') || '0'); // timestamp — skip API overwrite until this passes
     let pokeballWritePending = false; // true while fireGet hasn't resolved yet
 
     // ====== TOAST (non-blocking replacement for alert) ======
@@ -3739,6 +3739,7 @@ const BACKTEST = {
         used[idx] = !used[idx];
         localStorage.setItem('pokeball_used', JSON.stringify(used));
         pokeballSyncCooldown = Date.now() + 120000; // block API overwrite for 2 min
+        localStorage.setItem('pokeball_cooldown', String(pokeballSyncCooldown));
         pokeballWritePending = true;
         // Re-render the pokemon section
         const pokemonEl = document.getElementById('pokemonSection');
