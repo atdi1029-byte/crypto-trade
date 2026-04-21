@@ -12,18 +12,13 @@ var CONFIG      = 'Config';
 var PERFORMANCE = 'Performance';
 var WEEKLY_TASKS = 'Weekly Tasks';
 
-// === SCORING WEIGHTS ===
-// MACD rising/falling: +2, cross <= 5 bars ago: +2, in_zone: +1, volume above avg: +1, signals not maxed: +1
-// Max auto-score = 7.
-var SCORE_MACD       = 2;
-var SCORE_CROSS      = 2;
-var SCORE_IN_ZONE    = 1;
-var SCORE_VOLUME     = 1;
-var SCORE_SIGNALS    = 1;
-var MAX_AUTO_SCORE   = 7;
+// === SCORING WEIGHTS (v2) ===
+// RSI depth: 0-2, R:R ratio: 0-2, Touches: 0-2, Divergence: 0-1,
+// Cross recency: 0-1, Volume: 0-1, DMI safe: 0-1. Max = 10.
+var MAX_AUTO_SCORE   = 10;
 
 // === AUTO-PICK THRESHOLDS ===
-var MIN_PICK_SCORE   = 4;   // Minimum score to auto-add to Claude Picks
+var MIN_PICK_SCORE   = 6;   // Minimum score to auto-add to Claude Picks (out of 10)
 var MIN_PICK_RR      = 1.4; // Minimum R:R ratio to auto-add
 
 // === FAST DATE FORMATTING (avoids slow Utilities.formatDate) ===
@@ -184,7 +179,7 @@ function processQueue() {
     var timeframe = d.timeframe || '';
     var signalsUsed = d.signals_used || '';
 
-    var score = calcSignalScore_(macd, cross, inZone, volume, signalsUsed);
+    var score = calcSignalScore_(macd, cross, inZone, volume, signalsUsed, d);
 
     // Dedup check against current Positions data
     var isDupe = false;
@@ -314,39 +309,64 @@ function cleanupOldSignals() {
 // calcSignalScore_ — Auto-score an incoming signal (max 6)
 // MACD rising/falling: +2, cross <= 5: +2, in_zone: +1, volume above: +1
 // ---------------------------------------------------------------
-function calcSignalScore_(macd, cross, inZone, volume, signalsUsed) {
+// calcSignalScore_ v2 — Scores based on factors that actually vary
+// between signals. Takes full data object now.
+// RSI depth: 0-2, R:R: 0-2, Touches: 0-2, Divergence: 0-1,
+// Cross recency: 0-1, Volume: 0-1, DMI: 0-1. Max = 10.
+// ---------------------------------------------------------------
+function calcSignalScore_(macd, cross, inZone, volume, signalsUsed, data) {
   var score = 0;
+  // Use full data object if available, fall back to individual params
+  var d = data || {};
+  var rsi = d.rsi !== undefined ? Number(d.rsi) : null;
+  var signal = (d.signal || '').toLowerCase();
+  var entry = Number(d.entry || 0);
+  var sl = Number(d.sl || 0);
+  var tp1 = Number(d.tp1 || 0);
+  var touches = d.touches !== undefined ? Number(d.touches) : 0;
+  var divergence = d.divergence === true || d.divergence === 'true';
+  var dmi = (d.dmi || '').toLowerCase();
+  var crossNum = (cross !== undefined && cross !== null && cross !== '' && cross !== 'no') ? Number(cross) : 99;
 
-  // MACD confirmation: +2 if rising (for buy) or falling (for short)
-  if (macd === 'rising' || macd === 'falling') {
-    score += SCORE_MACD;
-  }
-
-  // Cross recency: +2 if the cross happened within 5 bars
-  if (cross !== undefined && cross !== null && cross !== '' && cross !== 'no' && Number(cross) <= 5) {
-    score += SCORE_CROSS;
-  }
-
-  // In zone (price in value zone / key level): +1
-  if (inZone === true || inZone === 'true' || inZone === 1) {
-    score += SCORE_IN_ZONE;
-  }
-
-  // Volume above average: +1
-  if (volume === 'above') {
-    score += SCORE_VOLUME;
-  }
-
-  // Signals not maxed: +1 if signals_used is not at max (e.g., "1/2" not "2/2")
-  if (signalsUsed) {
-    var parts = String(signalsUsed).split('/');
-    if (parts.length === 2 && Number(parts[0]) < Number(parts[1])) {
-      score += SCORE_SIGNALS;
+  // 1. RSI depth (0-2) — deeper oversold/overbought = stronger signal
+  if (rsi !== null && !isNaN(rsi)) {
+    if (signal === 'short') {
+      // For shorts: higher RSI = better
+      if (rsi >= 75) score += 2;
+      else if (rsi >= 65) score += 1;
+    } else {
+      // For buys: lower RSI = better
+      if (rsi < 25) score += 2;
+      else if (rsi < 35) score += 1;
     }
-  } else {
-    // If no signals_used field, assume not maxed
-    score += SCORE_SIGNALS;
   }
+
+  // 2. R:R ratio (0-2) — better geometry = higher score
+  if (entry && sl && tp1) {
+    var risk = signal === 'short' ? (sl - entry) : (entry - sl);
+    var reward = signal === 'short' ? (entry - tp1) : (tp1 - entry);
+    if (risk > 0) {
+      var rr = reward / risk;
+      if (rr >= 3) score += 2;
+      else if (rr >= 2) score += 1;
+    }
+  }
+
+  // 3. Touches (0-2) — more trendline touches = more meaningful breakout
+  if (touches >= 4) score += 2;
+  else if (touches >= 3) score += 1;
+
+  // 4. Divergence (0-1) — bullish/bearish divergence is rare and powerful
+  if (divergence) score += 1;
+
+  // 5. Cross recency (0-1) — fresher cross = stronger momentum
+  if (crossNum <= 2) score += 1;
+
+  // 6. Volume above average (0-1)
+  if (volume === 'above') score += 1;
+
+  // 7. DMI safe (0-1) — penalize when trend is weak
+  if (dmi !== 'caution') score += 1;
 
   return Math.min(score, MAX_AUTO_SCORE);
 }
@@ -429,7 +449,7 @@ function autoPickSignal_(ss, data, score) {
   var analysis = parts.join(', ') + '.';
 
   var rrStr = rr.toFixed(2);
-  var rec = 'TAKE — Score ' + score + '/7, R:R ' + rrStr + ':1';
+  var rec = 'TAKE — Score ' + score + '/10, R:R ' + rrStr + ':1';
   if (data.dmi === 'caution') rec = 'WATCH — DMI caution, R:R ' + rrStr + ':1';
 
   pickSheet.appendRow([
@@ -1045,7 +1065,7 @@ function serveDashboardJSON_() {
         tp2:       sig.tp2,
         score:     sig.score,
         slotsOpen: openSlots > 0,
-        finalScore: openSlots > 0 ? Math.min(sig.score + 1, 7) : sig.score, // +1 if slots available
+        finalScore: openSlots > 0 ? Math.min(sig.score + 1, 10) : sig.score, // +1 if slots available
         timestamp: sig.timestamp,
         timeframe: sig.timeframe
       });
@@ -1311,8 +1331,8 @@ function serveDashboardJSON_() {
       var buckets = { high: { w:0, t:0 }, mid: { w:0, t:0 }, low: { w:0, t:0 } };
       trades.forEach(function(t) {
         var s = Number(t.score);
-        if (s <= 1) return;
-        var b = s >= 5 ? 'high' : s >= 3 ? 'mid' : 'low';
+        if (s <= 0) return;
+        var b = s >= 7 ? 'high' : s >= 4 ? 'mid' : 'low';
         buckets[b].t++;
         if (t.win) buckets[b].w++;
       });
@@ -1418,21 +1438,20 @@ function serveDashboardJSON_() {
     })(),
     // Score granularity (exact scores)
     scoreGranularity: (function() {
-      var scores = {};
+      var buckets = { '0-2': {w:0,l:0,pnl:0}, '3-4': {w:0,l:0,pnl:0}, '5-6': {w:0,l:0,pnl:0}, '7-8': {w:0,l:0,pnl:0}, '9-10': {w:0,l:0,pnl:0} };
       trades.forEach(function(t) {
         var s = Number(t.score);
-        if (s <= 1) return;
-        var key = s >= 6 ? '6+' : String(Math.floor(s));
-        if (!scores[key]) scores[key] = { w:0, l:0, pnl:0 };
-        if (t.win) scores[key].w++;
-        else if (t.outcome === 'lost') scores[key].l++;
-        scores[key].pnl += t.realizedPnl;
+        var key = s <= 2 ? '0-2' : s <= 4 ? '3-4' : s <= 6 ? '5-6' : s <= 8 ? '7-8' : '9-10';
+        buckets[key].w += t.win ? 1 : 0;
+        buckets[key].l += t.outcome === 'lost' ? 1 : 0;
+        buckets[key].pnl += t.realizedPnl;
       });
       var result = {};
-      ['2','3','4','5','6+'].forEach(function(k) {
-        if (scores[k]) {
-          var total = scores[k].w + scores[k].l;
-          result[k] = { wins: scores[k].w, losses: scores[k].l, total: total, winRate: total > 0 ? (scores[k].w/total*100).toFixed(0)+'%' : 'N/A', pnl: Math.round(scores[k].pnl*100)/100, avgPnl: total > 0 ? Math.round(scores[k].pnl/total*1000)/1000 : 0 };
+      ['0-2','3-4','5-6','7-8','9-10'].forEach(function(k) {
+        var b = buckets[k];
+        var total = b.w + b.l;
+        if (total > 0) {
+          result[k] = { wins: b.w, losses: b.l, total: total, winRate: (b.w/total*100).toFixed(0)+'%', pnl: Math.round(b.pnl*100)/100, avgPnl: Math.round(b.pnl/total*1000)/1000 };
         }
       });
       return result;
@@ -2100,7 +2119,7 @@ function testWebhook() {
     var timestamp = new Date();
     var raw = JSON.stringify(testData);
 
-    var score = calcSignalScore_(testData.macd, testData.cross, testData.in_zone, testData.volume, testData.signals_used);
+    var score = calcSignalScore_(testData.macd, testData.cross, testData.in_zone, testData.volume, testData.signals_used, testData);
 
     var logSheet = ss.getSheetByName(SIGNAL_LOG);
     logSheet.appendRow([
@@ -2232,7 +2251,7 @@ function servePerformanceJSON_() {
     var d = byScore[s];
     var total = d.wins + d.losses;
     scoreBreakdown.push({
-      score: s + '/7',
+      score: s + '/10',
       trades: total,
       wins: d.wins,
       losses: d.losses,

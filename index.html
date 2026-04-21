@@ -2927,14 +2927,14 @@ const BACKTEST = {
                 if (navigator.serviceWorker && navigator.serviceWorker.ready) {
                     navigator.serviceWorker.ready.then(reg => {
                         reg.showNotification('Trade Alert: ' + sym, {
-                            body: (sig || '').toUpperCase() + ' | Score: ' + (pick ? pick.score : '?') + '/7',
+                            body: (sig || '').toUpperCase() + ' | Score: ' + (pick ? pick.score : '?') + '/10',
                             icon: 'icon-192.png',
                             tag: k
                         });
                     });
                 } else {
                     new Notification('Trade Alert: ' + sym, {
-                        body: (sig || '').toUpperCase() + ' | Score: ' + (pick ? pick.score : '?') + '/7',
+                        body: (sig || '').toUpperCase() + ' | Score: ' + (pick ? pick.score : '?') + '/10',
                         icon: 'icon-192.png',
                         tag: k
                     });
@@ -3052,19 +3052,65 @@ const BACKTEST = {
         renderWeeklyTasks();
     }
 
-    // ====== SCORING LOGIC ======
+    // ====== SCORING LOGIC (v2) ======
+    // RSI depth: 0-2, R:R: 0-2, Touches: 0-2, Divergence: 0-1,
+    // Cross recency: 0-1, Volume: 0-1, DMI: 0-1. Max = 10.
     function scoreSignal(s) {
         let score = 0;
-        if (s.macd === 'rising' || s.macd === 'falling') score += 2;
-        if (Number(s.cross) >= 0 && Number(s.cross) <= 5) score += 2;
-        if (s.in_zone === true || s.in_zone === 'true') score += 1;
+        const sig = (s.signal || s.direction || '').toLowerCase();
+        const rsi = s.rsi != null ? Number(s.rsi) : null;
+        const entry = Number(s.entry || s.price || 0);
+        const sl = Number(s.sl || 0);
+        const tp1 = Number(s.tp1 || 0);
+        const touches = Number(s.touches || 0);
+        const divergence = s.divergence === true || s.divergence === 'true';
+        const crossNum = (s.cross !== undefined && s.cross !== null && s.cross !== '' && s.cross !== 'no') ? Number(s.cross) : 99;
+        const dmi = (s.dmi || '').toLowerCase();
+
+        // 1. RSI depth (0-2)
+        if (rsi !== null && !isNaN(rsi)) {
+            if (sig === 'short') {
+                if (rsi >= 75) score += 2;
+                else if (rsi >= 65) score += 1;
+            } else {
+                if (rsi < 25) score += 2;
+                else if (rsi < 35) score += 1;
+            }
+        }
+
+        // 2. R:R ratio (0-2)
+        if (entry && sl && tp1) {
+            const risk = sig === 'short' ? (sl - entry) : (entry - sl);
+            const reward = sig === 'short' ? (entry - tp1) : (tp1 - entry);
+            if (risk > 0) {
+                const rr = reward / risk;
+                if (rr >= 3) score += 2;
+                else if (rr >= 2) score += 1;
+            }
+        }
+
+        // 3. Touches (0-2)
+        if (touches >= 4) score += 2;
+        else if (touches >= 3) score += 1;
+
+        // 4. Divergence (0-1)
+        if (divergence) score += 1;
+
+        // 5. Cross recency (0-1)
+        if (crossNum <= 2) score += 1;
+
+        // 6. Volume (0-1)
         if (s.volume === 'above') score += 1;
-        return score;
+
+        // 7. DMI safe (0-1)
+        if (dmi !== 'caution') score += 1;
+
+        return Math.min(score, 10);
     }
 
     function getScoreClass(score) {
-        if (score >= 5) return 'high';
-        if (score >= 3) return 'mid';
+        if (score >= 7) return 'high';
+        if (score >= 4) return 'mid';
         return 'low';
     }
 
@@ -3247,7 +3293,7 @@ const BACKTEST = {
 
         // Use Claude picks if available, otherwise fall back to auto-scored
         const hasClaude = claudePicks && claudePicks.length > 0;
-        const allPicks = hasClaude ? claudePicks : signals.filter(s => (s.score || s._score) >= 5);
+        const allPicks = hasClaude ? claudePicks : signals.filter(s => (s.score || s._score) >= 7);
         const picks = allPicks.filter(s => {
             const sym = (s.symbol || s.ticker || '').toUpperCase();
             const sig = (s.signal || s.direction || '').toLowerCase();
@@ -3314,7 +3360,7 @@ const BACKTEST = {
                             <div class="ticker-icon-fallback">${fallbackText}</div>
                             <span class="ticker-badge">${esc(tkr)}</span>
                             <span class="signal-tag ${signalClass}">${signalLabel(dir) || 'BUY'}</span>
-                            <span class="score-tag">Score: ${score}/7</span>
+                            <span class="score-tag">Score: ${score}/10</span>
                             ${wrHtml}
                         </div>
                         ${noteHtml ? `<div class="meta" style="margin-top:0.15rem">${noteHtml}</div>` : ''}
@@ -3879,7 +3925,7 @@ const BACKTEST = {
                     <td>${entry ? '$' + entry.toFixed(2) : '-'}</td>
                     <td>${sl ? '$' + sl.toFixed(2) : '-'}</td>
                     <td>${tp1 ? '$' + tp1.toFixed(2) : '-'}</td>
-                    <td><span class="score-badge ${scoreClass}">${s._score}/7</span></td>
+                    <td><span class="score-badge ${scoreClass}">${s._score}/10</span></td>
                     <td>${esc(s.macd || '-')}</td>
                     <td>${esc(s.volume || '-')}</td>
                     <td>${s.rsi != null ? Number(s.rsi).toFixed(1) : '-'}</td>
@@ -3940,15 +3986,15 @@ const BACKTEST = {
             </div>
             <div class="perf-item">
                 <div class="perf-val" style="color:var(--green-bright)">${wrByScore.high || '-'}</div>
-                <div class="perf-label">WR Score 5-7</div>
+                <div class="perf-label">WR Score 7-10</div>
             </div>
             <div class="perf-item">
                 <div class="perf-val" style="color:#f9c846">${wrByScore.mid || '-'}</div>
-                <div class="perf-label">WR Score 3-4</div>
+                <div class="perf-label">WR Score 4-6</div>
             </div>
             <div class="perf-item">
                 <div class="perf-val" style="color:var(--red-bright)">${wrByScore.low || '-'}</div>
-                <div class="perf-label">WR Score 0-2</div>
+                <div class="perf-label">WR Score 0-3</div>
             </div>
             <div class="perf-item">
                 <div class="perf-val" style="color:${dirColor}">${trend ? dirIcon + ' ' + trendPct : '-'}</div>
@@ -4254,8 +4300,8 @@ const BACKTEST = {
 
         // Score breakdown
         const sg = stats.scoreGranularity || {};
-        document.getElementById('scoreGrid').innerHTML = ['2','3','4','5','6+'].map(function(k) {
-            const colors = {'2':'#ef5350','3':'#ffab91','4':'#4dd0e1','5':'#64b5f6','6+':'#ce93d8'};
+        document.getElementById('scoreGrid').innerHTML = ['0-2','3-4','5-6','7-8','9-10'].map(function(k) {
+            const colors = {'0-2':'#ef5350','3-4':'#ffab91','5-6':'#4dd0e1','7-8':'#64b5f6','9-10':'#ce93d8'};
             const d = sg[k];
             if (!d) return card('Score '+k, {total:0}, colors[k]);
             const avgLabel = d.avgPnl !== undefined ? ' · $'+d.avgPnl.toFixed(3)+'/t' : '';
