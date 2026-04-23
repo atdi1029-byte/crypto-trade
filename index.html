@@ -2232,8 +2232,7 @@
     let dcaMode = localStorage.getItem('dca_mode') === 'true';
     let dcaTotal = parseFloat(localStorage.getItem('dca_total')) || 0;
     let dcaSyncCooldown = 0; // timestamp — skip API overwrite until this passes
-    let pokeballSyncCooldown = parseInt(localStorage.getItem('pokeball_cooldown') || '0'); // timestamp — skip API overwrite until this passes
-    let pokeballWritePending = false; // true while fireGet hasn't resolved yet
+    let pokeballSeeded = localStorage.getItem('pokeball_used') !== null; // true once local state exists
 
     // ====== TOAST (non-blocking replacement for alert) ======
     function showToast(msg, type = 'error', duration = 3500) {
@@ -3168,9 +3167,10 @@ const BACKTEST = {
     function renderDashboard(data) {
         const { tickers, recentSignals, actionNeeded, stats, claudePicks } = data;
 
-        // Sync pokeball state from API → localStorage cache (skip if user just toggled or write in flight)
-        if (data.pokeballUsed && Date.now() > pokeballSyncCooldown && !pokeballWritePending) {
+        // Seed pokeball state from API on first load only (localStorage is authoritative after that)
+        if (data.pokeballUsed && !pokeballSeeded) {
             localStorage.setItem('pokeball_used', JSON.stringify(data.pokeballUsed));
+            pokeballSeeded = true;
         }
 
         // Sync strategy review state from API
@@ -3738,16 +3738,12 @@ const BACKTEST = {
         const used = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false,false]');
         used[idx] = !used[idx];
         localStorage.setItem('pokeball_used', JSON.stringify(used));
-        pokeballSyncCooldown = Date.now() + 120000; // block API overwrite for 2 min
-        localStorage.setItem('pokeball_cooldown', String(pokeballSyncCooldown));
-        pokeballWritePending = true;
+        pokeballSeeded = true;
         // Re-render the pokemon section
         const pokemonEl = document.getElementById('pokemonSection');
         if (pokemonEl && window._lastStats) renderPokemon(window._lastStats);
-        // Sync to Google Sheet — only clear pending after confirmed write
-        fireGet(POST_URL + '?action=update_pokeballs&state=' + encodeURIComponent(JSON.stringify(used)))
-            .then(() => { pokeballWritePending = false; })
-            .catch(() => { pokeballWritePending = false; });
+        // Sync to Google Sheet (fire and forget — localStorage is authoritative)
+        fireGet(POST_URL + '?action=update_pokeballs&state=' + encodeURIComponent(JSON.stringify(used)));
     }
 
     // ====== DCA MODE ======
