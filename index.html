@@ -1172,6 +1172,54 @@
         .ticker-link.tv:hover { background: #2196F322; border-color: #2196F3; color: #64B5F6; }
         .ticker-link.bx { color: var(--accent-glow); border-color: #4a9eff22; }
         .ticker-link.bx:hover { background: #4a9eff22; border-color: var(--accent); color: var(--accent-glow); }
+        .ticker-link.bl { color: #ff6b6b; border-color: #ff6b6b22; }
+        .ticker-link.bl:hover { background: #ff6b6b22; border-color: #ff6b6b; color: #ff8a8a; }
+
+        /* ============ BLACKLIST PANEL ============ */
+        .blacklist-panel {
+            margin-top: 0.75rem;
+            padding: 0.6rem 0.8rem;
+            background: var(--bg-card);
+            border: 1px solid #3a1a1a;
+            border-radius: 8px;
+            display: none;
+        }
+        .blacklist-panel.has-items { display: block; }
+        .blacklist-panel-header {
+            font-size: 0.65rem;
+            color: var(--red-bright);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+        .blacklist-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+        .blacklist-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            background: var(--red-dim);
+            border: 1px solid var(--red-candle);
+            border-radius: 4px;
+            padding: 0.2rem 0.4rem;
+            font-size: 0.65rem;
+            color: var(--red-bright);
+            font-family: 'Space Mono', monospace;
+        }
+        .blacklist-tag button {
+            background: none;
+            border: none;
+            color: var(--red-bright);
+            cursor: pointer;
+            font-size: 0.75rem;
+            line-height: 1;
+            padding: 0;
+            opacity: 0.7;
+        }
+        .blacklist-tag button:hover { opacity: 1; }
 
         /* ============ ALL SIGNALS TABLE ============ */
         .signals-section { margin-bottom: 1.5rem; }
@@ -2095,6 +2143,10 @@
         <button id="tickerShowAll" onclick="toggleShowAll()">Show All</button>
     </div>
     <div class="ticker-grid" id="tickerGrid"></div>
+    <div class="blacklist-panel" id="blacklistPanel">
+        <div class="blacklist-panel-header">🚫 Blocked coins</div>
+        <div class="blacklist-tags" id="blacklistTags"></div>
+    </div>
 
     <!-- All Signals Table (hidden — replaced by Kelly panel) -->
     <div class="signals-section" style="display:none">
@@ -3301,8 +3353,8 @@ const BACKTEST = {
             const sym = (s.symbol || s.ticker || '').toUpperCase();
             const sig = (s.signal || s.direction || '').toLowerCase();
             const key = sym + '|' + sig;
-            // Hide if acted locally OR if not in pending actions from sheet
-            if (isActed(sym, sig) || !pendingSet.has(key)) return false;
+            // Hide if acted locally, blacklisted, or not in pending actions from sheet
+            if (isBlacklisted(sym) || isActed(sym, sig) || !pendingSet.has(key)) return false;
             return true;
         });
         countEl.textContent = picks.length;
@@ -3592,11 +3644,12 @@ const BACKTEST = {
         });
 
         // Deduplicate by ticker — keep most recent entry per ticker
+        // Also filter blacklisted coins
         const seen = {};
         const deduped = [];
         for (const t of trades) {
             const key = (t.ticker || t.symbol || '').toUpperCase();
-            if (!seen[key]) {
+            if (!seen[key] && !isBlacklisted(key)) {
                 seen[key] = true;
                 deduped.push(t);
             }
@@ -3719,6 +3772,63 @@ const BACKTEST = {
         clock.classList.remove('warn', 'overdue');
         clock.textContent = '0h';
         updateTradeClocks();
+    }
+
+    // ====== BLACKLIST ======
+    function getBlacklist() {
+        try { return new Set(JSON.parse(localStorage.getItem('crypto_blacklist') || '[]')); }
+        catch { return new Set(); }
+    }
+    function saveBlacklist(bl) {
+        localStorage.setItem('crypto_blacklist', JSON.stringify([...bl]));
+    }
+    function isBlacklisted(ticker) {
+        return getBlacklist().has((ticker || '').toUpperCase().replace(/\.P$/, ''));
+    }
+    async function confirmBlacklist(ticker) {
+        const sym = (ticker || '').toUpperCase().replace(/\.P$/, '');
+        const ok = await showModal({
+            message: `Blacklist <strong>${sym}</strong>?<br><small style="color:var(--text-dim)">It will never appear in the dashboard again.</small>`,
+            okLabel: 'Blacklist',
+            okClass: 'modal-btn-danger',
+            cancelLabel: 'Cancel'
+        });
+        if (!ok) return;
+        const bl = getBlacklist();
+        bl.add(sym);
+        saveBlacklist(bl);
+        renderBlacklistPanel();
+        // Re-filter everything
+        allTickers = allTickers.filter(t => !isBlacklisted(t.ticker));
+        renderTickerGrid();
+        // Refresh open trades display
+        const list = document.getElementById('openTradesList');
+        list.querySelectorAll('.open-trade-item').forEach(el => {
+            if ((el.dataset.ticker || '').toUpperCase() === sym) el.remove();
+        });
+        const remaining = list.querySelectorAll('.open-trade-item').length;
+        document.getElementById('openTradesCount').textContent = remaining;
+        if (remaining === 0) list.innerHTML = '<div class="no-actions">No open trades</div>';
+    }
+    function removeFromBlacklist(ticker) {
+        const sym = (ticker || '').toUpperCase().replace(/\.P$/, '');
+        const bl = getBlacklist();
+        bl.delete(sym);
+        saveBlacklist(bl);
+        renderBlacklistPanel();
+    }
+    function renderBlacklistPanel() {
+        const panel = document.getElementById('blacklistPanel');
+        const tagsEl = document.getElementById('blacklistTags');
+        const bl = getBlacklist();
+        if (bl.size === 0) {
+            panel.classList.remove('has-items');
+            return;
+        }
+        panel.classList.add('has-items');
+        tagsEl.innerHTML = [...bl].sort().map(sym =>
+            `<span class="blacklist-tag">${esc(sym)}<button onclick="removeFromBlacklist('${esc(sym)}')" title="Unblock">×</button></span>`
+        ).join('');
     }
 
     // ====== OPEN TRADE LOCAL STATE (survives refresh) ======
@@ -4798,6 +4908,7 @@ const BACKTEST = {
                     <a class="ticker-link tv" href="${getTickerLink(t.ticker, 'tv')}" target="_blank">TradingView</a>
                     <button class="ticker-link bx" onclick="openBitunix('${esc(t.ticker)}')">Bitunix</button>
                     <button class="ticker-link" onclick="editLinks('${esc(t.ticker)}')" title="Edit links">&#9998;</button>
+                    <button class="ticker-link bl" onclick="confirmBlacklist('${esc(t.ticker)}')" title="Blacklist">🚫</button>
                 </div>
             </div>
         `;
@@ -4807,7 +4918,8 @@ const BACKTEST = {
         const grid = document.getElementById('tickerGrid');
         const btn = document.getElementById('tickerShowAll');
         const search = document.getElementById('tickerSearch').value.trim().toUpperCase();
-        let tickers = filtered || allTickers;
+        let tickers = (filtered || allTickers).filter(t => !isBlacklisted(t.ticker));
+        renderBlacklistPanel();
 
         if (search) {
             tickers = allTickers.filter(t => t.ticker.toUpperCase().includes(search));
