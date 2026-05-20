@@ -4509,11 +4509,11 @@ const BACKTEST = {
                 else if (dd.losses >= 8
                     && dd.total >= 20)
                     tip = 'High volume \u2014 cap trades';
+                const tipColor = wr < beWR ? '#ef5350'
+                    : wr >= 90 ? '#4caf50' : '#f9c846';
                 const tipHtml = tip
                     ? `<div style="font-size:0.45rem;`
-                    + `color:${wr < beWR ? '#ef5350'`
-                    + ` : wr >= 90 ? '#4caf50'`
-                    + ` : '#f9c846'};`
+                    + `color:${tipColor};`
                     + `margin-top:1px">${tip}</div>` : '';
                 return `<div class="perf-item">`
                     + `<div class="perf-val"`

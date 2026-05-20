@@ -695,6 +695,36 @@ function addTrade_(ss, data) {
 }
 
 // ---------------------------------------------------------------
+// deleteTrade_ — Delete a trade row from Positions by symbol + outcome
+// Deletes the LAST matching row (most recent)
+// ---------------------------------------------------------------
+function deleteTrade_(ss, data) {
+  var symbol  = (data.symbol || '').toUpperCase();
+  var outcome = (data.outcome || '').toLowerCase();
+  if (!symbol) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'error', message: 'Missing symbol' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  var posSheet = ss.getSheetByName(POSITIONS);
+  var posData  = posSheet.getDataRange().getValues();
+  // Find last matching row (bottom-up)
+  for (var i = posData.length - 1; i >= 1; i--) {
+    var sym = String(posData[i][1]).toUpperCase().trim();
+    var out = String(posData[i][9]).toLowerCase().trim();
+    if (sym === symbol && (!outcome || out === outcome)) {
+      posSheet.deleteRow(i + 1); // 1-indexed
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: 'ok', deleted: symbol, row: i + 1 }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  return ContentService
+    .createTextOutput(JSON.stringify({ status: 'error', message: 'Not found: ' + symbol }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---------------------------------------------------------------
 // doGet — Health check + Dashboard JSON API
 // ?action=dashboard returns full dashboard data
 // ---------------------------------------------------------------
@@ -770,6 +800,19 @@ function doGet(e) {
     try {
       var ss = SpreadsheetApp.getActiveSpreadsheet();
       return addTrade_(ss, e.parameter);
+    } finally {
+      lock.releaseLock();
+    }
+  }
+
+  if (action === 'delete_trade') {
+    var lock = LockService.getScriptLock();
+    if (!lock.tryLock(10000)) {
+      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Lock timeout' })).setMimeType(ContentService.MimeType.JSON);
+    }
+    try {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      return deleteTrade_(ss, e.parameter);
     } finally {
       lock.releaseLock();
     }
