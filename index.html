@@ -4790,8 +4790,7 @@ const BACKTEST = {
             rules.push(rule(severity, '\u26A0',
                 `<strong>Fix ${multip}x loss/win ratio`
                 + ` (${lbl}).</strong>`
-                + ` Only <span class="num-${severity === 'bad'`
-                + ` ? 'bad' : 'warn'}">`
+                + ` Only <span class="num-${severity === 'bad' ? 'bad' : 'warn'}">`
                 + `+${margin}pp</span> safety margin.`
                 + ` Half-TP captures tiny wins while`
                 + ` losses hit full SL.`
