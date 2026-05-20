@@ -74,12 +74,19 @@ function doPost(e) {
       return addTrade_(ss, data);
     }
 
-    // --- Webhook signal: queue via CacheService (sub-100ms) ---
+    // --- Webhook signal: persist to Queue sheet (never expires) + cache for speed ---
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var qSheet = ss.getSheetByName(QUEUE);
+    if (!qSheet) {
+      qSheet = ss.insertSheet(QUEUE);
+      qSheet.appendRow(['timestamp', 'raw']);
+    }
+    qSheet.appendRow([new Date(), raw]);
+
+    // Also cache for fast pickup by processQueue (backup — sheet is the source of truth)
     var cache = CacheService.getScriptCache();
     var key = 'wh_' + new Date().getTime() + '_' + Math.random().toString(36).substr(2, 6);
-    cache.put(key, raw, 600); // 10 min TTL
-
-    // Append key to index so processQueue can find all queued items
+    cache.put(key, raw, 600);
     var lock = LockService.getScriptLock();
     lock.waitLock(5000);
     try {
@@ -114,36 +121,29 @@ function processQueue() {
   var idx;
   try {
     idx = cache.get('wh_index');
-    if (!idx) { lock.releaseLock(); return; }
-    cache.remove('wh_index'); // claim the batch
+    if (idx) cache.remove('wh_index'); // claim the batch
   } catch (e) {
-    lock.releaseLock(); return;
+    // cache read failed — continue to check Queue sheet
   }
+  lock.releaseLock();
 
-  var keys = idx.split(',');
-  var items = cache.getAll(keys);
+  var keys = idx ? idx.split(',') : [];
+  var items = keys.length > 0 ? cache.getAll(keys) : {};
 
   // Clean up cache keys
   for (var ki = 0; ki < keys.length; ki++) cache.remove(keys[ki]);
-  lock.releaseLock();
 
-  // Filter to valid items
+  // Filter to valid items from cache
   var queued = [];
   var now = new Date();
   for (var qi = 0; qi < keys.length; qi++) {
     var raw = items[keys[qi]];
     if (raw) queued.push({ timestamp: now, raw: raw });
   }
-  if (queued.length === 0) return;
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var posSheet = ss.getSheetByName(POSITIONS);
-  var logSheet = ss.getSheetByName(SIGNAL_LOG);
-  var posData = posSheet.getDataRange().getValues();
-  var logData = logSheet.getDataRange().getValues();
-  var fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000);
 
-  // Also drain any leftover rows from old Queue sheet
+  // Always drain Queue sheet (persistent backup — this is the source of truth)
   var queueSheet = ss.getSheetByName(QUEUE);
   if (queueSheet) {
     var sheetData = queueSheet.getDataRange().getValues();
@@ -154,6 +154,14 @@ function processQueue() {
       queueSheet.getRange(2, 1, sheetData.length - 1, queueSheet.getLastColumn()).clearContent();
     }
   }
+
+  if (queued.length === 0) return;
+
+  var posSheet = ss.getSheetByName(POSITIONS);
+  var logSheet = ss.getSheetByName(SIGNAL_LOG);
+  var posData = posSheet.getDataRange().getValues();
+  var logData = logSheet.getDataRange().getValues();
+  var fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000);
 
   for (var i = 0; i < queued.length; i++) {
     var timestamp = queued[i].timestamp;
@@ -1277,9 +1285,12 @@ function serveDashboardJSON_() {
         runningPnl += t.realizedPnl;
         var ts = t.timestamp instanceof Date ? t.timestamp : new Date(t.timestamp);
         cumulative.push({ date: fmtShortDate_(ts), pnl: runningPnl });
-        if (ts >= d30) { pnl30 += t.realizedPnl; cnt30++; }
-        if (ts >= d14) { pnl14 += t.realizedPnl; cnt14++; }
-        if (ts >= d7)  { pnl7  += t.realizedPnl; cnt7++;  }
+        // Use closedAt for rolling windows (not entry timestamp) so recently
+        // closed trades land in the right bucket even if entered >7d ago
+        var closeTs = t.closedAt instanceof Date ? t.closedAt : ts;
+        if (closeTs >= d30) { pnl30 += t.realizedPnl; cnt30++; }
+        if (closeTs >= d14) { pnl14 += t.realizedPnl; cnt14++; }
+        if (closeTs >= d7)  { pnl7  += t.realizedPnl; cnt7++;  }
       });
       var avg7  = cnt7  > 0 ? pnl7  / cnt7  : 0;
       var avg14 = cnt14 > 0 ? pnl14 / cnt14 : 0;
