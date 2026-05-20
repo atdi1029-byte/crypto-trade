@@ -3775,9 +3775,16 @@ const BACKTEST = {
     }
 
     // ====== BLACKLIST ======
+    const DEFAULT_BLACKLIST = ['ATUSDT'];
     function getBlacklist() {
-        try { return new Set(JSON.parse(localStorage.getItem('crypto_blacklist') || '[]')); }
-        catch { return new Set(); }
+        try {
+            const saved = JSON.parse(localStorage.getItem('crypto_blacklist') || 'null');
+            if (saved) return new Set(saved);
+            // First load — seed defaults
+            const bl = new Set(DEFAULT_BLACKLIST);
+            saveBlacklist(bl);
+            return bl;
+        } catch { return new Set(DEFAULT_BLACKLIST); }
     }
     function saveBlacklist(bl) {
         localStorage.setItem('crypto_blacklist', JSON.stringify([...bl]));
