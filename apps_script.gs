@@ -907,6 +907,10 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  if (action === 'execute_trade') {
+    return executeBitunixTrade_(e.parameter);
+  }
+
   return ContentService
     .createTextOutput(JSON.stringify({
       status: 'ok',
@@ -914,6 +918,150 @@ function doGet(e) {
       timestamp: new Date().toISOString()
     }))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---------------------------------------------------------------
+// executeBitunixTrade_ — Open a trade on Bitunix via API
+// Params: symbol, side (buy/sell), size_usd, sl_price, tp_price, leverage
+// ---------------------------------------------------------------
+function executeBitunixTrade_(params) {
+  var symbol = (params.symbol || '').toUpperCase();
+  var side = (params.side || 'buy').toLowerCase();
+  var sizeUsd = Number(params.size_usd || 0);
+  var slPrice = params.sl_price || '';
+  var tpPrice = params.tp_price || '';
+  var leverage = params.leverage || '3';
+
+  if (!symbol || sizeUsd <= 0) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'error', msg: 'Missing symbol or size'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // Ensure symbol ends with USDT
+  if (!symbol.match(/USDT$/)) symbol += 'USDT';
+
+  var API_KEY = PropertiesService.getScriptProperties().getProperty('BITUNIX_API_KEY');
+  var API_SECRET = PropertiesService.getScriptProperties().getProperty('BITUNIX_API_SECRET');
+  var BASE = 'https://fapi.bitunix.com';
+
+  // --- Helper: double-SHA256 signature ---
+  function sha256(s) {
+    var raw = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, s);
+    return raw.map(function(b) { return ('0' + ((b + 256) % 256).toString(16)).slice(-2); }).join('');
+  }
+
+  function signedHeaders(queryParams, body) {
+    var nonce = Utilities.getUuid().replace(/-/g, '');
+    var timestamp = String(new Date().getTime());
+    var digest = sha256(nonce + timestamp + API_KEY + queryParams + body);
+    var sign = sha256(digest + API_SECRET);
+    return {
+      'api-key': API_KEY,
+      'sign': sign,
+      'nonce': nonce,
+      'timestamp': timestamp,
+      'language': 'en-US',
+      'Content-Type': 'application/json'
+    };
+  }
+
+  function apiPost(path, data) {
+    var body = JSON.stringify(data);
+    var headers = signedHeaders('', body);
+    var resp = UrlFetchApp.fetch(BASE + path, {
+      method: 'post', headers: headers,
+      payload: body, muteHttpExceptions: true
+    });
+    return JSON.parse(resp.getContentText());
+  }
+
+  function apiGet(path, params) {
+    var sorted = Object.keys(params).sort();
+    var queryStr = sorted.map(function(k) { return k + params[k]; }).join('');
+    var headers = signedHeaders(queryStr, '');
+    var qs = sorted.map(function(k) { return k + '=' + encodeURIComponent(params[k]); }).join('&');
+    var resp = UrlFetchApp.fetch(BASE + path + '?' + qs, {
+      method: 'get', headers: headers, muteHttpExceptions: true
+    });
+    return JSON.parse(resp.getContentText());
+  }
+
+  try {
+    // 1. Set leverage + isolated margin
+    apiPost('/api/v1/futures/account/change_leverage', {
+      symbol: symbol, leverage: leverage, marginCoin: 'USDT'
+    });
+    apiPost('/api/v1/futures/account/change_margin_mode', {
+      symbol: symbol, marginMode: 'ISOLATION', marginCoin: 'USDT'
+    });
+
+    // 2. Get current price to calculate qty
+    var tickerResp = apiGet('/api/v1/futures/market/tickers', { symbols: symbol });
+    if (tickerResp.code !== 0 || !tickerResp.data || !tickerResp.data.length) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 'error', msg: 'Could not get price for ' + symbol
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    var price = Number(tickerResp.data[0].lastPrice);
+
+    // 3. Get min qty + precision from trading pairs
+    var pairResp = apiGet('/api/v1/futures/market/trading_pairs', { symbols: symbol });
+    var minQty = 1;
+    var qtyDecimals = 1;
+    if (pairResp.code === 0 && pairResp.data && pairResp.data.length) {
+      minQty = Number(pairResp.data[0].minTradeVolume || 1);
+      var minStr = String(pairResp.data[0].minTradeVolume || '1');
+      var dotIdx = minStr.indexOf('.');
+      qtyDecimals = dotIdx >= 0 ? minStr.length - dotIdx - 1 : 0;
+    }
+
+    // 4. Calculate qty from USD size
+    var qty = sizeUsd / price;
+    // Round to pair's precision
+    var factor = Math.pow(10, qtyDecimals);
+    qty = Math.round(qty * factor) / factor;
+    if (qty < minQty) qty = minQty;
+
+    // 5. Place order
+    var orderSide = side === 'sell' ? 'SELL' : 'BUY';
+    var orderData = {
+      symbol: symbol,
+      side: orderSide,
+      qty: String(qty),
+      orderType: 'MARKET',
+      tradeSide: 'OPEN'
+    };
+    if (tpPrice) {
+      orderData.tpPrice = String(tpPrice);
+      orderData.tpStopType = 'LAST_PRICE';
+      orderData.tpOrderType = 'MARKET';
+    }
+    if (slPrice) {
+      orderData.slPrice = String(slPrice);
+      orderData.slStopType = 'LAST_PRICE';
+      orderData.slOrderType = 'MARKET';
+    }
+
+    var orderResp = apiPost('/api/v1/futures/trade/place_order', orderData);
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: orderResp.code === 0 ? 'ok' : 'error',
+      msg: orderResp.msg,
+      orderId: orderResp.data ? orderResp.data.orderId : null,
+      symbol: symbol,
+      side: orderSide,
+      qty: qty,
+      price: price,
+      sl: slPrice,
+      tp: tpPrice
+    })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'error', msg: err.message
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
 }
 
 // ---------------------------------------------------------------

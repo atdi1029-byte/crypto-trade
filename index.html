@@ -3591,7 +3591,7 @@ const BACKTEST = {
                             ${noteHtml ? `<div class="meta" style="margin-top:0.15rem">${noteHtml}</div>` : ''}
                             ${!lvl && levelsStr ? `<div class="meta" style="margin-top:0.15rem;font-size:0.7rem">${levelsStr}</div>` : ''}
                             ${btHtml}
-                            <div class="action-buttons">
+                            <div class="action-buttons" data-signal-sl="${lvl ? (isBuy ? p * (1 - lvl.sl / 100) : p * (1 + lvl.sl / 100)) : (sl || '')}" data-signal-tp="${lvl ? (isBuy ? p * (1 + lvl.halfTp / 100) : p * (1 - lvl.halfTp / 100)) : (tp1 || '')}" data-signal-side="${isBuy ? 'buy' : 'sell'}">
                                 <input type="text" class="entry-input" placeholder="Size $" id="${id}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
                                 ${lvl ? `<input type="text" class="entry-input" placeholder="Entry $" id="${id}-entry" value="${p}" style="width:80px" oninput="recalcLevels('${id}')">` : ''}
                                 <button class="action-btn entered" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Entered','${id}')">Entered</button>
@@ -5288,8 +5288,37 @@ const BACKTEST = {
         addActedItem(ticker, signal);
         // Set cooldown so auto-refresh doesn't rebuild the action list
         actionCooldownUntil = Date.now() + ACTION_COOLDOWN_MS;
-        // If Entered, open Bitunix and copy ticker pair
-        if (value === 'Entered') {
+        // If Entered and size is provided, execute trade via Bitunix API
+        if (value === 'Entered' && entrySize && Number(entrySize) > 0) {
+            const btnDiv = el.querySelector('.action-buttons');
+            const slPrice = btnDiv ? btnDiv.dataset.signalSl : '';
+            const tpPrice = btnDiv ? btnDiv.dataset.signalTp : '';
+            const tradeSide = btnDiv ? btnDiv.dataset.signalSide : 'buy';
+            // Open Bitunix so user can see position + adjust TP2
+            const pair = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'') + 'USDT';
+            navigator.clipboard.writeText(pair);
+            window.open(DEFAULT_BX(ticker), '_blank');
+            // Fire trade via API in background
+            const tradeParams = new URLSearchParams({
+                action: 'execute_trade',
+                symbol: ticker,
+                side: tradeSide,
+                size_usd: entrySize,
+                sl_price: slPrice,
+                tp_price: tpPrice,
+                leverage: '3'
+            });
+            fireGet(POST_URL + '?' + tradeParams).then(res => {
+                if (res && res.status === 'ok') {
+                    showToast('✅ ' + ticker + ' opened: ' + res.qty + ' @ $' + (res.price ? Number(res.price).toFixed(4) : '?'));
+                } else {
+                    showToast('⚠️ Trade failed: ' + (res ? res.msg : 'no response'));
+                }
+            });
+            // Set clock start to now
+            localStorage.setItem('clock_' + ticker.toUpperCase() + '_' + signal.toLowerCase(), String(Date.now()));
+        } else if (value === 'Entered') {
+            // No size entered — old behavior: copy ticker + open Bitunix
             const pair = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'') + 'USDT';
             navigator.clipboard.writeText(pair);
             window.open(DEFAULT_BX(ticker), '_blank');
