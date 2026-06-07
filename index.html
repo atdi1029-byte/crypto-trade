@@ -3594,8 +3594,8 @@ const BACKTEST = {
                             <div class="action-buttons" data-signal-sl="${lvl ? (isBuy ? p * (1 - lvl.sl / 100) : p * (1 + lvl.sl / 100)) : (sl || '')}" data-signal-tp="${lvl ? (isBuy ? p * (1 + lvl.halfTp / 100) : p * (1 - lvl.halfTp / 100)) : (tp1 || '')}" data-signal-side="${isBuy ? 'buy' : 'sell'}">
                                 <input type="text" class="entry-input" placeholder="Size $" id="${id}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
                                 ${lvl ? `<input type="text" class="entry-input" placeholder="Entry $" id="${id}-entry" value="${p}" style="width:80px" oninput="recalcLevels('${id}')">` : ''}
-                                <button class="action-btn entered" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Entered','${id}')">Entered</button>
-                                <button class="action-btn skipped" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Skipped','${id}')">Skipped</button>
+                                <button class="action-btn entered" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Entered','${id}')">Open</button>
+                                <button class="action-btn skipped" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Skipped','${id}')">Skip</button>
                             </div>
                         </div>
                     </div>`;
