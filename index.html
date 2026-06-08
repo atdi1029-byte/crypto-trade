@@ -5294,9 +5294,10 @@ const BACKTEST = {
             navigator.clipboard.writeText(pair);
             window.open(DEFAULT_BX(ticker), '_blank');
             // Fire trade via API in background
+            const cleanSym = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
             const tradeParams = new URLSearchParams({
                 action: 'execute_trade',
-                symbol: ticker,
+                symbol: cleanSym,
                 side: tradeSide,
                 size_usd: entrySize,
                 sl_price: slPrice,
@@ -5684,9 +5685,10 @@ const BACKTEST = {
             window.open(DEFAULT_BX(cmd.ticker), '_blank');
             result.className = 'command-result success';
             result.textContent = `Opening ${cmd.ticker} on Bitunix — placing $${cmd.amount} trade...`;
+            const cleanSym = cmd.ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
             const tradeParams = new URLSearchParams({
                 action: 'execute_trade',
-                symbol: cmd.ticker,
+                symbol: cleanSym,
                 side: 'buy',
                 size_usd: cmd.amount,
                 leverage: '3'

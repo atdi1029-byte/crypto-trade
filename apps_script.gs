@@ -925,7 +925,7 @@ function doGet(e) {
 // Params: symbol, side (buy/sell), size_usd, sl_price, tp_price, leverage
 // ---------------------------------------------------------------
 function executeBitunixTrade_(params) {
-  var symbol = (params.symbol || '').toUpperCase();
+  var symbol = (params.symbol || '').toUpperCase().replace(/\.P$/, '');
   var side = (params.side || 'buy').toLowerCase();
   var sizeUsd = Number(params.size_usd || 0);
   var slPrice = params.sl_price || '';
@@ -936,6 +936,18 @@ function executeBitunixTrade_(params) {
     return ContentService.createTextOutput(JSON.stringify({
       status: 'error', msg: 'Missing symbol or size'
     })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // Map tokens that Bitunix lists with 1000x prefix
+  var KILO_TOKENS = ['PEPE','SHIB','FLOKI','BONK','LUNC','BTTC','SATS','RATS','CAT'];
+  var base = symbol.replace(/USDT$|USD$|USDC$/, '');
+  var isKilo = false;
+  if (KILO_TOKENS.indexOf(base) >= 0 && base.indexOf('1000') !== 0) {
+    symbol = '1000' + base;
+    isKilo = true;
+    // Scale SL/TP from raw price to 1000x price
+    if (slPrice) slPrice = String(Number(slPrice) * 1000);
+    if (tpPrice) tpPrice = String(Number(tpPrice) * 1000);
   }
 
   // Ensure symbol ends with USDT
@@ -1016,8 +1028,8 @@ function executeBitunixTrade_(params) {
       qtyDecimals = dotIdx >= 0 ? minStr.length - dotIdx - 1 : 0;
     }
 
-    // 4. Calculate qty from USD size
-    var qty = sizeUsd / price;
+    // 4. Calculate qty from USD size (size_usd is margin, multiply by leverage for notional)
+    var qty = (sizeUsd * Number(leverage)) / price;
     // Round to pair's precision
     var factor = Math.pow(10, qtyDecimals);
     qty = Math.round(qty * factor) / factor;
