@@ -5680,11 +5680,26 @@ const BACKTEST = {
         }
 
         if (cmd.amount) {
-            // Has dollar amount → open Bitunix to trade
+            // Has dollar amount → execute trade via Bitunix API + open page
             window.open(DEFAULT_BX(cmd.ticker), '_blank');
-            navigator.clipboard.writeText(cmd.amount).then(() => {
-                result.className = 'command-result success';
-                result.textContent = `Opening ${cmd.ticker} on Bitunix — $${cmd.amount} copied to clipboard`;
+            result.className = 'command-result success';
+            result.textContent = `Opening ${cmd.ticker} on Bitunix — placing $${cmd.amount} trade...`;
+            const tradeParams = new URLSearchParams({
+                action: 'execute_trade',
+                symbol: cmd.ticker,
+                side: 'buy',
+                size_usd: cmd.amount,
+                leverage: '3'
+            });
+            fireGet(POST_URL + '?' + tradeParams).then(res => {
+                if (res && res.status === 'ok') {
+                    result.className = 'command-result success';
+                    result.textContent = `✅ ${cmd.ticker} opened: ${res.qty} @ $${res.price ? Number(res.price).toFixed(4) : '?'} ($${cmd.amount})`;
+                } else {
+                    result.className = 'command-result error';
+                    result.textContent = `⚠️ Trade failed: ${res ? res.msg : 'no response'}`;
+                }
+                setTimeout(() => result.className = 'command-result', 6000);
             });
         } else {
             // Just a ticker → open TradingView chart
