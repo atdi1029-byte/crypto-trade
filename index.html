@@ -5681,13 +5681,11 @@ const BACKTEST = {
 
         if (cmd.amount) {
             // Has dollar amount → open Bitunix to trade
+            window.open(DEFAULT_BX(cmd.ticker), '_blank');
             navigator.clipboard.writeText(cmd.amount).then(() => {
                 result.className = 'command-result success';
                 result.textContent = `Opening ${cmd.ticker} on Bitunix — $${cmd.amount} copied to clipboard`;
             });
-            setTimeout(() => {
-                window.open(DEFAULT_BX(cmd.ticker), '_blank');
-            }, 300);
         } else {
             // Just a ticker → open TradingView chart
             window.open(DEFAULT_TV(cmd.ticker), '_blank');
