@@ -5247,11 +5247,9 @@ const BACKTEST = {
     }
 
     function openBitunix(ticker) {
-        const pair = ticker.toUpperCase().replace(/USDT$|USD$|USDC$/,'') + 'USDT';
+        const pair = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'') + 'USDT';
         navigator.clipboard.writeText(pair).catch(() => {});
-        setTimeout(() => {
-            window.open(getTickerLink(ticker, 'bx'), '_blank');
-        }, 300);
+        window.open(getTickerLink(ticker, 'bx'), '_blank');
     }
 
     async function editLinks(ticker) {
