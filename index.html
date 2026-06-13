@@ -524,19 +524,19 @@
             border-color: var(--accent);
             color: var(--text-bright);
         }
-        .ot-filter-btn.need-2day-btn.has-alerts {
+        .ot-filter-btn.need-4day-btn.has-alerts {
             background: #1a1a2e;
             border: 2px solid var(--red-bright);
             color: var(--red-bright);
             font-weight: 700;
             font-size: 0.7rem;
             padding: 0.4rem 0.8rem;
-            animation: flash2day 1s ease-in-out infinite alternate;
+            animation: flash4day 1s ease-in-out infinite alternate;
         }
-        .ot-filter-btn.need-2day-btn.has-alerts.active {
+        .ot-filter-btn.need-4day-btn.has-alerts.active {
             background: #2a1525;
         }
-        @keyframes flash2day {
+        @keyframes flash4day {
             from { box-shadow: 0 0 8px rgba(239, 83, 80, 0.4); text-shadow: 0 0 6px rgba(239, 83, 80, 0.5); }
             to { box-shadow: 0 0 20px rgba(239, 83, 80, 0.8), 0 0 40px rgba(239, 83, 80, 0.3); text-shadow: 0 0 12px rgba(239, 83, 80, 0.8); }
         }
@@ -1919,7 +1919,7 @@
             .header-logo { display: none; }
             .header h1 { font-size: 2rem; }
             .trade-clock { display: none !important; }
-            .need-2day-btn { display: none !important; }
+            .need-4day-btn { display: none !important; }
             .header h1 span { font-size: 1.8rem; }
             .picks-actions-row { grid-template-columns: 1fr; }
             .ticker-grid { grid-template-columns: 1fr; }
@@ -2120,7 +2120,7 @@
             <button class="ot-filter-btn active" data-filter="all" onclick="setOTFilter(this,'all')">All</button>
             <button class="ot-filter-btn" data-filter="no-0x0" onclick="setOTFilter(this,'no-0x0')">No 0x0</button>
             <button class="ot-filter-btn" data-filter="no-tp" onclick="setOTFilter(this,'no-tp')">No TP</button>
-            <button class="ot-filter-btn need-2day-btn" data-filter="need-2day" onclick="setOTFilter(this,'need-2day')" id="need2dayFilter">Need 2 Day</button>
+            <button class="ot-filter-btn need-4day-btn" data-filter="need-4day" onclick="setOTFilter(this,'need-4day')" id="need4dayFilter">Need 4 Day</button>
         </div>
         <div class="open-trades-list" id="openTradesList" style="max-height: 480px; overflow-y: auto;"></div>
     </div>
@@ -3719,7 +3719,7 @@ const BACKTEST = {
     }
 
     // ====== TRADE CLOCKS ======
-    const TWO_DAY_MS = 48 * 60 * 60 * 1000;
+    const FOUR_DAY_MS = 96 * 60 * 60 * 1000;
     function updateTradeClocks() {
         let overdueCount = 0;
         document.querySelectorAll('.trade-clock').forEach(el => {
@@ -3742,21 +3742,21 @@ const BACKTEST = {
                 el.textContent = hours + 'h';
             }
             el.classList.remove('warn', 'overdue');
-            if (elapsed >= TWO_DAY_MS) {
+            if (elapsed >= FOUR_DAY_MS) {
                 el.classList.add('overdue');
                 overdueCount++;
-            } else if (elapsed >= TWO_DAY_MS * 0.75) {
+            } else if (elapsed >= FOUR_DAY_MS * 0.75) {
                 el.classList.add('warn');
             }
         });
-        const filterBtn = document.getElementById('need2dayFilter');
+        const filterBtn = document.getElementById('need4dayFilter');
         if (filterBtn) {
             if (overdueCount > 0) {
                 filterBtn.classList.add('has-alerts');
-                filterBtn.textContent = 'Need 2 Day (' + overdueCount + ')';
+                filterBtn.textContent = 'Need 4 Day (' + overdueCount + ')';
             } else {
                 filterBtn.classList.remove('has-alerts');
-                filterBtn.textContent = 'Need 2 Day';
+                filterBtn.textContent = 'Need 4 Day';
             }
         }
     }
@@ -4014,7 +4014,7 @@ const BACKTEST = {
             if (otFilterMode === 'no-0x0') matchFilter = status !== '0x0';
             else if (otFilterMode === 'no-tp') matchFilter = status !== 'tp';
             else if (otFilterMode === 'done') matchFilter = status === '0x0' || status === 'tp';
-            else if (otFilterMode === 'need-2day') {
+            else if (otFilterMode === 'need-4day') {
                 const clock = card.querySelector('.trade-clock');
                 matchFilter = clock && clock.classList.contains('overdue');
             }
