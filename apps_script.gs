@@ -1033,7 +1033,16 @@ function executeBitunixTrade_(params) {
     // Round to pair's precision
     var factor = Math.pow(10, qtyDecimals);
     qty = Math.round(qty * factor) / factor;
-    if (qty < minQty) qty = minQty;
+    if (qty < minQty) {
+      qty = minQty;
+    }
+    // Block if actual margin cost exceeds 2x the requested size
+    var actualCost = (qty * price) / Number(leverage);
+    if (actualCost > sizeUsd * 2) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 'error', msg: 'Blocked: actual cost $' + actualCost.toFixed(2) + ' exceeds 2x your size ($' + sizeUsd + '). Bitunix minimum is too high for this amount.'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
 
     // 5. Place order
     var orderSide = side === 'sell' ? 'SELL' : 'BUY';

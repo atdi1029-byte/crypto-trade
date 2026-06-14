@@ -5681,13 +5681,6 @@ const BACKTEST = {
         }
 
         if (cmd.amount) {
-            // Bitunix minimum order is $16
-            if (Number(cmd.amount) < 16) {
-                result.className = 'command-result error';
-                result.textContent = `⚠️ Minimum trade size is $16 (Bitunix limit). You entered $${cmd.amount}.`;
-                setTimeout(() => result.className = 'command-result', 4000);
-                return;
-            }
             // Has dollar amount → execute trade via Bitunix API + open page
             window.open(DEFAULT_BX(cmd.ticker), '_blank');
             result.className = 'command-result success';
