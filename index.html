@@ -2021,6 +2021,7 @@
             <span><span class="status-dot loading" id="statusDot"></span><span id="statusText">Connecting...</span></span>
             <span id="lastUpdate"></span>
             <button class="refresh-btn" onclick="fetchData()">Refresh</button>
+            <button class="refresh-btn" onclick="showAddTradeModal()" style="background:var(--green-dim);border-color:var(--green-candle);color:var(--green-bright)">+ Trade</button>
         </div>
     </div>
 
@@ -2334,6 +2335,73 @@
             document.body.appendChild(overlay);
             if (inputEl) inputEl.focus();
         });
+    }
+
+    // ====== ADD TRADE MODAL ======
+    async function showAddTradeModal() {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        const box = document.createElement('div');
+        box.className = 'modal-box';
+        box.innerHTML = `
+            <div class="modal-msg">Add Manual Trade</div>
+            <input id="at-symbol" type="text" placeholder="Symbol (e.g. BIRB)" style="text-transform:uppercase">
+            <div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">
+                <label style="color:var(--text-dim);font-size:0.75rem;cursor:pointer">
+                    <input type="radio" name="at-signal" value="buy" checked> Buy
+                </label>
+                <label style="color:var(--text-dim);font-size:0.75rem;cursor:pointer">
+                    <input type="radio" name="at-signal" value="sell"> Short
+                </label>
+            </div>
+            <div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">
+                <label style="color:var(--text-dim);font-size:0.75rem;cursor:pointer">
+                    <input type="radio" name="at-outcome" value="won" checked> Won
+                </label>
+                <label style="color:var(--text-dim);font-size:0.75rem;cursor:pointer">
+                    <input type="radio" name="at-outcome" value="lost"> Lost
+                </label>
+                <label style="color:var(--text-dim);font-size:0.75rem;cursor:pointer">
+                    <input type="radio" name="at-outcome" value="0x0"> 0x0
+                </label>
+            </div>
+            <input id="at-pnl" type="text" placeholder="P&L (e.g. 0.50 or -0.30)">
+        `;
+        const btns = document.createElement('div');
+        btns.className = 'modal-buttons';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'modal-btn-cancel';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.onclick = () => overlay.remove();
+        const okBtn = document.createElement('button');
+        okBtn.className = 'modal-btn-ok';
+        okBtn.textContent = 'Add';
+        okBtn.onclick = async () => {
+            const symbol = box.querySelector('#at-symbol').value.trim().toUpperCase();
+            const signal = box.querySelector('input[name="at-signal"]:checked').value;
+            const outcome = box.querySelector('input[name="at-outcome"]:checked').value;
+            const pnl = box.querySelector('#at-pnl').value.trim();
+            if (!symbol) { showToast('Symbol required'); return; }
+            overlay.remove();
+            const params = new URLSearchParams({
+                action: 'add_trade', symbol, signal, outcome,
+                realized_pnl: pnl || '0'
+            });
+            try {
+                await fireGet(POST_URL + '?' + params);
+                showToast(`${symbol} ${outcome} added`, 'success');
+                scheduleFetch(1000);
+            } catch (e) {
+                showToast('Failed to add trade: ' + e.message);
+            }
+        };
+        btns.appendChild(cancelBtn);
+        btns.appendChild(okBtn);
+        box.appendChild(btns);
+        overlay.appendChild(box);
+        overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+        document.body.appendChild(overlay);
+        box.querySelector('#at-symbol').focus();
     }
 
     // ====== DEBOUNCED FETCH ======
