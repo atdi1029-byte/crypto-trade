@@ -2433,6 +2433,17 @@
     }
 
 
+    function setStatsStart(dateStr) {
+        if (dateStr === 'clear') {
+            if (!confirm('Reset stats to all-time? This will include all historical trades in Kelly/stats.')) return;
+        }
+        const url = POST_URL + '?action=set_stats_start&date=' + encodeURIComponent(dateStr);
+        fireGet(url).then(() => {
+            showToast(dateStr === 'clear' ? 'Stats reset to all-time' : 'Stats start: ' + dateStr);
+            fetchData();
+        });
+    }
+
     // ====== BACKTEST DATA (Feb 17, 2026 — 529 crypto tickers) ======
     const BT_DEFAULTS = { buy: { sl:14.5, tp:15, halfTp:7 }, sell: { sl:20, tp:13, halfTp:7 } };
 const BACKTEST = {
@@ -4460,6 +4471,7 @@ const BACKTEST = {
             </div>
 
             <div class="kelly-verdict ${verdictClass}">${verdictText}</div>
+            ${stats.statsStartDate ? `<div style="text-align:center;font-size:0.55rem;color:var(--accent);margin-top:0.3rem">Stats from: <span style="font-weight:700">${stats.statsStartDate}</span> <span onclick="setStatsStart('clear')" style="cursor:pointer;color:var(--text-dim);text-decoration:underline;margin-left:4px">reset</span></div>` : ''}
             ${reliabilityNote}
 
             ${sweetSpot ? `<div class="kelly-milestone">

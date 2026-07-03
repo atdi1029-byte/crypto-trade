@@ -899,6 +899,18 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  if (action === 'set_stats_start') {
+    var dateStr = e.parameter.date || '';
+    if (dateStr === 'clear') {
+      setConfig_('stats_start_date', '');
+    } else {
+      setConfig_('stats_start_date', dateStr);
+    }
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'ok', stats_start_date: dateStr }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   if (action === 'set_review') {
     var milestone = e.parameter.milestone || '0';
     setConfig_('last_review_trades', milestone);
@@ -1157,6 +1169,17 @@ function serveDashboardJSON_() {
 
   var maxPositions = Number(cfgMap['max_positions']) || 3;
 
+  // Stats start date — trades before this date are excluded from Kelly/stats
+  var statsStartDate = null;
+  if (cfgMap['stats_start_date']) {
+    var ssd = cfgMap['stats_start_date'];
+    if (ssd instanceof Date) statsStartDate = ssd;
+    else {
+      var parsed = new Date(ssd);
+      if (!isNaN(parsed.getTime())) statsStartDate = parsed;
+    }
+  }
+
   // --- Build per-ticker stats from Positions tab ---
   // Positions columns: 0=timestamp, 1=symbol, 2=signal, 3=entry, 4=sl, 5=tp1, 6=tp2,
   //                     7=score, 8=action, 9=outcome, 10=realized_pnl, ..., 14=entry_size
@@ -1393,7 +1416,7 @@ function serveDashboardJSON_() {
   }
 
   // --- Overall stats (reuse already-loaded sheet data) ---
-  var trades = getAllCompletedTrades_(posData, logData);
+  var trades = getAllCompletedTrades_(posData, logData, statsStartDate);
   var wins   = trades.filter(function(t) { return t.win; });
   var losses = trades.filter(function(t) { return !t.win && t.outcome === 'lost'; });
   var totalPnl = 0, grossWin = 0, grossLoss = 0;
@@ -1475,6 +1498,7 @@ function serveDashboardJSON_() {
     maxPositions:    maxPositions,
     slotsAvailable:  maxPositions - totalOpen,
     todaySignals:    todaySignals,
+    statsStartDate:  statsStartDate ? fmtDate_(statsStartDate) : null,
     weeklyShorts:    weeklyShorts,
     bestWinStreak:   streaks.bestWin,
     worstLossStreak: streaks.worstLoss,
@@ -1911,7 +1935,7 @@ function setConfig_(label, value) {
 // Helper: get ALL completed trades across all symbols
 // Returns array of enriched trade objects
 // ---------------------------------------------------------------
-function getAllCompletedTrades_(optPosData, optLogData) {
+function getAllCompletedTrades_(optPosData, optLogData, optStartDate) {
   var ss = optPosData ? null : SpreadsheetApp.getActiveSpreadsheet();
 
   // Load Signal Log for cross-referencing extra fields
@@ -1955,6 +1979,12 @@ function getAllCompletedTrades_(optPosData, optLogData) {
     // Only include entered trades with a resolved outcome
     if (action !== 'entered') continue;
     if (outcome !== 'won' && outcome !== 'lost' && outcome !== 'closed' && outcome !== '0x0') continue;
+
+    // Filter by stats start date if provided
+    if (optStartDate) {
+      var tradeTs = posData[j][0];
+      if (tradeTs instanceof Date && tradeTs < optStartDate) continue;
+    }
 
     var symbol = String(posData[j][1]).toUpperCase();
     var signal = String(posData[j][2]).toLowerCase();
