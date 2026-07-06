@@ -6219,7 +6219,7 @@ const BACKTEST = {
         const totalDeployed = realDeployed > 0 ? realDeployed : estimatedDeployed;
         const remaining = Math.max(0, exposureBudget - totalDeployed);
         if (activePnl > 0) {
-            const pctUsed = exposureBudget > 0 ? Math.min(100, (totalDeployed / exposureBudget) * 100) : 0;
+            const pctUsed = kellyBudget > 0 ? Math.min(100, (totalDeployed / kellyBudget) * 100) : 0;
             const barColor = pctUsed > 90 ? 'var(--red-bright)' : pctUsed > 60 ? '#ffa726' : 'var(--green-bright)';
             const totalSlots = 5 + maxScouts;
             const kellyPerTrade = totalSlots > 0 ? (kellyBudget / totalSlots).toFixed(2) : '0';
@@ -6230,7 +6230,7 @@ const BACKTEST = {
             html += `<div class="pokemon-budget-panel">`;
             html += `<div class="budget-header">`;
             html += `<span class="budget-title">AVAILABLE</span>`;
-            html += `<span class="budget-total"><span style="color:var(--accent-glow)">$${+remaining.toFixed(2)}</span></span>`;
+            html += `<span class="budget-total"><span style="color:#ce93d8">$${+kellyRemaining.toFixed(2)}</span> <span style="color:var(--text-dim);font-size:0.7em">/</span> <span style="color:#ffb74d">$${+avgRemaining.toFixed(2)}</span></span>`;
             html += `</div>`;
             html += `<div class="budget-bar-track"><div class="budget-bar-fill" style="width:${pctUsed}%;background:${barColor}"></div></div>`;
             html += `<div class="budget-rows">`;
