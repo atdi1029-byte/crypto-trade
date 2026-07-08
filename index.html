@@ -6195,7 +6195,7 @@ const BACKTEST = {
         const scoutSz = getScoutSize(activePnl);
         const exposureBudget = Math.floor(activePnl * 0.25);
         const scoutBudgetRaw = Math.max(0, exposureBudget - totalRisk);
-        const maxScouts = scoutSz > 0 ? Math.min(200, Math.floor(scoutBudgetRaw / scoutSz)) : 0;
+        const maxScouts = scoutSz > 0 ? Math.min(85, Math.floor(scoutBudgetRaw / scoutSz)) : 0;
         const scoutTotal = maxScouts * scoutSz;
 
         // Kelly budget calculation from live stats
