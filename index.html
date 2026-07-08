@@ -6243,6 +6243,9 @@ const BACKTEST = {
             const qKelly = Math.floor(kellyBudget / 4);
             const qKellyPerTrade = totalSlots > 0 ? (qKelly / totalSlots).toFixed(2) : '0';
             html += `<div class="budget-row" style="font-size:0.9em"><span style="color:#90a4ae">🐔 Quarter Kelly</span><span style="color:#90a4ae">$${qKelly} <span style="color:var(--text-dim)">(~$${qKellyPerTrade}/trade)</span></span></div>`;
+            const eKelly = Math.floor(kellyBudget / 8);
+            const eKellyPerTrade = totalSlots > 0 ? (eKelly / totalSlots).toFixed(2) : '0';
+            html += `<div class="budget-row" style="font-size:0.85em"><span style="color:#78909c">🎰 Eighth Kelly</span><span style="color:#78909c">$${eKelly} <span style="color:var(--text-dim)">(~$${eKellyPerTrade}/trade)</span></span></div>`;
             html += `</div>`;
             html += `</div>`;
         }
