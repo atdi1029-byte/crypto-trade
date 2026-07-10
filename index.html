@@ -5306,8 +5306,10 @@ const BACKTEST = {
         return `https://www.tradingview.com/chart/xF34dN3g/?symbol=${prefix}${encodeURIComponent(pair)}${hasPerp ? '.P' : ''}`;
     };
     const isAndroid = /Android/i.test(navigator.userAgent);
+    const BX_REMAP = { 'PUMP':'PUMPFUN' };
     const DEFAULT_BX = ticker => {
-        const pair = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'') + 'USDT';
+        const sym = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
+        const pair = (BX_REMAP[sym] || sym) + 'USDT';
         return `https://www.bitunix.com/contract-trade/${pair}`;
     };
 
@@ -5328,7 +5330,8 @@ const BACKTEST = {
     }
 
     function openBitunix(ticker) {
-        const pair = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'') + 'USDT';
+        const sym = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
+        const pair = (BX_REMAP[sym] || sym) + 'USDT';
         navigator.clipboard.writeText(pair).catch(() => {});
         window.open(getTickerLink(ticker, 'bx'), '_blank');
     }
@@ -5371,7 +5374,8 @@ const BACKTEST = {
             const tpPrice = btnDiv ? btnDiv.dataset.signalTp : '';
             const tradeSide = btnDiv ? btnDiv.dataset.signalSide : 'buy';
             // Open Bitunix so user can see position + adjust TP2
-            const pair = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'') + 'USDT';
+            const sym = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
+            const pair = (BX_REMAP[sym] || sym) + 'USDT';
             navigator.clipboard.writeText(pair);
             window.open(DEFAULT_BX(ticker), '_blank');
             // Fire trade via API in background
@@ -5396,7 +5400,8 @@ const BACKTEST = {
             localStorage.setItem('clock_' + ticker.toUpperCase() + '_' + signal.toLowerCase(), String(Date.now()));
         } else if (value === 'Entered') {
             // No size entered — old behavior: copy ticker + open Bitunix
-            const pair = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'') + 'USDT';
+            const s = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
+            const pair = (BX_REMAP[s] || s) + 'USDT';
             navigator.clipboard.writeText(pair);
             window.open(DEFAULT_BX(ticker), '_blank');
             // Set clock start to now (not signal time)
@@ -5616,7 +5621,8 @@ const BACKTEST = {
         addActedItem(ticker, signal);
         // If Entered, open Bitunix and copy ticker pair
         if (value === 'Entered') {
-            const pair = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'') + 'USDT';
+            const s2 = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
+            const pair = (BX_REMAP[s2] || s2) + 'USDT';
             navigator.clipboard.writeText(pair);
             window.open(DEFAULT_BX(ticker), '_blank');
             // Set clock start to now (not signal time)
@@ -5767,9 +5773,10 @@ const BACKTEST = {
             result.className = 'command-result success';
             result.textContent = `Opening ${cmd.ticker} on Bitunix — placing $${cmd.amount} trade...`;
             const cleanSym = cmd.ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
+            const bxSym = BX_REMAP[cleanSym] || cleanSym;
             const tradeParams = new URLSearchParams({
                 action: 'execute_trade',
-                symbol: cleanSym,
+                symbol: bxSym,
                 side: 'buy',
                 size_usd: cmd.amount,
                 leverage: '3'
