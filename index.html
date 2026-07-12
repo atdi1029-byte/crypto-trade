@@ -1951,6 +1951,7 @@
             .pokemon-level-name { font-size: 1.2rem; }
             .pokemon-xp-bar { max-width: 100%; }
             .pokemon-sizes { gap: 0.3rem; overflow-x: auto; -webkit-overflow-scrolling: touch; justify-content: flex-start; padding: 0 0.2rem; }
+            .pokemon-size-chip:nth-child(4) { display: none; }
             .pokemon-size-chip { padding: 0.2rem 0.5rem 0.2rem 0.3rem; font-size: 0.65rem; }
             .pokeball-svg { width: 24px; height: 24px; }
             .weekly-tasks { display: none !important; }
@@ -3932,7 +3933,7 @@ const BACKTEST = {
 
     // ====== POKEBALL TOGGLE (click to mark used/available) ======
     function togglePokeball(idx) {
-        const used = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false,false]');
+        const used = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false]');
         used[idx] = !used[idx];
         localStorage.setItem('pokeball_used', JSON.stringify(used));
         pokeballSeeded = true;
@@ -6125,13 +6126,36 @@ const BACKTEST = {
         const xpRange = xpTo - xpFrom;
         const xpProgress = xpRange > 0 ? Math.max(0, Math.min(100, ((activePnl - xpFrom) / xpRange) * 100)) : 100;
 
-        // Build size chips with pokeball icons — click to toggle used/available
+        // Kelly-based size chips
         const pokeballSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path class="ball-top" d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle class="ball-center" cx="10" cy="10" r="3"/></svg>`;
+        // Compute Kelly fractions for pokeball sizing
+        const _bWins = parseInt(stats.wins) || 0;
+        const _bLosses = parseInt(stats.losses) || 0;
+        const _bTotal = _bWins + _bLosses;
+        const _bWr = _bTotal > 0 ? _bWins / _bTotal : 0;
+        const _bGw = parseFloat(stats.grossWin) || 0;
+        const _bGl = Math.abs(parseFloat(stats.grossLoss) || 0);
+        const _bAvgW = _bWins > 0 ? _bGw / _bWins : 0;
+        const _bAvgL = _bLosses > 0 ? _bGl / _bLosses : 0;
+        const _bRr = _bAvgL > 0 ? _bAvgW / _bAvgL : 0;
+        const _bKellyF = _bRr > 0 ? (_bRr * _bWr - (1 - _bWr)) / _bRr : 0;
+        const _halfKellyPct = Math.max(0, _bKellyF / 2);
+        const _kellyBudget = Math.floor(activePnl * _halfKellyPct);
+        const _exposureBudget = Math.floor(activePnl * 0.25);
+        const _avgBudget = Math.floor((_exposureBudget + _kellyBudget) / 2);
+        const _scoutSz = getScoutSize(activePnl);
+        const _totalSlots = 5 + (_scoutSz > 0 ? Math.min(85, Math.floor(activePnl * 0.15 / _scoutSz)) : 0);
+        const kellySizes = [
+            { label: 'Avg', amt: _totalSlots > 0 ? (_avgBudget / _totalSlots) : 0, cls: 'lead' },
+            { label: '½½K', amt: _totalSlots > 0 ? ((_kellyBudget / 2) / _totalSlots) : 0, cls: 'mid' },
+            { label: '¼K', amt: _totalSlots > 0 ? ((_kellyBudget / 4) / _totalSlots) : 0, cls: 'mid' },
+            { label: '⅛K', amt: _totalSlots > 0 ? ((_kellyBudget / 8) / _totalSlots) : 0, cls: 'half' },
+        ];
         let sizeChips = '';
-        const usedSlots = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false,false]');
-        for (let i = 0; i < 5; i++) {
-            const cls = usedSlots[i] ? 'used' : i === 0 ? 'lead' : i === 4 ? 'half' : 'mid';
-            sizeChips += `<span class="pokemon-size-chip ${cls}" onclick="togglePokeball(${i})" style="cursor:pointer">${pokeballSvg}<span class="ball-amt">$${sizes[i]}</span></span>`;
+        const usedSlots = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false]');
+        for (let i = 0; i < 4; i++) {
+            const cls = usedSlots[i] ? 'used' : kellySizes[i].cls;
+            sizeChips += `<span class="pokemon-size-chip ${cls}" onclick="togglePokeball(${i})" style="cursor:pointer">${pokeballSvg}<span class="ball-amt">${kellySizes[i].label} $${kellySizes[i].amt.toFixed(2)}</span></span>`;
         }
 
         const needStr = nextLevel ? '$' + (nextLevel.min - activePnl).toFixed(2) + ' to Evolve' : '';
