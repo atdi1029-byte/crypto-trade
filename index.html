@@ -1950,8 +1950,7 @@
             .pokemon-sprite { width: 180px; height: 180px; margin: -1rem 0 -2rem; }
             .pokemon-level-name { font-size: 1.2rem; }
             .pokemon-xp-bar { max-width: 100%; }
-            .pokemon-sizes { gap: 0.3rem; overflow-x: auto; -webkit-overflow-scrolling: touch; justify-content: flex-start; padding: 0 0.2rem; }
-            .pokemon-size-chip:nth-child(4) { display: none; }
+            .pokemon-sizes { gap: 0.3rem; display: grid; grid-template-columns: 1fr 1fr; padding: 0 0.2rem; }
             .pokemon-size-chip { padding: 0.2rem 0.5rem 0.2rem 0.3rem; font-size: 0.65rem; }
             .pokeball-svg { width: 24px; height: 24px; }
             .weekly-tasks { display: none !important; }
@@ -6147,9 +6146,9 @@ const BACKTEST = {
         const _totalSlots = 5 + (_scoutSz > 0 ? Math.min(85, Math.floor(activePnl * 0.15 / _scoutSz)) : 0);
         const kellySizes = [
             { label: 'Avg', amt: _totalSlots > 0 ? (_avgBudget / _totalSlots) : 0, cls: 'lead' },
-            { label: '½½K', amt: _totalSlots > 0 ? ((_kellyBudget / 2) / _totalSlots) : 0, cls: 'mid' },
-            { label: '¼K', amt: _totalSlots > 0 ? ((_kellyBudget / 4) / _totalSlots) : 0, cls: 'mid' },
-            { label: '⅛K', amt: _totalSlots > 0 ? ((_kellyBudget / 8) / _totalSlots) : 0, cls: 'half' },
+            { label: '\u{1F525}', amt: _totalSlots > 0 ? ((_kellyBudget / 2) / _totalSlots) : 0, cls: 'mid' },
+            { label: '\u{26A1}', amt: _totalSlots > 0 ? ((_kellyBudget / 4) / _totalSlots) : 0, cls: 'mid' },
+            { label: '\u{1F331}', amt: _totalSlots > 0 ? ((_kellyBudget / 8) / _totalSlots) : 0, cls: 'half' },
         ];
         let sizeChips = '';
         const usedSlots = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false]');
