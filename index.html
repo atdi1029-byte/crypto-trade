@@ -956,6 +956,15 @@
             border-color: var(--red-candle);
         }
         .action-btn.lost:hover { background: var(--red-candle); color: var(--text-bright); }
+        .action-btn.cancel-trade {
+            background: transparent;
+            color: var(--text-dim);
+            border-color: var(--border);
+            font-size: 1rem;
+            padding: 2px 6px;
+            line-height: 1;
+        }
+        .action-btn.cancel-trade:hover { background: var(--red-dim); color: var(--red-bright); border-color: var(--red-candle); }
         .action-btn.open-pos {
             background: #4a9eff22;
             color: var(--accent-glow);
@@ -3787,6 +3796,7 @@ const BACKTEST = {
                                 <button class="action-btn won" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Won','${id}')">Hit TP</button>
                                 <button class="action-btn lost" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Lost','${id}','Stopped Out')">Stopped Out</button>
                                 <button class="action-btn skipped" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Closed','${id}','Close')">Closed</button>
+                                <button class="action-btn cancel-trade" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Cancelled','${id}','Cancel')" title="Cancel — doesn\'t count as a trade">&times;</button>
                                 <button class="action-btn trade-clock" id="${id}-clock" data-entered="${a.timestamp || ''}" onclick="dismissTradeClock('${id}')"></button>
                             </div>
                         </div>
@@ -5555,6 +5565,31 @@ const BACKTEST = {
             if (profitInput) profitInput.value = '';
             return;
 
+        } else if (value === 'Cancelled') {
+            // Cancel — delete from sheet, doesn't count as a trade
+            clearTradeState(ticker, signal);
+            el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
+            try {
+                const params = new URLSearchParams({
+                    action: 'update', ticker, signal, price,
+                    field: 'outcome', value: 'Cancelled'
+                });
+                await fireGet(POST_URL + '?' + params);
+                setTimeout(() => {
+                    el.style.transition = 'opacity 0.5s, max-height 0.5s';
+                    el.style.opacity = '0';
+                    el.style.maxHeight = '0';
+                    el.style.overflow = 'hidden';
+                    el.style.padding = '0';
+                    el.style.margin = '0';
+                    setTimeout(() => el.remove(), 600);
+                }, 400);
+                actionCooldownUntil = Date.now() + ACTION_COOLDOWN_MS;
+            } catch (err) {
+                el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
+                showToast('Failed to cancel: ' + err.message);
+            }
+            return;
         } else {
             // Closed or Stopped Out — finalize and send total to sheet
             // Auto-negate positive input for losses (user enters 0.34, we record -0.34)

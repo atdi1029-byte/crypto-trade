@@ -582,6 +582,17 @@ function updatePosition_(ss, data) {
       posSheet.getRange(matchRows[0], 12).setValue(tradeStatus); // Column L = Trade Status (0x0/tp)
     }
   } else if (field === 'outcome') {
+    if (value.toLowerCase() === 'cancelled') {
+      // Cancel — delete the row entirely so it never counts as a trade
+      // Delete in reverse order to preserve row indices
+      matchRows.sort(function(a, b) { return b - a; });
+      for (var d = 0; d < matchRows.length; d++) {
+        posSheet.deleteRow(matchRows[d]);
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: 'ok', updated: 'cancelled', deleted: matchRows.length }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     posSheet.getRange(matchRows[0], 10).setValue(value);  // Column J = Outcome
     if (realizedPnl !== '') {
       posSheet.getRange(matchRows[0], 11).setValue(Number(realizedPnl)); // Column K
@@ -595,6 +606,28 @@ function updatePosition_(ss, data) {
   return ContentService
     .createTextOutput(JSON.stringify({ status: 'ok', updated: field, value: value, rows: matchRows.length }))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---------------------------------------------------------------
+// cleanupZeroPnlTrades — ONE-TIME: delete trades with outcome
+// "Closed" and $0 P&L (fake trades that shouldn't count).
+// Run manually from Apps Script editor, then delete this function.
+// ---------------------------------------------------------------
+function cleanupZeroPnlTrades() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var posSheet = ss.getSheetByName(POSITIONS);
+  var data = posSheet.getDataRange().getValues();
+  var deleted = [];
+  // Walk backwards to preserve row indices
+  for (var i = data.length - 1; i >= 1; i--) {
+    var outcome = String(data[i][9]).toLowerCase().trim();
+    var pnl = Number(data[i][10]) || 0;
+    if (outcome === 'closed' && pnl === 0) {
+      deleted.push(String(data[i][1]) + ' ' + String(data[i][2]));
+      posSheet.deleteRow(i + 1);
+    }
+  }
+  Logger.log('Deleted ' + deleted.length + ' zero-P&L closed trades: ' + deleted.join(', '));
 }
 
 // ---------------------------------------------------------------
