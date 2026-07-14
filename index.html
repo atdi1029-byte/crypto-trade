@@ -3820,7 +3820,10 @@ const BACKTEST = {
             const resetTs = Number(localStorage.getItem(resetKey) || 0);
             const entered = el.dataset.entered;
             if (!entered && !resetTs) { el.textContent = '--'; return; }
-            const baseTime = resetTs || new Date(entered).getTime();
+            const enteredTs = entered ? new Date(entered).getTime() : 0;
+            // Use whichever is newer: the stored clock or the trade's own timestamp
+            // This prevents stale clock values from old trades bleeding into new ones
+            const baseTime = (resetTs && enteredTs) ? Math.max(resetTs, enteredTs) : (resetTs || enteredTs);
             if (isNaN(baseTime)) { el.textContent = '--'; return; }
             const elapsed = Date.now() - baseTime;
             const hours = Math.floor(elapsed / (60 * 60 * 1000));
@@ -3938,6 +3941,9 @@ const BACKTEST = {
     }
     function clearTradeState(ticker, signal) {
         localStorage.removeItem(tradeStateKey(ticker, signal));
+        // Also clear the clock so a new trade with the same ticker+signal starts fresh
+        const clockKey = 'clock_' + ticker.toUpperCase() + '_' + signal.toLowerCase();
+        localStorage.removeItem(clockKey);
     }
 
     // ====== POKEBALL TOGGLE (click to mark used/available) ======
