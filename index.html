@@ -6422,9 +6422,11 @@ const BACKTEST = {
         // Change pill
         if (daily.length >= 2) {
             const endPnl = daily[daily.length - 1].pnl;
-            const change = pnlRange === 'AT' ? endPnl : endPnl - daily[0].pnl;
+            const startPnl = daily[0].pnl;
+            const change = pnlRange === 'AT' ? endPnl : endPnl - startPnl;
             const labels = { '1M': '1 month', '3M': '3 months', '6M': '6 months', '1Y': '1 year', 'AT': 'all time' };
-            pillEl.textContent = (change >= 0 ? '\u25B2 +$' : '\u25BC -$') + Math.abs(change).toFixed(2) + ' over ' + (labels[pnlRange] || pnlRange);
+            const pctStr = startPnl !== 0 ? ' (' + (change >= 0 ? '+' : '') + ((change / Math.abs(startPnl)) * 100).toFixed(1) + '%)' : '';
+            pillEl.textContent = (change >= 0 ? '\u25B2 +$' : '\u25BC -$') + Math.abs(change).toFixed(2) + pctStr + ' over ' + (labels[pnlRange] || pnlRange);
             pillEl.className = 'pnl-change-pill ' + (change >= 0 ? 'green' : 'red');
             pillEl.style.display = '';
         } else {
