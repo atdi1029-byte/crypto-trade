@@ -5322,7 +5322,7 @@ const BACKTEST = {
         return `https://www.tradingview.com/chart/xF34dN3g/?symbol=${prefix}${encodeURIComponent(pair)}${hasPerp ? '.P' : ''}`;
     };
     const isAndroid = /Android/i.test(navigator.userAgent);
-    const BX_REMAP = { 'PUMP':'PUMPFUN' };
+    const BX_REMAP = { 'PUMP':'PUMPFUN', 'FET':'FETAI' };
     const DEFAULT_BX = ticker => {
         const sym = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
         const pair = (BX_REMAP[sym] || sym) + 'USDT';
