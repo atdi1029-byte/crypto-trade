@@ -6056,25 +6056,38 @@ const BACKTEST = {
         const avgWin = wins > 0 ? gw / wins : 0;
         const avgLoss = losses > 0 ? gl / losses : 0;
         const totalPnl = gw - gl;
+        const ev = avgWin * wr - avgLoss * (1 - wr);
+        const pf = gl > 0 ? gw / gl : Infinity;
 
-        // --- Run MC simulation (5000 shuffles) ---
+        // Confidence tier based on sample size
+        const confLabel = total < 50 ? 'LOW'
+            : total < 100 ? 'PRELIMINARY'
+            : total < 250 ? 'REASONABLE' : 'GOOD';
+        const confColor = total < 50 ? 'var(--red-bright)'
+            : total < 100 ? '#ffab40'
+            : total < 250 ? '#64b5f6' : 'var(--green-bright)';
+
+        // --- Run MC simulation (5000 sims) ---
+        // Bernoulli model: each trade = avgWin or -avgLoss
+        // This simulates future trade sequences, NOT
+        // shuffling actual trades (would need individual PnLs)
         const N = 5000;
         const maxDDs = [];
         const maxStreaks = [];
-        const ddLengths = [];
+        const underwaterDurs = [];
         const sampleCurves = [];
+        let worstDD = 0, worstStreak = 0, worstUW = 0;
 
         for (let sim = 0; sim < N; sim++) {
-            // Build random sequence of wins/losses
             const seq = [];
             for (let i = 0; i < total; i++) {
-                seq.push(Math.random() < wr ? avgWin : -avgLoss);
+                seq.push(Math.random() < wr
+                    ? avgWin : -avgLoss);
             }
 
-            // Equity curve & drawdown
             let equity = 0, peak = 0, maxDD = 0;
             let streak = 0, maxStr = 0;
-            let inDD = 0, maxDDLen = 0;
+            let uw = 0, maxUW = 0;
             const curve = sim < 30 ? [0] : null;
 
             for (let i = 0; i < seq.length; i++) {
@@ -6083,53 +6096,39 @@ const BACKTEST = {
                 if (equity > peak) peak = equity;
                 const dd = peak - equity;
                 if (dd > maxDD) maxDD = dd;
-
                 if (dd > 0) {
-                    inDD++;
-                    if (inDD > maxDDLen) maxDDLen = inDD;
-                } else {
-                    inDD = 0;
-                }
-
+                    uw++;
+                    if (uw > maxUW) maxUW = uw;
+                } else { uw = 0; }
                 if (seq[i] < 0) {
                     streak++;
                     if (streak > maxStr) maxStr = streak;
-                } else {
-                    streak = 0;
-                }
+                } else { streak = 0; }
             }
 
             maxDDs.push(maxDD);
             maxStreaks.push(maxStr);
-            ddLengths.push(maxDDLen);
+            underwaterDurs.push(maxUW);
             if (curve) sampleCurves.push(curve);
+            if (maxDD > worstDD) worstDD = maxDD;
+            if (maxStr > worstStreak) worstStreak = maxStr;
+            if (maxUW > worstUW) worstUW = maxUW;
         }
 
-        // Sort for percentiles
         maxDDs.sort((a, b) => a - b);
         maxStreaks.sort((a, b) => a - b);
-        ddLengths.sort((a, b) => a - b);
+        underwaterDurs.sort((a, b) => a - b);
 
-        const pct = (arr, p) => arr[Math.floor(arr.length * p / 100)];
-        const median = arr => pct(arr, 50);
-        const mean = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
-
-        // Actual drawdown from real sequence
-        let actEq = 0, actPeak = 0, actDD = 0;
-        // Approximate: we don't have individual trades,
-        // so use the EV-based expected actual DD
-        // (median of MC is the best estimate)
-        const medDD = median(maxDDs);
+        const pct = (arr, p) => arr[Math.floor(
+            arr.length * p / 100)];
+        const medDD = pct(maxDDs, 50);
         const p95DD = pct(maxDDs, 95);
         const p99DD = pct(maxDDs, 99);
-        const medStreak = median(maxStreaks);
+        const medStreak = pct(maxStreaks, 50);
         const p95Streak = pct(maxStreaks, 95);
-        const medDDLen = median(ddLengths);
+        const medUW = pct(underwaterDurs, 50);
 
-        // --- Edge validation (permutation test) ---
-        // Null hypothesis: wins are random (50/50)
-        // How many times does random 50/50 produce
-        // this win rate or better?
+        // --- Win rate significance test ---
         let edgeBeat = 0;
         const EDGE_SIMS = 10000;
         for (let i = 0; i < EDGE_SIMS; i++) {
@@ -6140,96 +6139,207 @@ const BACKTEST = {
             if (rWins / total >= wr) edgeBeat++;
         }
         const pValue = edgeBeat / EDGE_SIMS;
-        const edgeReal = pValue < 0.01;
-        const edgeColor = pValue < 0.01 ? 'var(--green-bright)'
-            : pValue < 0.05 ? '#ffab40' : 'var(--red-bright)';
-        const edgeBg = pValue < 0.01 ? 'rgba(102,187,106,0.15)'
-            : pValue < 0.05 ? 'rgba(255,171,64,0.15)'
+        const edgeColor = pValue < 0.01
+            ? 'var(--green-bright)' : pValue < 0.05
+            ? '#ffab40' : 'var(--red-bright)';
+        const edgeBg = pValue < 0.01
+            ? 'rgba(102,187,106,0.15)' : pValue < 0.05
+            ? 'rgba(255,171,64,0.15)'
             : 'rgba(255,107,107,0.15)';
         const edgeLabel = pValue < 0.01
-            ? 'EDGE CONFIRMED' : pValue < 0.05
-            ? 'LIKELY EDGE' : 'NOT PROVEN';
+            ? 'SIGNIFICANT' : pValue < 0.05
+            ? 'SUGGESTIVE' : 'NOT PROVEN';
 
-        // --- Drawdown probability thresholds ---
-        const ddProbs = [1, 2, 3, 5].map(t => ({
-            threshold: t,
-            prob: maxDDs.filter(d => d >= t).length / N * 100
-        })).filter(d => d.prob > 0.05);
-
-        // Max bar width reference
-        const maxProb = ddProbs.length > 0
-            ? Math.max(...ddProbs.map(d => d.prob)) : 100;
+        // --- Drawdown probability (percentile-based) ---
+        const ddProbs = [
+            { label: '50th', p: 50, color: '#64b5f6' },
+            { label: '75th', p: 75, color: '#ffab40' },
+            { label: '90th', p: 90, color: '#ef9a9a' },
+            { label: '95th', p: 95, color: 'var(--red-bright)' },
+        ].map(d => ({
+            ...d,
+            val: pct(maxDDs, d.p)
+        }));
+        const maxDDVal = ddProbs[ddProbs.length - 1].val || 1;
 
         // --- Render ---
         box.innerHTML = `
-            <div style="font-size:0.55rem;color:var(--text-dim);margin-bottom:0.6rem;text-align:center">
-                ${N.toLocaleString()} simulations &middot; ${total} trades &middot; ${(wr*100).toFixed(1)}% WR
+            <div style="font-size:0.55rem;color:var(--text-dim);
+                margin-bottom:0.6rem;text-align:center">
+                ${N.toLocaleString()} sims &middot;
+                ${total} trades &middot;
+                ${(wr*100).toFixed(1)}% WR &middot;
+                PF ${pf === Infinity ? '∞' : pf.toFixed(2)}
+                &middot; Confidence:
+                <span style="color:${confColor};
+                    font-weight:700">${confLabel}</span>
+                (${total} trades)
             </div>
 
-            <div style="font-size:0.6rem;color:#64b5f6;font-weight:700;margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:1px">Edge Validation</div>
+            <div style="font-size:0.6rem;color:#64b5f6;
+                font-weight:700;margin-bottom:0.4rem;
+                text-transform:uppercase;
+                letter-spacing:1px">
+                Win Rate Significance</div>
             <div style="text-align:center;margin-bottom:0.6rem">
-                <span class="mc-edge-badge" style="background:${edgeBg};color:${edgeColor};border:1px solid ${edgeColor}">
-                    ${edgeLabel} &mdash; p=${pValue < 0.001 ? '<0.001' : pValue.toFixed(3)}
+                <span class="mc-edge-badge"
+                    style="background:${edgeBg};
+                    color:${edgeColor};
+                    border:1px solid ${edgeColor}">
+                    ${edgeLabel} &mdash;
+                    p=${pValue < 0.001
+                        ? '<0.001' : pValue.toFixed(3)}
                 </span>
-                <div style="font-size:0.5rem;color:var(--text-dim);margin-top:0.3rem">
+                <div style="font-size:0.5rem;
+                    color:var(--text-dim);margin-top:0.3rem">
                     ${pValue < 0.01
-                        ? 'Random trading would produce this win rate <0.1% of the time. Your system has a real edge.'
+                        ? 'Your ' + (wr*100).toFixed(0) + '% win rate over ' + total + ' trades is statistically significant vs random (50/50).'
                         : pValue < 0.05
                         ? 'Suggestive but not conclusive. More trades needed.'
-                        : 'Cannot distinguish from random. Keep collecting data.'}
+                        : 'Cannot distinguish from random yet.'}
+                    ${pValue < 0.01 && pf >= 1.5
+                        ? ' Profit factor ' + pf.toFixed(2) + ' confirms profitability.'
+                        : pValue < 0.01 && pf < 1.5
+                        ? ' But profit factor ' + pf.toFixed(2) + ' is thin — win rate alone doesn\'t guarantee profitability.'
+                        : ''}
                 </div>
             </div>
 
-            <div style="font-size:0.6rem;color:#64b5f6;font-weight:700;margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:1px">Drawdown Distribution</div>
+            <div style="font-size:0.6rem;color:#64b5f6;
+                font-weight:700;margin-bottom:0.4rem;
+                text-transform:uppercase;
+                letter-spacing:1px">
+                Projected Drawdowns</div>
             <div class="mc-grid">
                 <div class="mc-stat">
-                    <div class="mval" style="color:#64b5f6">$${medDD.toFixed(2)}</div>
+                    <div class="mval"
+                        style="color:#64b5f6">
+                        $${medDD.toFixed(2)}</div>
                     <div class="mlbl">Expected DD</div>
+                    <div style="font-size:0.45rem;
+                        color:var(--green-bright);
+                        margin-top:2px">
+                        ✓ Normal</div>
                 </div>
                 <div class="mc-stat">
-                    <div class="mval" style="color:#ffab40">$${p95DD.toFixed(2)}</div>
+                    <div class="mval"
+                        style="color:#ffab40">
+                        $${p95DD.toFixed(2)}</div>
                     <div class="mlbl">1-in-20 DD</div>
+                    <div style="font-size:0.45rem;
+                        color:#ffab40;
+                        margin-top:2px">
+                        ⚠ Watch closely</div>
                 </div>
                 <div class="mc-stat">
-                    <div class="mval" style="color:var(--red-bright)">$${p99DD.toFixed(2)}</div>
+                    <div class="mval"
+                        style="color:var(--red-bright)">
+                        $${p99DD.toFixed(2)}</div>
                     <div class="mlbl">1-in-100 DD</div>
+                    <div style="font-size:0.45rem;
+                        color:var(--red-bright);
+                        margin-top:2px">
+                        ✗ Investigate</div>
                 </div>
             </div>
 
             <div class="mc-grid">
                 <div class="mc-stat">
-                    <div class="mval" style="color:var(--text-bright)">${medStreak}</div>
-                    <div class="mlbl">Typical Losing Streak</div>
+                    <div class="mval"
+                        style="color:var(--text-bright)">
+                        ${medStreak}</div>
+                    <div class="mlbl">Typical Streak</div>
+                    <div style="font-size:0.45rem;
+                        color:var(--green-bright);
+                        margin-top:2px">
+                        ✓ Don't panic</div>
                 </div>
                 <div class="mc-stat">
-                    <div class="mval" style="color:#ffab40">${p95Streak}</div>
-                    <div class="mlbl">Worst Streak (95th)</div>
+                    <div class="mval"
+                        style="color:#ffab40">
+                        ${p95Streak}</div>
+                    <div class="mlbl">
+                        Worst Streak (95th)</div>
+                    <div style="font-size:0.45rem;
+                        color:#ffab40;
+                        margin-top:2px">
+                        ⚠ Still normal</div>
                 </div>
                 <div class="mc-stat">
-                    <div class="mval" style="color:var(--text-bright)">${medDDLen}</div>
-                    <div class="mlbl">Recovery (trades)</div>
+                    <div class="mval"
+                        style="color:var(--text-bright)">
+                        ${medUW}</div>
+                    <div class="mlbl">
+                        Underwater (trades)</div>
+                    <div style="font-size:0.45rem;
+                        color:var(--text-dim);
+                        margin-top:2px">
+                        Time below peak</div>
                 </div>
             </div>
 
-            <div style="font-size:0.6rem;color:#64b5f6;font-weight:700;margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:1px">Drawdown Probability</div>
+            <div style="font-size:0.6rem;color:#64b5f6;
+                font-weight:700;margin-bottom:0.4rem;
+                text-transform:uppercase;
+                letter-spacing:1px">
+                Drawdown Percentiles</div>
             ${ddProbs.map(d => `
                 <div class="mc-bar-row">
-                    <div class="mc-bar-label">≥$${d.threshold}</div>
+                    <div class="mc-bar-label">
+                        ${d.label}</div>
                     <div class="mc-bar-track">
-                        <div class="mc-bar-fill" style="width:${Math.max(2, d.prob / maxProb * 100)}%;background:${d.prob > 50 ? 'var(--red-bright)' : d.prob > 10 ? '#ffab40' : 'var(--green-bright)'}"></div>
+                        <div class="mc-bar-fill"
+                            style="width:${Math.max(
+                                3, d.val / maxDDVal * 100
+                            )}%;background:${d.color}">
+                        </div>
                     </div>
-                    <div class="mc-bar-val">${d.prob.toFixed(1)}%</div>
+                    <div class="mc-bar-val">
+                        $${d.val.toFixed(2)}</div>
                 </div>
             `).join('')}
 
-            <div style="font-size:0.6rem;color:#64b5f6;font-weight:700;margin:0.6rem 0 0.4rem;text-transform:uppercase;letter-spacing:1px">Sample Equity Paths</div>
+            <div style="font-size:0.6rem;color:#64b5f6;
+                font-weight:700;margin:0.6rem 0 0.4rem;
+                text-transform:uppercase;
+                letter-spacing:1px">
+                Worst Simulation (of ${N.toLocaleString()})
+            </div>
+            <div style="font-size:0.6rem;
+                color:var(--text-dim);
+                text-align:center;margin-bottom:0.5rem">
+                DD: <span style="color:var(--red-bright);
+                    font-weight:700">
+                    $${worstDD.toFixed(2)}</span>
+                &nbsp;&middot;&nbsp;
+                Streak: <span style="color:var(--red-bright);
+                    font-weight:700">
+                    ${worstStreak}</span>
+                &nbsp;&middot;&nbsp;
+                Underwater: <span
+                    style="color:var(--red-bright);
+                    font-weight:700">
+                    ${worstUW} trades</span>
+            </div>
+
+            <div style="font-size:0.6rem;color:#64b5f6;
+                font-weight:700;margin:0.4rem 0;
+                text-transform:uppercase;
+                letter-spacing:1px">
+                Simulated Equity Paths</div>
             <div class="mc-canvas-wrap">
                 <canvas id="mcCanvas"></canvas>
             </div>
 
-            <div style="font-size:0.5rem;color:var(--text-dim);text-align:center;margin-top:0.3rem">
-                Same trades, different order. All paths end at $${totalPnl.toFixed(2)}.
-                The spread shows how much <em>sequence</em> matters.
+            <div style="font-size:0.5rem;
+                color:var(--text-dim);
+                text-align:center;margin-top:0.3rem">
+                Simulated future sequences based on your
+                ${(wr*100).toFixed(0)}% WR and
+                $${avgWin.toFixed(3)}/$${avgLoss.toFixed(3)}
+                avg win/loss.
+                Terminal PnL varies because each sim draws
+                wins/losses independently.
             </div>
         `;
 
@@ -6237,7 +6347,8 @@ const BACKTEST = {
         const canvas = document.getElementById('mcCanvas');
         if (canvas && sampleCurves.length > 0) {
             const dpr = window.devicePixelRatio || 1;
-            const rect = canvas.parentElement.getBoundingClientRect();
+            const rect = canvas.parentElement
+                .getBoundingClientRect();
             canvas.width = rect.width * dpr;
             canvas.height = rect.height * dpr;
             const ctx = canvas.getContext('2d');
@@ -6245,7 +6356,6 @@ const BACKTEST = {
             const W = rect.width;
             const H = rect.height;
 
-            // Find global min/max across all curves
             let gMin = Infinity, gMax = -Infinity;
             for (const c of sampleCurves) {
                 for (const v of c) {
@@ -6256,26 +6366,30 @@ const BACKTEST = {
             const range = gMax - gMin || 1;
             const pad = 4;
 
-            // Draw each curve
-            for (let ci = 0; ci < sampleCurves.length; ci++) {
+            for (let ci = 0; ci < sampleCurves.length;
+                ci++) {
                 const c = sampleCurves[ci];
                 const steps = c.length;
                 ctx.beginPath();
                 ctx.strokeStyle = ci === 0
                     ? 'rgba(100,181,246,0.8)'
-                    : `rgba(100,181,246,${0.12})`;
+                    : 'rgba(100,181,246,0.12)';
                 ctx.lineWidth = ci === 0 ? 1.5 : 0.7;
                 for (let i = 0; i < steps; i++) {
-                    const x = pad + (i / (steps - 1)) * (W - 2 * pad);
-                    const y = H - pad - ((c[i] - gMin) / range) * (H - 2 * pad);
+                    const x = pad + (i / (steps - 1))
+                        * (W - 2 * pad);
+                    const y = H - pad
+                        - ((c[i] - gMin) / range)
+                        * (H - 2 * pad);
                     if (i === 0) ctx.moveTo(x, y);
                     else ctx.lineTo(x, y);
                 }
                 ctx.stroke();
             }
 
-            // Zero line
-            const zeroY = H - pad - ((0 - gMin) / range) * (H - 2 * pad);
+            const zeroY = H - pad
+                - ((0 - gMin) / range)
+                * (H - 2 * pad);
             ctx.beginPath();
             ctx.strokeStyle = 'rgba(255,255,255,0.15)';
             ctx.setLineDash([4, 4]);
