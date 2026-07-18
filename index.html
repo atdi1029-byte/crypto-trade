@@ -1572,12 +1572,37 @@
         .mc-canvas-wrap {
             position: relative;
             width: 100%;
-            height: 120px;
+            height: 200px;
             margin: 0.5rem 0;
+            touch-action: none;
         }
         .mc-canvas-wrap canvas {
             width: 100%;
             height: 100%;
+        }
+        .mc-tooltip {
+            position: absolute;
+            pointer-events: none;
+            background: rgba(10,20,35,0.95);
+            border: 1px solid #64b5f6;
+            border-radius: 4px;
+            padding: 0.3rem 0.5rem;
+            font-size: 0.55rem;
+            font-family: 'Space Mono', monospace;
+            color: var(--text-bright);
+            white-space: nowrap;
+            z-index: 10;
+            display: none;
+        }
+        .mc-crosshair {
+            position: absolute;
+            top: 0;
+            width: 1px;
+            height: 100%;
+            background: rgba(100,181,246,0.4);
+            pointer-events: none;
+            display: none;
+            z-index: 5;
         }
         .mc-edge-badge {
             display: inline-block;
@@ -6415,9 +6440,19 @@ const BACKTEST = {
                 font-weight:700;margin:0.4rem 0;
                 text-transform:uppercase;
                 letter-spacing:1px">
-                Simulated Equity Paths</div>
-            <div class="mc-canvas-wrap">
+                Simulated Equity Paths
+                <span style="font-size:0.45rem;
+                    color:var(--text-dim);
+                    font-weight:400;
+                    text-transform:none;
+                    letter-spacing:0">
+                    — tap to explore</span></div>
+            <div class="mc-canvas-wrap" id="mcCanvasWrap">
                 <canvas id="mcCanvas"></canvas>
+                <div class="mc-crosshair" id="mcCrosshair">
+                </div>
+                <div class="mc-tooltip" id="mcTooltip">
+                </div>
             </div>
 
             <div style="font-size:0.5rem;
@@ -6486,6 +6521,106 @@ const BACKTEST = {
             ctx.lineTo(W - pad, zeroY);
             ctx.stroke();
             ctx.setLineDash([]);
+
+            // --- Interactive crosshair ---
+            const wrap = document.getElementById(
+                'mcCanvasWrap');
+            const tip = document.getElementById(
+                'mcTooltip');
+            const cross = document.getElementById(
+                'mcCrosshair');
+            const curves = sampleCurves;
+            const nSteps = curves[0].length;
+
+            function showAt(clientX) {
+                const br = wrap.getBoundingClientRect();
+                const x = clientX - br.left;
+                const pct = Math.max(0, Math.min(1,
+                    (x - pad) / (br.width - 2 * pad)));
+                const idx = Math.round(
+                    pct * (nSteps - 1));
+                if (idx < 0 || idx >= nSteps) {
+                    tip.style.display = 'none';
+                    cross.style.display = 'none';
+                    return;
+                }
+
+                // Get all curve values at this index
+                const vals = curves.map(c => c[idx]);
+                vals.sort((a, b) => a - b);
+                const lo = vals[0];
+                const hi = vals[vals.length - 1];
+                const med = vals[
+                    Math.floor(vals.length / 2)];
+                const p5 = vals[
+                    Math.floor(vals.length * 0.05)];
+                const p95 = vals[
+                    Math.floor(vals.length * 0.95)];
+
+                const fmt = v => (v >= 0 ? '+' : '')
+                    + '$' + v.toFixed(2);
+
+                tip.innerHTML =
+                    '<div style="color:#64b5f6;'
+                    + 'font-weight:700;'
+                    + 'margin-bottom:2px">'
+                    + 'Trade ' + idx
+                    + ' / ' + (nSteps - 1) + '</div>'
+                    + '<div>Best:&nbsp;&nbsp;&nbsp;'
+                    + '<span style="color:#64b5f6">'
+                    + fmt(hi) + '</span></div>'
+                    + '<div>95th:&nbsp;&nbsp;&nbsp;'
+                    + '<span style="color:var(--green-bright)">'
+                    + fmt(p95) + '</span></div>'
+                    + '<div>Median:&nbsp;'
+                    + '<span style="color:var(--text-bright);'
+                    + 'font-weight:700">'
+                    + fmt(med) + '</span></div>'
+                    + '<div>5th:&nbsp;&nbsp;&nbsp;&nbsp;'
+                    + '<span style="color:#ffab40">'
+                    + fmt(p5) + '</span></div>'
+                    + '<div>Worst:&nbsp;&nbsp;'
+                    + '<span style="color:var(--red-bright)">'
+                    + fmt(lo) + '</span></div>';
+
+                cross.style.display = 'block';
+                cross.style.left = x + 'px';
+                tip.style.display = 'block';
+                // Position tooltip
+                const tipW = tip.offsetWidth || 120;
+                if (x + tipW + 10 > br.width) {
+                    tip.style.left = (x - tipW - 8) + 'px';
+                } else {
+                    tip.style.left = (x + 8) + 'px';
+                }
+                tip.style.top = '8px';
+            }
+
+            function hideTooltip() {
+                tip.style.display = 'none';
+                cross.style.display = 'none';
+            }
+
+            canvas.addEventListener('mousemove', e => {
+                showAt(e.clientX);
+            });
+            canvas.addEventListener('mouseleave', () => {
+                hideTooltip();
+            });
+            canvas.addEventListener('touchmove', e => {
+                e.preventDefault();
+                if (e.touches.length > 0) {
+                    showAt(e.touches[0].clientX);
+                }
+            }, { passive: false });
+            canvas.addEventListener('touchstart', e => {
+                if (e.touches.length > 0) {
+                    showAt(e.touches[0].clientX);
+                }
+            });
+            canvas.addEventListener('touchend', () => {
+                hideTooltip();
+            });
         }
     }
 
