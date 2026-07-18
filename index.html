@@ -4087,7 +4087,7 @@ const BACKTEST = {
 
     // ====== POKEBALL TOGGLE (click to mark used/available) ======
     function togglePokeball(idx) {
-        const used = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false]');
+        const used = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false,false]');
         used[idx] = !used[idx];
         localStorage.setItem('pokeball_used', JSON.stringify(used));
         pokeballSeeded = true;
@@ -6888,13 +6888,14 @@ const BACKTEST = {
         const _totalSlots = 5 + (_scoutSz > 0 ? Math.min(85, Math.floor(activePnl * 0.15 / _scoutSz)) : 0);
         const kellySizes = [
             { label: 'Avg', amt: _totalSlots > 0 ? (_avgBudget / _totalSlots) : 0, cls: 'lead' },
+            { label: 'K', amt: _totalSlots > 0 ? (_kellyBudget / _totalSlots) : 0, cls: 'lead' },
             { label: '\u{1F525}', amt: _totalSlots > 0 ? ((_kellyBudget / 2) / _totalSlots) : 0, cls: 'mid' },
             { label: '\u{26A1}', amt: _totalSlots > 0 ? ((_kellyBudget / 4) / _totalSlots) : 0, cls: 'mid' },
             { label: '\u{1F331}', amt: _totalSlots > 0 ? ((_kellyBudget / 8) / _totalSlots) : 0, cls: 'half' },
         ];
         let sizeChips = '';
-        const usedSlots = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false]');
-        for (let i = 0; i < 4; i++) {
+        const usedSlots = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false,false]');
+        for (let i = 0; i < 5; i++) {
             const cls = usedSlots[i] ? 'used' : kellySizes[i].cls;
             sizeChips += `<span class="pokemon-size-chip ${cls}" onclick="togglePokeball(${i})" style="cursor:pointer">${pokeballSvg}<span class="ball-amt">${kellySizes[i].label} $${kellySizes[i].amt.toFixed(2)}</span></span>`;
         }
