@@ -6115,66 +6115,25 @@ const BACKTEST = {
             if (maxUW > worstUW) worstUW = maxUW;
         }
 
-        // Kelly fractions
-        const rr = avgLoss > 0 ? avgWin / avgLoss : 0;
-        const kellyF = rr > 0
-            ? (rr * wr - (1 - wr)) / rr : 0;
-        const halfKelly = Math.max(0, kellyF / 2);
-        const qtrKelly = Math.max(0, kellyF / 4);
-        const activePnl = dcaMode
-            ? totalPnl + dcaTotal : totalPnl;
-        const bankroll = Math.max(1, activePnl);
-
         // Forward projections: 50, 100, 250, 500 trades
         const projections = [50, 100, 250, 500];
         const projFixed = {};
-        const projHalfK = {};
-        const projQtrK = {};
         const PSIMS = 2000;
         for (const horizon of projections) {
-            const tFixed = [], tHalf = [], tQtr = [];
+            const terms = [];
             for (let sim = 0; sim < PSIMS; sim++) {
-                let eqF = 0;
-                let eqH = bankroll;
-                let eqQ = bankroll;
+                let eq = 0;
                 for (let i = 0; i < horizon; i++) {
-                    const win = Math.random() < wr;
-                    // Fixed $3
-                    eqF += win ? avgWin : -avgLoss;
-                    // Half-Kelly (% of bankroll)
-                    const betH = eqH * halfKelly;
-                    eqH += win
-                        ? betH * (avgWin / avgLoss)
-                        : -betH;
-                    // Quarter-Kelly
-                    const betQ = eqQ * qtrKelly;
-                    eqQ += win
-                        ? betQ * (avgWin / avgLoss)
-                        : -betQ;
+                    eq += Math.random() < wr
+                        ? avgWin : -avgLoss;
                 }
-                tFixed.push(eqF);
-                tHalf.push(eqH);
-                tQtr.push(eqQ);
+                terms.push(eq);
             }
-            tFixed.sort((a, b) => a - b);
-            tHalf.sort((a, b) => a - b);
-            tQtr.sort((a, b) => a - b);
-            const p = (arr, pct) => arr[
-                Math.floor(arr.length * pct / 100)];
+            terms.sort((a, b) => a - b);
             projFixed[horizon] = {
-                p5: p(tFixed, 5),
-                med: p(tFixed, 50),
-                p95: p(tFixed, 95),
-            };
-            projHalfK[horizon] = {
-                p5: p(tHalf, 5),
-                med: p(tHalf, 50),
-                p95: p(tHalf, 95),
-            };
-            projQtrK[horizon] = {
-                p5: p(tQtr, 5),
-                med: p(tQtr, 50),
-                p95: p(tQtr, 95),
+                p5: terms[Math.floor(terms.length * 0.05)],
+                med: terms[Math.floor(terms.length * 0.5)],
+                p95: terms[Math.floor(terms.length * 0.95)],
             };
         }
 
@@ -6276,160 +6235,8 @@ const BACKTEST = {
             <div style="font-size:0.5rem;
                 color:var(--text-dim);
                 margin-bottom:0.4rem">
-                Kelly f*: ${(kellyF*100).toFixed(1)}% &middot;
-                Half-Kelly: ${(halfKelly*100).toFixed(1)}% &middot;
-                Bankroll: $${bankroll.toFixed(0)}</div>
-
-            <div style="font-size:0.55rem;color:#ce93d8;
-                font-weight:700;margin:0.4rem 0 0.3rem">
-                &#188; Kelly (${(qtrKelly*100).toFixed(1)}% of bankroll per trade)</div>
-            <table style="width:100%;
-                border-collapse:collapse;
-                font-size:0.6rem;
-                margin-bottom:0.5rem">
-                <tr style="color:var(--text-dim);
-                    border-bottom:1px solid var(--border)">
-                    <th style="text-align:left;
-                        padding:0.25rem 0.4rem;
-                        font-weight:600">Trades</th>
-                    <th style="text-align:right;
-                        padding:0.25rem 0.4rem;
-                        font-weight:600;
-                        color:var(--red-bright)">
-                        Bad (5th)</th>
-                    <th style="text-align:right;
-                        padding:0.25rem 0.4rem;
-                        font-weight:600;
-                        color:var(--green-bright)">
-                        Expected</th>
-                    <th style="text-align:right;
-                        padding:0.25rem 0.4rem;
-                        font-weight:600;
-                        color:#64b5f6">
-                        Good (95th)</th>
-                </tr>
-                ${projections.map(h => {
-                    const r = projQtrK[h];
-                    const fmt = v => '$' + v.toFixed(0);
-                    const gain = v => {
-                        const g = ((v / bankroll - 1) * 100);
-                        return (g >= 0 ? '+' : '')
-                            + g.toFixed(0) + '%';
-                    };
-                    return '<tr style="border-bottom:'
-                        + '1px solid rgba(255,255,255,0.05)">'
-                        + '<td style="padding:0.25rem 0.4rem;'
-                        + 'font-weight:700;'
-                        + 'font-family:Space Mono,monospace">'
-                        + h + '</td>'
-                        + '<td style="text-align:right;'
-                        + 'padding:0.25rem 0.4rem;'
-                        + 'color:' + (r.p5 >= bankroll
-                            ? 'var(--green-bright)'
-                            : 'var(--red-bright)')
-                        + ';font-family:Space Mono,monospace">'
-                        + fmt(r.p5)
-                        + ' <span style="font-size:0.45rem;'
-                        + 'opacity:0.7">'
-                        + gain(r.p5) + '</span></td>'
-                        + '<td style="text-align:right;'
-                        + 'padding:0.25rem 0.4rem;'
-                        + 'color:var(--green-bright);'
-                        + 'font-weight:700;'
-                        + 'font-family:Space Mono,monospace">'
-                        + fmt(r.med)
-                        + ' <span style="font-size:0.45rem;'
-                        + 'opacity:0.7">'
-                        + gain(r.med) + '</span></td>'
-                        + '<td style="text-align:right;'
-                        + 'padding:0.25rem 0.4rem;'
-                        + 'color:#64b5f6;'
-                        + 'font-family:Space Mono,monospace">'
-                        + fmt(r.p95)
-                        + ' <span style="font-size:0.45rem;'
-                        + 'opacity:0.7">'
-                        + gain(r.p95) + '</span></td>'
-                        + '</tr>';
-                }).join('')}
-            </table>
-
-            <div style="font-size:0.55rem;color:#ffab40;
-                font-weight:700;margin:0.3rem 0 0.3rem">
-                &#189; Kelly (${(halfKelly*100).toFixed(1)}% of bankroll per trade)</div>
-            <table style="width:100%;
-                border-collapse:collapse;
-                font-size:0.6rem;
-                margin-bottom:0.5rem">
-                <tr style="color:var(--text-dim);
-                    border-bottom:1px solid var(--border)">
-                    <th style="text-align:left;
-                        padding:0.25rem 0.4rem;
-                        font-weight:600">Trades</th>
-                    <th style="text-align:right;
-                        padding:0.25rem 0.4rem;
-                        font-weight:600;
-                        color:var(--red-bright)">
-                        Bad (5th)</th>
-                    <th style="text-align:right;
-                        padding:0.25rem 0.4rem;
-                        font-weight:600;
-                        color:var(--green-bright)">
-                        Expected</th>
-                    <th style="text-align:right;
-                        padding:0.25rem 0.4rem;
-                        font-weight:600;
-                        color:#64b5f6">
-                        Good (95th)</th>
-                </tr>
-                ${projections.map(h => {
-                    const r = projHalfK[h];
-                    const fmt = v => '$' + v.toFixed(0);
-                    const gain = v => {
-                        const g = ((v / bankroll - 1) * 100);
-                        return (g >= 0 ? '+' : '')
-                            + g.toFixed(0) + '%';
-                    };
-                    return '<tr style="border-bottom:'
-                        + '1px solid rgba(255,255,255,0.05)">'
-                        + '<td style="padding:0.25rem 0.4rem;'
-                        + 'font-weight:700;'
-                        + 'font-family:Space Mono,monospace">'
-                        + h + '</td>'
-                        + '<td style="text-align:right;'
-                        + 'padding:0.25rem 0.4rem;'
-                        + 'color:' + (r.p5 >= bankroll
-                            ? 'var(--green-bright)'
-                            : 'var(--red-bright)')
-                        + ';font-family:Space Mono,monospace">'
-                        + fmt(r.p5)
-                        + ' <span style="font-size:0.45rem;'
-                        + 'opacity:0.7">'
-                        + gain(r.p5) + '</span></td>'
-                        + '<td style="text-align:right;'
-                        + 'padding:0.25rem 0.4rem;'
-                        + 'color:var(--green-bright);'
-                        + 'font-weight:700;'
-                        + 'font-family:Space Mono,monospace">'
-                        + fmt(r.med)
-                        + ' <span style="font-size:0.45rem;'
-                        + 'opacity:0.7">'
-                        + gain(r.med) + '</span></td>'
-                        + '<td style="text-align:right;'
-                        + 'padding:0.25rem 0.4rem;'
-                        + 'color:#64b5f6;'
-                        + 'font-family:Space Mono,monospace">'
-                        + fmt(r.p95)
-                        + ' <span style="font-size:0.45rem;'
-                        + 'opacity:0.7">'
-                        + gain(r.p95) + '</span></td>'
-                        + '</tr>';
-                }).join('')}
-            </table>
-
-            <div style="font-size:0.55rem;
-                color:var(--text-dim);
-                font-weight:700;margin:0.3rem 0 0.3rem">
-                Fixed $3 (no compounding)</div>
+                At current fixed sizing
+                ($${ev.toFixed(3)}/trade expectancy):</div>
             <table style="width:100%;
                 border-collapse:collapse;
                 font-size:0.6rem;
@@ -6464,7 +6271,7 @@ const BACKTEST = {
                         + '<td style="padding:0.25rem 0.4rem;'
                         + 'font-weight:700;'
                         + 'font-family:Space Mono,monospace">'
-                        + h + '</td>'
+                        + 'Next ' + h + '</td>'
                         + '<td style="text-align:right;'
                         + 'padding:0.25rem 0.4rem;'
                         + 'color:' + (r.p5 >= 0
