@@ -6115,6 +6115,27 @@ const BACKTEST = {
             if (maxUW > worstUW) worstUW = maxUW;
         }
 
+        // Forward projections: 50, 100, 250, 500 trades
+        const projections = [50, 100, 250, 500];
+        const projResults = {};
+        for (const horizon of projections) {
+            const terms = [];
+            for (let sim = 0; sim < 2000; sim++) {
+                let eq = 0;
+                for (let i = 0; i < horizon; i++) {
+                    eq += Math.random() < wr
+                        ? avgWin : -avgLoss;
+                }
+                terms.push(eq);
+            }
+            terms.sort((a, b) => a - b);
+            projResults[horizon] = {
+                p5: terms[Math.floor(terms.length * 0.05)],
+                med: terms[Math.floor(terms.length * 0.5)],
+                p95: terms[Math.floor(terms.length * 0.95)],
+            };
+        }
+
         maxDDs.sort((a, b) => a - b);
         maxStreaks.sort((a, b) => a - b);
         underwaterDurs.sort((a, b) => a - b);
@@ -6204,6 +6225,74 @@ const BACKTEST = {
                         : ''}
                 </div>
             </div>
+
+            <div style="font-size:0.6rem;color:#64b5f6;
+                font-weight:700;margin-bottom:0.4rem;
+                text-transform:uppercase;
+                letter-spacing:1px">
+                Forward P&L Projection</div>
+            <div style="font-size:0.5rem;
+                color:var(--text-dim);
+                margin-bottom:0.4rem">
+                If your edge holds
+                (${(wr*100).toFixed(0)}% WR,
+                $${ev.toFixed(3)}/trade):</div>
+            <table style="width:100%;
+                border-collapse:collapse;
+                font-size:0.6rem;
+                margin-bottom:0.8rem">
+                <tr style="color:var(--text-dim);
+                    border-bottom:1px solid var(--border)">
+                    <th style="text-align:left;
+                        padding:0.3rem 0.4rem;
+                        font-weight:600">Trades</th>
+                    <th style="text-align:right;
+                        padding:0.3rem 0.4rem;
+                        font-weight:600;
+                        color:var(--red-bright)">
+                        Bad (5th)</th>
+                    <th style="text-align:right;
+                        padding:0.3rem 0.4rem;
+                        font-weight:600;
+                        color:var(--green-bright)">
+                        Expected</th>
+                    <th style="text-align:right;
+                        padding:0.3rem 0.4rem;
+                        font-weight:600;
+                        color:#64b5f6">
+                        Good (95th)</th>
+                </tr>
+                ${projections.map(h => {
+                    const r = projResults[h];
+                    const fmt = v => (v >= 0 ? '+' : '')
+                        + '$' + v.toFixed(2);
+                    return '<tr style="border-bottom:'
+                        + '1px solid rgba(255,255,255,0.05)">'
+                        + '<td style="padding:0.3rem 0.4rem;'
+                        + 'font-weight:700;'
+                        + 'font-family:Space Mono,monospace">'
+                        + 'Next ' + h + '</td>'
+                        + '<td style="text-align:right;'
+                        + 'padding:0.3rem 0.4rem;'
+                        + 'color:' + (r.p5 >= 0
+                            ? 'var(--green-bright)'
+                            : 'var(--red-bright)')
+                        + ';font-family:Space Mono,monospace">'
+                        + fmt(r.p5) + '</td>'
+                        + '<td style="text-align:right;'
+                        + 'padding:0.3rem 0.4rem;'
+                        + 'color:var(--green-bright);'
+                        + 'font-weight:700;'
+                        + 'font-family:Space Mono,monospace">'
+                        + fmt(r.med) + '</td>'
+                        + '<td style="text-align:right;'
+                        + 'padding:0.3rem 0.4rem;'
+                        + 'color:#64b5f6;'
+                        + 'font-family:Space Mono,monospace">'
+                        + fmt(r.p95) + '</td>'
+                        + '</tr>';
+                }).join('')}
+            </table>
 
             <div style="font-size:0.6rem;color:#64b5f6;
                 font-weight:700;margin-bottom:0.4rem;
