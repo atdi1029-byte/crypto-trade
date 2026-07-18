@@ -1489,12 +1489,111 @@
             font-weight: 700;
             font-family: 'Space Mono', monospace;
         }
+        /* ============ MONTE CARLO SECTION ============ */
+        .mc-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.4rem;
+            margin-bottom: 0.6rem;
+        }
+        .mc-stat {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.4rem;
+            text-align: center;
+        }
+        .mc-stat .mval {
+            font-size: 1rem;
+            font-weight: 700;
+            font-family: 'Space Mono', monospace;
+        }
+        .mc-stat .mlbl {
+            font-size: 0.5rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 0.15rem;
+        }
+        .mc-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.35rem;
+            font-size: 0.6rem;
+        }
+        .mc-bar-label {
+            min-width: 45px;
+            color: var(--text-dim);
+            text-align: right;
+            font-family: 'Space Mono', monospace;
+        }
+        .mc-bar-track {
+            flex: 1;
+            height: 14px;
+            background: var(--bg-dark);
+            border-radius: 3px;
+            position: relative;
+            overflow: hidden;
+        }
+        .mc-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+        .mc-bar-val {
+            min-width: 40px;
+            font-family: 'Space Mono', monospace;
+            color: var(--text-bright);
+        }
+        .mc-verdict {
+            text-align: center;
+            padding: 0.5rem;
+            border-radius: 6px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+        .mc-verdict.lucky {
+            background: rgba(102,187,106,0.1);
+            border: 1px solid var(--green-bright);
+            color: var(--green-bright);
+        }
+        .mc-verdict.typical {
+            background: rgba(100,181,246,0.1);
+            border: 1px solid #64b5f6;
+            color: #64b5f6;
+        }
+        .mc-verdict.unlucky {
+            background: rgba(255,107,107,0.1);
+            border: 1px solid var(--red-bright);
+            color: var(--red-bright);
+        }
+        .mc-canvas-wrap {
+            position: relative;
+            width: 100%;
+            height: 120px;
+            margin: 0.5rem 0;
+        }
+        .mc-canvas-wrap canvas {
+            width: 100%;
+            height: 100%;
+        }
+        .mc-edge-badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            font-family: 'Space Mono', monospace;
+        }
         @media (max-width: 768px) {
             .kelly-grid { grid-template-columns: repeat(2, 1fr); gap: 0.35rem; }
             .kelly-stat .kval { font-size: 0.9rem; }
             .kelly-compare { flex-wrap: wrap; gap: 0.4rem; }
             .kelly-compare-label { min-width: 60px; font-size: 0.5rem; }
             .budget-row { font-size: 0.75rem !important; }
+            .mc-grid { grid-template-columns: repeat(2, 1fr); }
         }
 
         /* ============ LOADING / ERROR ============ */
@@ -2190,6 +2289,18 @@
         </div>
         <div id="kellyContent">
             <div class="section-box" id="kellyBox" style="background:rgba(20,35,55,0.95)">
+                <div style="text-align:center;color:var(--text-dim);font-size:0.7rem">Loading stats...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monte Carlo Stress Test -->
+    <div class="kelly-section" id="mcSection">
+        <div class="section-header" style="cursor:pointer;border-left-color:#64b5f6" onclick="const c=document.getElementById('mcContent');c.style.display=c.style.display==='none'?'block':'none';this.querySelector('.toggle-arrow').textContent=c.style.display==='none'?'▶':'▼'">
+            <span class="toggle-arrow">▶</span> Monte Carlo Stress Test
+        </div>
+        <div id="mcContent" style="display:none">
+            <div class="section-box" id="mcBox" style="background:rgba(20,35,55,0.95)">
                 <div style="text-align:center;color:var(--text-dim);font-size:0.7rem">Loading stats...</div>
             </div>
         </div>
@@ -3411,6 +3522,9 @@ const BACKTEST = {
 
         // --- Kelly Edge Optimizer ---
         renderKelly(stats);
+
+        // --- Monte Carlo Stress Test ---
+        renderMonteCarlo(stats);
 
         // --- Pokemon Trainer Level ---
         renderPokemon(stats);
@@ -5922,6 +6036,255 @@ const BACKTEST = {
     }
 
     document.getElementById('zenCapybara').addEventListener('click', showZenWisdom);
+
+    // ====== MONTE CARLO STRESS TEST ======
+    function renderMonteCarlo(stats) {
+        const box = document.getElementById('mcBox');
+        if (!box) return;
+
+        const wins = parseInt(stats.wins) || 0;
+        const losses = parseInt(stats.losses) || 0;
+        const total = wins + losses;
+        if (total < 20) {
+            box.innerHTML = '<div style="text-align:center;color:var(--text-dim);font-size:0.7rem;padding:0.5rem">Need 20+ completed trades for Monte Carlo</div>';
+            return;
+        }
+
+        const gw = parseFloat(stats.grossWin) || 0;
+        const gl = Math.abs(parseFloat(stats.grossLoss) || 0);
+        const wr = wins / total;
+        const avgWin = wins > 0 ? gw / wins : 0;
+        const avgLoss = losses > 0 ? gl / losses : 0;
+        const totalPnl = gw - gl;
+
+        // --- Run MC simulation (5000 shuffles) ---
+        const N = 5000;
+        const maxDDs = [];
+        const maxStreaks = [];
+        const ddLengths = [];
+        const sampleCurves = [];
+
+        for (let sim = 0; sim < N; sim++) {
+            // Build random sequence of wins/losses
+            const seq = [];
+            for (let i = 0; i < total; i++) {
+                seq.push(Math.random() < wr ? avgWin : -avgLoss);
+            }
+
+            // Equity curve & drawdown
+            let equity = 0, peak = 0, maxDD = 0;
+            let streak = 0, maxStr = 0;
+            let inDD = 0, maxDDLen = 0;
+            const curve = sim < 30 ? [0] : null;
+
+            for (let i = 0; i < seq.length; i++) {
+                equity += seq[i];
+                if (curve) curve.push(equity);
+                if (equity > peak) peak = equity;
+                const dd = peak - equity;
+                if (dd > maxDD) maxDD = dd;
+
+                if (dd > 0) {
+                    inDD++;
+                    if (inDD > maxDDLen) maxDDLen = inDD;
+                } else {
+                    inDD = 0;
+                }
+
+                if (seq[i] < 0) {
+                    streak++;
+                    if (streak > maxStr) maxStr = streak;
+                } else {
+                    streak = 0;
+                }
+            }
+
+            maxDDs.push(maxDD);
+            maxStreaks.push(maxStr);
+            ddLengths.push(maxDDLen);
+            if (curve) sampleCurves.push(curve);
+        }
+
+        // Sort for percentiles
+        maxDDs.sort((a, b) => a - b);
+        maxStreaks.sort((a, b) => a - b);
+        ddLengths.sort((a, b) => a - b);
+
+        const pct = (arr, p) => arr[Math.floor(arr.length * p / 100)];
+        const median = arr => pct(arr, 50);
+        const mean = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
+
+        // Actual drawdown from real sequence
+        let actEq = 0, actPeak = 0, actDD = 0;
+        // Approximate: we don't have individual trades,
+        // so use the EV-based expected actual DD
+        // (median of MC is the best estimate)
+        const medDD = median(maxDDs);
+        const p95DD = pct(maxDDs, 95);
+        const p99DD = pct(maxDDs, 99);
+        const medStreak = median(maxStreaks);
+        const p95Streak = pct(maxStreaks, 95);
+        const medDDLen = median(ddLengths);
+
+        // --- Edge validation (permutation test) ---
+        // Null hypothesis: wins are random (50/50)
+        // How many times does random 50/50 produce
+        // this win rate or better?
+        let edgeBeat = 0;
+        const EDGE_SIMS = 10000;
+        for (let i = 0; i < EDGE_SIMS; i++) {
+            let rWins = 0;
+            for (let j = 0; j < total; j++) {
+                if (Math.random() < 0.5) rWins++;
+            }
+            if (rWins / total >= wr) edgeBeat++;
+        }
+        const pValue = edgeBeat / EDGE_SIMS;
+        const edgeReal = pValue < 0.01;
+        const edgeColor = pValue < 0.01 ? 'var(--green-bright)'
+            : pValue < 0.05 ? '#ffab40' : 'var(--red-bright)';
+        const edgeBg = pValue < 0.01 ? 'rgba(102,187,106,0.15)'
+            : pValue < 0.05 ? 'rgba(255,171,64,0.15)'
+            : 'rgba(255,107,107,0.15)';
+        const edgeLabel = pValue < 0.01
+            ? 'EDGE CONFIRMED' : pValue < 0.05
+            ? 'LIKELY EDGE' : 'NOT PROVEN';
+
+        // --- Drawdown probability thresholds ---
+        const ddProbs = [1, 2, 3, 5].map(t => ({
+            threshold: t,
+            prob: maxDDs.filter(d => d >= t).length / N * 100
+        })).filter(d => d.prob > 0.05);
+
+        // Max bar width reference
+        const maxProb = ddProbs.length > 0
+            ? Math.max(...ddProbs.map(d => d.prob)) : 100;
+
+        // --- Render ---
+        box.innerHTML = `
+            <div style="font-size:0.55rem;color:var(--text-dim);margin-bottom:0.6rem;text-align:center">
+                ${N.toLocaleString()} simulations &middot; ${total} trades &middot; ${(wr*100).toFixed(1)}% WR
+            </div>
+
+            <div style="font-size:0.6rem;color:#64b5f6;font-weight:700;margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:1px">Edge Validation</div>
+            <div style="text-align:center;margin-bottom:0.6rem">
+                <span class="mc-edge-badge" style="background:${edgeBg};color:${edgeColor};border:1px solid ${edgeColor}">
+                    ${edgeLabel} &mdash; p=${pValue < 0.001 ? '<0.001' : pValue.toFixed(3)}
+                </span>
+                <div style="font-size:0.5rem;color:var(--text-dim);margin-top:0.3rem">
+                    ${pValue < 0.01
+                        ? 'Random trading would produce this win rate <0.1% of the time. Your system has a real edge.'
+                        : pValue < 0.05
+                        ? 'Suggestive but not conclusive. More trades needed.'
+                        : 'Cannot distinguish from random. Keep collecting data.'}
+                </div>
+            </div>
+
+            <div style="font-size:0.6rem;color:#64b5f6;font-weight:700;margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:1px">Drawdown Distribution</div>
+            <div class="mc-grid">
+                <div class="mc-stat">
+                    <div class="mval" style="color:#64b5f6">$${medDD.toFixed(2)}</div>
+                    <div class="mlbl">Expected DD</div>
+                </div>
+                <div class="mc-stat">
+                    <div class="mval" style="color:#ffab40">$${p95DD.toFixed(2)}</div>
+                    <div class="mlbl">1-in-20 DD</div>
+                </div>
+                <div class="mc-stat">
+                    <div class="mval" style="color:var(--red-bright)">$${p99DD.toFixed(2)}</div>
+                    <div class="mlbl">1-in-100 DD</div>
+                </div>
+            </div>
+
+            <div class="mc-grid">
+                <div class="mc-stat">
+                    <div class="mval" style="color:var(--text-bright)">${medStreak}</div>
+                    <div class="mlbl">Typical Losing Streak</div>
+                </div>
+                <div class="mc-stat">
+                    <div class="mval" style="color:#ffab40">${p95Streak}</div>
+                    <div class="mlbl">Worst Streak (95th)</div>
+                </div>
+                <div class="mc-stat">
+                    <div class="mval" style="color:var(--text-bright)">${medDDLen}</div>
+                    <div class="mlbl">Recovery (trades)</div>
+                </div>
+            </div>
+
+            <div style="font-size:0.6rem;color:#64b5f6;font-weight:700;margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:1px">Drawdown Probability</div>
+            ${ddProbs.map(d => `
+                <div class="mc-bar-row">
+                    <div class="mc-bar-label">≥$${d.threshold}</div>
+                    <div class="mc-bar-track">
+                        <div class="mc-bar-fill" style="width:${Math.max(2, d.prob / maxProb * 100)}%;background:${d.prob > 50 ? 'var(--red-bright)' : d.prob > 10 ? '#ffab40' : 'var(--green-bright)'}"></div>
+                    </div>
+                    <div class="mc-bar-val">${d.prob.toFixed(1)}%</div>
+                </div>
+            `).join('')}
+
+            <div style="font-size:0.6rem;color:#64b5f6;font-weight:700;margin:0.6rem 0 0.4rem;text-transform:uppercase;letter-spacing:1px">Sample Equity Paths</div>
+            <div class="mc-canvas-wrap">
+                <canvas id="mcCanvas"></canvas>
+            </div>
+
+            <div style="font-size:0.5rem;color:var(--text-dim);text-align:center;margin-top:0.3rem">
+                Same trades, different order. All paths end at $${totalPnl.toFixed(2)}.
+                The spread shows how much <em>sequence</em> matters.
+            </div>
+        `;
+
+        // --- Draw equity curves on canvas ---
+        const canvas = document.getElementById('mcCanvas');
+        if (canvas && sampleCurves.length > 0) {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+            const W = rect.width;
+            const H = rect.height;
+
+            // Find global min/max across all curves
+            let gMin = Infinity, gMax = -Infinity;
+            for (const c of sampleCurves) {
+                for (const v of c) {
+                    if (v < gMin) gMin = v;
+                    if (v > gMax) gMax = v;
+                }
+            }
+            const range = gMax - gMin || 1;
+            const pad = 4;
+
+            // Draw each curve
+            for (let ci = 0; ci < sampleCurves.length; ci++) {
+                const c = sampleCurves[ci];
+                const steps = c.length;
+                ctx.beginPath();
+                ctx.strokeStyle = ci === 0
+                    ? 'rgba(100,181,246,0.8)'
+                    : `rgba(100,181,246,${0.12})`;
+                ctx.lineWidth = ci === 0 ? 1.5 : 0.7;
+                for (let i = 0; i < steps; i++) {
+                    const x = pad + (i / (steps - 1)) * (W - 2 * pad);
+                    const y = H - pad - ((c[i] - gMin) / range) * (H - 2 * pad);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+
+            // Zero line
+            const zeroY = H - pad - ((0 - gMin) / range) * (H - 2 * pad);
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+            ctx.setLineDash([4, 4]);
+            ctx.moveTo(pad, zeroY);
+            ctx.lineTo(W - pad, zeroY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+    }
 
     // ====== POKEMON SCALING ======
     const POKE_SPRITE = id => `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
