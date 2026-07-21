@@ -889,7 +889,7 @@ function doGet(e) {
   }
 
   if (action === 'update_pokeballs') {
-    var state = e.parameter.state || '[false,false,false,false,false]';
+    var state = e.parameter.state || '[false,false,false,false,false,false]';
     setConfig_('pokeball_used', state);
     return ContentService
       .createTextOutput(JSON.stringify({ status: 'ok' }))
@@ -1900,7 +1900,7 @@ function serveDashboardJSON_() {
 
   // --- Pokeball state (from pre-loaded Config) ---
   var pokeballRaw = cfgMap['pokeball_used'];
-  var pokeballUsed = [false,false,false,false,false];
+  var pokeballUsed = [false,false,false,false,false,false];
   if (pokeballRaw) {
     try { pokeballUsed = JSON.parse(pokeballRaw); } catch(e) {}
   }

@@ -1972,6 +1972,7 @@
         .pokemon-size-chip.lead { color: var(--accent-glow); border-color: var(--accent-glow); box-shadow: 0 0 8px rgba(106,180,255,0.3); }
         .pokemon-size-chip.mid { color: var(--accent); border-color: var(--accent); }
         .pokemon-size-chip.half { color: var(--accent); border-color: var(--accent); }
+        .pokemon-size-chip.mud { color: #8d6e63; border-color: #8d6e63; }
         .pokemon-size-chip.used { color: var(--text-dim); border-color: var(--border); opacity: 0.35; }
         .pokemon-size-chip.used .pokeball-svg .ball-top { fill: #666; }
         .pokemon-size-chip.used .pokeball-svg .ball-bottom { fill: #444; }
@@ -4109,7 +4110,7 @@ const BACKTEST = {
 
     // ====== POKEBALL TOGGLE (click to mark used/available) ======
     function togglePokeball(idx) {
-        const used = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false,false]');
+        const used = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false,false,false]');
         used[idx] = !used[idx];
         localStorage.setItem('pokeball_used', JSON.stringify(used));
         pokeballSeeded = true;
@@ -6914,10 +6915,11 @@ const BACKTEST = {
             { label: '\u{1F525}', amt: _totalSlots > 0 ? ((_kellyBudget / 2) / _totalSlots) : 0, cls: 'mid' },
             { label: '\u{26A1}', amt: _totalSlots > 0 ? ((_kellyBudget / 4) / _totalSlots) : 0, cls: 'mid' },
             { label: '\u{1F331}', amt: _totalSlots > 0 ? ((_kellyBudget / 8) / _totalSlots) : 0, cls: 'half' },
+            { label: '\u{1F4A9}', amt: _totalSlots > 0 ? ((_kellyBudget / 16) / _totalSlots) : 0, cls: 'mud' },
         ];
         let sizeChips = '';
-        const usedSlots = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false,false]');
-        for (let i = 0; i < 5; i++) {
+        const usedSlots = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false,false,false]');
+        for (let i = 0; i < 6; i++) {
             const cls = usedSlots[i] ? 'used' : kellySizes[i].cls;
             sizeChips += `<span class="pokemon-size-chip ${cls}" onclick="togglePokeball(${i})" style="cursor:pointer">${pokeballSvg}<span class="ball-amt">${kellySizes[i].label} $${kellySizes[i].amt.toFixed(2)}</span></span>`;
         }
