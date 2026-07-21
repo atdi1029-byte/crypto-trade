@@ -3685,11 +3685,12 @@ const BACKTEST = {
         actionNeeded = actionNeeded.filter(a => !isActed(a.ticker || a.symbol || '', a.signal || ''));
         actionCount.textContent = actionNeeded.length;
 
-        // Build set of open trade tickers for "Already Open" badge
-        const openTickerSet = new Set();
+        // Build map of open trade tickers -> signal direction for "Already Open" badge
+        const openTickerMap = {};
         (openTrades || []).forEach(t => {
             const tk = (t.ticker || t.symbol || '').toUpperCase();
-            if (tk) openTickerSet.add(tk);
+            const sig = (t.signal || '').toLowerCase();
+            if (tk) openTickerMap[tk] = sig.includes('sell') || sig.includes('short') || sig.includes('reduce') ? 'sell' : 'buy';
         });
 
         if (actionNeeded.length === 0) {
@@ -3824,7 +3825,7 @@ const BACKTEST = {
                 if (macd) indParts.push('MACD: <span style="color:' + (macd === 'rising' ? 'var(--green-bright)' : 'var(--red-bright)') + '">' + macd + '</span>');
                 if (vol) indParts.push('Vol: <span style="color:' + (vol === 'above' ? 'var(--green-bright)' : 'var(--text-dim)') + '">' + vol + '</span>');
                 const indStr = indParts.length ? ' &middot; ' + indParts.join(' &middot; ') : '';
-                const isAlreadyOpen = openTickerSet.has(tkr.toUpperCase());
+                const openDir = openTickerMap[tkr.toUpperCase()] || null;
 
                 return `
                     <div class="action-item" id="${id}">
@@ -3834,7 +3835,7 @@ const BACKTEST = {
                                 <div class="ticker-icon-fallback">${fallbackText}</div>
                                 <span class="ticker-badge">${esc(tkr)}</span>
                                 <span class="signal-tag ${signalClass}">${signalLabel(signalType)}</span>
-                                ${isAlreadyOpen ? '<span class="ao-badge">A.O.</span>' : ''}
+                                ${openDir ? `<span class="ao-badge">${openDir === 'sell' ? 'SELL' : 'BUY'} OPEN</span>` : ''}
                                 ${isDCA ? '' : `<span class="score-tag">Score: ${score}</span>`}
                             </div>
                             <div class="meta" style="margin-top:0.15rem">${wrHtml} ${contextTag}${rsiZoneTag}${kellyTag}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}${indStr}</div>
