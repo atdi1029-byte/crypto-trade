@@ -840,6 +840,19 @@
         }
         .action-item .signal-tag.buy { background: var(--green-dim); color: var(--green-bright); }
         .action-item .signal-tag.sell { background: rgba(239, 83, 80, 0.2); color: #ff8a80; border: 1px solid rgba(239, 83, 80, 0.4); }
+        .ao-badge {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.55rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+            letter-spacing: 1px;
+            color: #00e5ff;
+            background: rgba(0, 229, 255, 0.12);
+            border: 1px solid rgba(0, 229, 255, 0.5);
+            text-shadow: 0 0 6px rgba(0, 229, 255, 0.7), 0 0 12px rgba(0, 229, 255, 0.3);
+            box-shadow: 0 0 4px rgba(0, 229, 255, 0.3), inset 0 0 4px rgba(0, 229, 255, 0.1);
+        }
         .action-item .score-tag {
             font-family: 'Space Mono', monospace;
             font-size: 0.6rem;
@@ -3505,7 +3518,7 @@ const BACKTEST = {
         const allActions = actionNeeded || [];
         const newSignals = allActions.filter(a => a.type === 'mark_action');
         const openTrades = allActions.filter(a => a.type === 'mark_outcome');
-        renderActions(newSignals, scoredSignals);
+        renderActions(newSignals, scoredSignals, openTrades);
         renderOpenTrades(openTrades);
 
         // --- Ticker Grid (sorted by most recent signal first) ---
@@ -3662,7 +3675,7 @@ const BACKTEST = {
     }
 
     // ====== ACTION NEEDED ======
-    function renderActions(actionNeeded, allSignals) {
+    function renderActions(actionNeeded, allSignals, openTrades) {
         const actionList = document.getElementById('actionList');
         const actionCount = document.getElementById('actionCount');
         // During cooldown, don't rebuild — user is actively working through cards
@@ -3671,6 +3684,13 @@ const BACKTEST = {
         }
         actionNeeded = actionNeeded.filter(a => !isActed(a.ticker || a.symbol || '', a.signal || ''));
         actionCount.textContent = actionNeeded.length;
+
+        // Build set of open trade tickers for "Already Open" badge
+        const openTickerSet = new Set();
+        (openTrades || []).forEach(t => {
+            const tk = (t.ticker || t.symbol || '').toUpperCase();
+            if (tk) openTickerSet.add(tk);
+        });
 
         if (actionNeeded.length === 0) {
             actionList.innerHTML = '<div class="no-actions">All caught up - no actions needed</div>';
@@ -3804,6 +3824,7 @@ const BACKTEST = {
                 if (macd) indParts.push('MACD: <span style="color:' + (macd === 'rising' ? 'var(--green-bright)' : 'var(--red-bright)') + '">' + macd + '</span>');
                 if (vol) indParts.push('Vol: <span style="color:' + (vol === 'above' ? 'var(--green-bright)' : 'var(--text-dim)') + '">' + vol + '</span>');
                 const indStr = indParts.length ? ' &middot; ' + indParts.join(' &middot; ') : '';
+                const isAlreadyOpen = openTickerSet.has(tkr.toUpperCase());
 
                 return `
                     <div class="action-item" id="${id}">
@@ -3813,6 +3834,7 @@ const BACKTEST = {
                                 <div class="ticker-icon-fallback">${fallbackText}</div>
                                 <span class="ticker-badge">${esc(tkr)}</span>
                                 <span class="signal-tag ${signalClass}">${signalLabel(signalType)}</span>
+                                ${isAlreadyOpen ? '<span class="ao-badge">A.O.</span>' : ''}
                                 ${isDCA ? '' : `<span class="score-tag">Score: ${score}</span>`}
                             </div>
                             <div class="meta" style="margin-top:0.15rem">${wrHtml} ${contextTag}${rsiZoneTag}${kellyTag}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}${indStr}</div>
