@@ -7358,8 +7358,10 @@ const BACKTEST = {
         const lastReview = parseInt(localStorage.getItem(REVIEW_KEY) || '0');
         const nextReview = lastReview + REVIEW_INTERVAL;
         if (totalTrades >= nextReview) {
-            const milestone = Math.floor(totalTrades / REVIEW_INTERVAL) * REVIEW_INTERVAL;
-            sub.textContent = milestone + ' trades reached \u2014 tap to mark reviewed';
+            // Show the exact next milestone, not floored current count
+            // This prevents skipping milestones when dismissed late
+            banner.dataset.milestone = nextReview;
+            sub.textContent = nextReview + ' trades reached \u2014 tap to mark reviewed';
             banner.classList.add('visible');
         } else {
             banner.classList.remove('visible');
@@ -7368,11 +7370,12 @@ const BACKTEST = {
 
     function dismissReview() {
         const banner = document.getElementById('reviewBanner');
-        const totalEl = document.getElementById('statTotal');
-        const total = parseInt(totalEl?.textContent) || 0;
-        const milestone = Math.floor(total / REVIEW_INTERVAL) * REVIEW_INTERVAL;
-        localStorage.setItem(REVIEW_KEY, String(milestone));
-        fireGet(POST_URL + '?action=set_review&milestone=' + milestone);
+        // Dismiss exactly the milestone shown, not floored trade count
+        const milestone = parseInt(banner.dataset.milestone) || 0;
+        if (milestone > 0) {
+            localStorage.setItem(REVIEW_KEY, String(milestone));
+            fireGet(POST_URL + '?action=set_review&milestone=' + milestone);
+        }
         banner.classList.remove('visible');
     }
 
