@@ -593,13 +593,19 @@ function updatePosition_(ss, data) {
         .createTextOutput(JSON.stringify({ status: 'ok', updated: 'cancelled', deleted: matchRows.length }))
         .setMimeType(ContentService.MimeType.JSON);
     }
-    posSheet.getRange(matchRows[0], 10).setValue(value);  // Column J = Outcome
-    if (realizedPnl !== '') {
-      posSheet.getRange(matchRows[0], 11).setValue(Number(realizedPnl)); // Column K
-    }
-    // Stamp closed_at timestamp (Column N = 14) for hold duration tracking
-    if (value.toLowerCase() === 'won' || value.toLowerCase() === 'lost' || value.toLowerCase() === 'closed' || value.toLowerCase() === '0x0') {
-      posSheet.getRange(matchRows[0], 14).setValue(new Date()); // Column N = closed_at
+    // Close ALL open rows for this ticker (consolidated position)
+    var pnlPerRow = matchRows.length > 1 && realizedPnl !== ''
+      ? Number(realizedPnl) / matchRows.length : (realizedPnl !== '' ? Number(realizedPnl) : '');
+    for (var cr = 0; cr < matchRows.length; cr++) {
+      posSheet.getRange(matchRows[cr], 10).setValue(value);  // Column J = Outcome
+      if (realizedPnl !== '') {
+        // First row gets full P&L, others get 0 (total is tracked on position)
+        posSheet.getRange(matchRows[cr], 11).setValue(cr === 0 ? Number(realizedPnl) : 0); // Column K
+      }
+      // Stamp closed_at timestamp (Column N = 14) for hold duration tracking
+      if (value.toLowerCase() === 'won' || value.toLowerCase() === 'lost' || value.toLowerCase() === 'closed' || value.toLowerCase() === '0x0') {
+        posSheet.getRange(matchRows[cr], 14).setValue(new Date()); // Column N = closed_at
+      }
     }
   }
 
@@ -1431,20 +1437,57 @@ function serveDashboardJSON_() {
     } else if (pAction.toLowerCase() === 'entered' && (pOutcome === '' || pOutcome.toLowerCase() === 'open')) {
       var savedPnl = pr[10] || 0;
       var savedStatus = pr[11] || '';
-      actionNeeded.push({
-        symbol:    pSymbol,
-        signal:    pSignal,
-        entry:     pr[3] || 0,
-        score:     pr[7] || 0,
-        timestamp: pr[0] instanceof Date ? pr[0].toISOString() : String(pr[0]),
-        type:      'mark_outcome',
-        realizedPnl: savedPnl ? Number(savedPnl) : 0,
-        tradeStatus: String(savedStatus).toLowerCase(),
-        rsi:       logRow ? (logRow[11] || null) : null,
-        macd:      logRow ? String(logRow[7] || '') : '',
-        volume:    logRow ? String(logRow[8] || '') : '',
-        message:   'Mark outcome for ' + pSymbol + ' ' + pSignal.toUpperCase() + ' @ ' + pr[3]
-      });
+      // Consolidate multiple entries of the same ticker into one open trade
+      var openKey = pSymbol;
+      var existing = null;
+      for (var oi = 0; oi < actionNeeded.length; oi++) {
+        if (actionNeeded[oi].type === 'mark_outcome' && actionNeeded[oi].symbol === pSymbol) {
+          existing = actionNeeded[oi];
+          break;
+        }
+      }
+      if (existing) {
+        // Add to existing consolidated position
+        existing.entryCount = (existing.entryCount || 1) + 1;
+        existing.entries.push(pr[3] || 0);
+        existing.rows.push(k + 1);
+        // Recalculate average entry
+        var sum = 0;
+        for (var ei = 0; ei < existing.entries.length; ei++) sum += Number(existing.entries[ei]);
+        existing.avgEntry = sum / existing.entries.length;
+        existing.entry = existing.avgEntry;
+        // Sum up P&L across all entries
+        existing.realizedPnl = (existing.realizedPnl || 0) + (savedPnl ? Number(savedPnl) : 0);
+        // Keep the most recent timestamp
+        var thisTs = pr[0] instanceof Date ? pr[0].getTime() : 0;
+        var existTs = existing._latestTs || 0;
+        if (thisTs > existTs) {
+          existing.timestamp = pr[0] instanceof Date ? pr[0].toISOString() : String(pr[0]);
+          existing._latestTs = thisTs;
+        }
+        // Keep trade status if any entry has one
+        if (savedStatus && !existing.tradeStatus) existing.tradeStatus = String(savedStatus).toLowerCase();
+      } else {
+        actionNeeded.push({
+          symbol:    pSymbol,
+          signal:    pSignal,
+          entry:     pr[3] || 0,
+          avgEntry:  pr[3] || 0,
+          entries:   [pr[3] || 0],
+          rows:      [k + 1],
+          entryCount: 1,
+          score:     pr[7] || 0,
+          timestamp: pr[0] instanceof Date ? pr[0].toISOString() : String(pr[0]),
+          _latestTs: pr[0] instanceof Date ? pr[0].getTime() : 0,
+          type:      'mark_outcome',
+          realizedPnl: savedPnl ? Number(savedPnl) : 0,
+          tradeStatus: String(savedStatus).toLowerCase(),
+          rsi:       logRow ? (logRow[11] || null) : null,
+          macd:      logRow ? String(logRow[7] || '') : '',
+          volume:    logRow ? String(logRow[8] || '') : '',
+          message:   'Mark outcome for ' + pSymbol + ' ' + pSignal.toUpperCase() + ' @ ' + pr[3]
+        });
+      }
     }
   }
 
