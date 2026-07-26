@@ -175,7 +175,7 @@ function processQueue() {
 
     var symbol    = (d.symbol || '').toUpperCase();
     var signal    = (d.signal || '').toLowerCase();
-    var entry     = d.entry || '';
+    var entry     = d.entry || d.price || '';
     var sl        = d.sl || '';
     var tp1       = d.tp1 || '';
     var tp2       = d.tp2 || '';
@@ -345,7 +345,7 @@ function calcSignalScore_(macd, cross, inZone, volume, signalsUsed, data) {
   var d = data || {};
   var rsi = d.rsi !== undefined ? Number(d.rsi) : null;
   var signal = (d.signal || '').toLowerCase();
-  var entry = Number(d.entry || 0);
+  var entry = Number(d.entry || d.price || 0);
   var sl = Number(d.sl || 0);
   var tp1 = Number(d.tp1 || 0);
   var touches = d.touches !== undefined ? Number(d.touches) : 0;
@@ -433,7 +433,7 @@ function calcRiskReward_(signal, entry, sl, tp1) {
 // ---------------------------------------------------------------
 function autoPickSignal_(ss, data, score) {
   var signal = (data.signal || '').toLowerCase();
-  var entry  = data.entry;
+  var entry  = data.entry || data.price;
   var sl     = data.sl;
   var tp1    = data.tp1;
   var tp2    = data.tp2;
@@ -508,26 +508,35 @@ function updatePosition_(ss, data) {
   var value  = data.value || '';                    // 'Entered','Skipped','Won','Lost','Open'
   var realizedPnl = data.realized_pnl || data.realizedPnl || data.profitLocked || data.profit || '';
 
+  var targetRow = data.row ? Number(data.row) : 0;
   var posSheet = ss.getSheetByName(POSITIONS);
   var posData  = posSheet.getDataRange().getValues();
 
-  // Find ALL matching rows and update them all (handles duplicates)
+  // If a specific row was provided, use it directly (for multi-trade support)
   var matchRows = [];
-  for (var i = posData.length - 1; i >= 1; i--) {
-    var rowSymbol = String(posData[i][1]).toUpperCase();
-    var rowSignal = String(posData[i][2]).toLowerCase();
-    var rowAction = String(posData[i][8] || '').trim();
+  if (targetRow > 1 && targetRow <= posData.length) {
+    var rowSymbol = String(posData[targetRow - 1][1]).toUpperCase();
+    if (rowSymbol === symbol) {
+      matchRows = [targetRow];
+    }
+  }
 
-    if (field === 'outcome' || field === 'pnl') {
-      // For outcome/pnl updates, match rows already marked as Entered with Open/empty outcome
-      var rowOutcome = String(posData[i][9] || '').toLowerCase().trim();
-      if (rowSymbol === symbol && rowSignal === signal && rowAction.toLowerCase() === 'entered' && (rowOutcome === '' || rowOutcome === 'open')) {
-        matchRows.push(i + 1);
-      }
-    } else {
-      // For action updates, match rows with empty action
-      if (rowSymbol === symbol && rowSignal === signal && rowAction === '') {
-        matchRows.push(i + 1);
+  // Fallback: find matching rows by symbol+signal (legacy behavior)
+  if (matchRows.length === 0) {
+    for (var i = posData.length - 1; i >= 1; i--) {
+      var rowSymbol2 = String(posData[i][1]).toUpperCase();
+      var rowSignal2 = String(posData[i][2]).toLowerCase();
+      var rowAction = String(posData[i][8] || '').trim();
+
+      if (field === 'outcome' || field === 'pnl') {
+        var rowOutcome = String(posData[i][9] || '').toLowerCase().trim();
+        if (rowSymbol2 === symbol && rowSignal2 === signal && rowAction.toLowerCase() === 'entered' && (rowOutcome === '' || rowOutcome === 'open')) {
+          matchRows.push(i + 1);
+        }
+      } else {
+        if (rowSymbol2 === symbol && rowSignal2 === signal && rowAction === '') {
+          matchRows.push(i + 1);
+        }
       }
     }
   }
@@ -540,7 +549,7 @@ function updatePosition_(ss, data) {
       var fAction = String(posData[f][8] || '').trim().toLowerCase();
       if (fSymbol === symbol && fSignal === signal && fAction === 'entered') {
         matchRows.push(f + 1);
-        break; // most recent match only
+        break;
       }
     }
   }
@@ -693,7 +702,7 @@ function saveClaudeAnalysis_(ss, data) {
 function addTrade_(ss, data) {
   var symbol     = (data.symbol || '').toUpperCase();
   var signal     = (data.signal || '').toLowerCase();
-  var entry      = data.entry || '';
+  var entry      = data.entry || data.price || '';
   var sl         = data.sl || '';
   var tp1        = data.tp1 || '';
   var tp2        = data.tp2 || '';
@@ -1438,6 +1447,7 @@ function serveDashboardJSON_() {
         score:     pr[7] || 0,
         timestamp: pr[0] instanceof Date ? pr[0].toISOString() : String(pr[0]),
         type:      'mark_outcome',
+        row:       k + 1,  // sheet row number for targeting specific trades
         realizedPnl: savedPnl ? Number(savedPnl) : 0,
         tradeStatus: String(savedStatus).toLowerCase(),
         rsi:       logRow ? (logRow[11] || null) : null,

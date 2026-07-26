@@ -674,6 +674,64 @@
             margin-left: auto;
             white-space: nowrap;
         }
+        /* Grouped multi-trade styles */
+        .open-trade-group {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .trade-group-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255,255,255,0.03);
+            border-bottom: 1px solid var(--border);
+        }
+        .trade-group-header .ticker-icon {
+            width: 24px; height: 24px;
+            border-radius: 50%; flex-shrink: 0;
+        }
+        .trade-group-header .ticker-icon-fallback {
+            width: 24px; height: 24px; border-radius: 50%;
+            flex-shrink: 0; background: var(--accent-deep);
+            display: none; align-items: center;
+            justify-content: center; font-size: 0.6rem;
+            font-weight: 700; color: var(--text-bright);
+        }
+        .trade-group-header .ticker-badge {
+            font-family: 'Noto Serif JP', serif;
+            font-weight: 900; font-size: 1rem;
+            color: var(--text-bright); letter-spacing: 1px;
+        }
+        .trade-count-badge {
+            font-size: 0.6rem; font-weight: 600;
+            color: var(--accent); background: rgba(74,158,255,0.1);
+            padding: 2px 8px; border-radius: 10px;
+            margin-left: auto;
+        }
+        .open-trade-item.sub-trade {
+            border: none; border-radius: 0;
+            border-top: 1px solid var(--border);
+            border-left: 4px solid var(--green-candle);
+            margin: 0;
+        }
+        .open-trade-item.sub-trade.needs-attention {
+            border-left-color: var(--red-candle);
+            box-shadow: none;
+        }
+        .trade-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem; font-weight: 700;
+            color: var(--accent);
+            background: rgba(74,158,255,0.1);
+            padding: 2px 8px; border-radius: 3px;
+            letter-spacing: 1px;
+        }
+        .sub-trade-header {
+            gap: 0.4rem !important;
+        }
         .top-picks-section { margin-bottom: 1.5rem; }
         .top-picks-grid {
             display: grid;
@@ -3887,52 +3945,92 @@ const BACKTEST = {
         // Save any typed P&L input values before re-render
         const savedInputs = {};
         list.querySelectorAll('.open-trade-item').forEach(el => {
-            const ticker = (el.dataset.ticker || '').toUpperCase();
+            const uid = el.dataset.tradeUid || '';
             const input = el.querySelector('.entry-input');
             if (input && input.value.trim()) {
-                savedInputs[ticker] = input.value;
+                savedInputs[uid] = input.value;
             }
         });
 
-        // Deduplicate by ticker — keep most recent entry per ticker
-        // Also filter blacklisted coins
-        const seen = {};
-        const deduped = [];
-        for (const t of trades) {
+        // Filter blacklisted, keep ALL trades (no dedup)
+        const filtered = trades.filter(t => {
             const key = (t.ticker || t.symbol || '').toUpperCase();
-            if (!seen[key] && !isBlacklisted(key)) {
-                seen[key] = true;
-                deduped.push(t);
-            }
-        }
+            return !isBlacklisted(key);
+        });
 
-        countEl.textContent = deduped.length;
+        // Count unique tickers for the badge
+        const uniqueTickers = new Set(filtered.map(t =>
+            (t.ticker || t.symbol || '').toUpperCase()));
+        countEl.textContent = filtered.length +
+            (filtered.length !== uniqueTickers.size
+                ? ' (' + uniqueTickers.size + ' tickers)' : '');
 
-        if (deduped.length === 0) {
+        if (filtered.length === 0) {
             list.innerHTML = '<div class="no-actions">No open trades</div>';
             return;
         }
 
-        list.innerHTML = deduped.map((a, i) => renderOpenTradeCard(a, i)).join('');
+        // Group by ticker
+        const groups = {};
+        const groupOrder = [];
+        for (const t of filtered) {
+            const key = (t.ticker || t.symbol || '').toUpperCase();
+            if (!groups[key]) { groups[key] = []; groupOrder.push(key); }
+            groups[key].push(t);
+        }
+
+        // Render: single trades get a normal card, multi-trades get grouped
+        let html = '';
+        let idx = 0;
+        for (const ticker of groupOrder) {
+            const group = groups[ticker];
+            if (group.length === 1) {
+                html += renderOpenTradeCard(group[0], idx, null);
+                idx++;
+            } else {
+                // Grouped: ticker header + T1, T2, ... sub-rows
+                const sym = getCoinSymbol(ticker);
+                const iconUrl = sym ? `https://assets.coincap.io/assets/icons/${sym}@2x.png` : '';
+                const fallbackText = sym ? sym.slice(0,2).toUpperCase() : '?';
+                const geckoFallback = sym ? `fetchCoinGeckoIcon('${esc(ticker)}',this,this.nextElementSibling)` : '';
+                const onerrorAttr = `this.style.display='none';this.nextElementSibling.style.display='flex';${geckoFallback}`;
+                html += `<div class="open-trade-group" data-ticker="${esc(ticker)}">
+                    <div class="trade-group-header">
+                        <img class="ticker-icon" src="${iconUrl}" alt="" onerror="${onerrorAttr}">
+                        <div class="ticker-icon-fallback">${fallbackText}</div>
+                        <span class="ticker-badge">${esc(ticker)}</span>
+                        <span class="trade-count-badge">${group.length} trades</span>
+                    </div>`;
+                group.forEach((t, ti) => {
+                    html += renderOpenTradeCard(t, idx, 'T' + (ti + 1));
+                    idx++;
+                });
+                html += '</div>';
+            }
+        }
+
+        list.innerHTML = html;
         setTimeout(() => {
             restoreOpenTradeStates();
             updateTradeClocks();
             // Restore saved P&L input values after re-render
             list.querySelectorAll('.open-trade-item').forEach(el => {
-                const ticker = (el.dataset.ticker || '').toUpperCase();
-                if (savedInputs[ticker]) {
+                const uid = el.dataset.tradeUid || '';
+                if (savedInputs[uid]) {
                     const input = el.querySelector('.entry-input');
-                    if (input) input.value = savedInputs[ticker];
+                    if (input) input.value = savedInputs[uid];
                 }
             });
         }, 50);
     }
 
-    function renderOpenTradeCard(a, i) {
+    function renderOpenTradeCard(a, i, tradeLabel) {
             const id = 'open-' + i;
             const tkr = a.ticker || a.symbol || '';
             const prc = a.price || a.entry || 0;
             const apiPnl = a.realizedPnl || 0;
+            const row = a.row || 0;
+            const tradeUid = tkr.toUpperCase() + '_' + row;
             const sym = getCoinSymbol(tkr);
             const iconUrl = sym ? `https://assets.coincap.io/assets/icons/${sym}@2x.png` : '';
             const fallbackText = sym ? sym.slice(0,2).toUpperCase() : '?';
@@ -3940,25 +4038,35 @@ const BACKTEST = {
             const onerrorAttr = `this.style.display='none';this.nextElementSibling.style.display='flex';${geckoFallback}`;
             const signalType = (a.signal || 'buy').toLowerCase();
             const signalClass = signalType.includes('sell') || signalType.includes('short') || signalType.includes('reduce') ? 'sell' : 'buy';
+            const isSubTrade = !!tradeLabel;
+            const subClass = isSubTrade ? ' sub-trade' : '';
+
+            // For grouped trades, show compact label instead of full ticker header
+            const headerHtml = isSubTrade
+                ? `<div class="ticker-header sub-trade-header">
+                        <span class="trade-label">${tradeLabel}</span>
+                        <span class="signal-tag ${signalClass}">${signalLabel(signalType)}</span>
+                   </div>`
+                : `<div class="ticker-header">
+                        <img class="ticker-icon" src="${iconUrl}" alt="" onerror="${onerrorAttr}">
+                        <div class="ticker-icon-fallback">${fallbackText}</div>
+                        <span class="ticker-badge">${esc(tkr)}</span>
+                        <span class="signal-tag ${signalClass}">${signalLabel(signalType)}</span>
+                   </div>`;
 
             return `
-                <div class="open-trade-item needs-attention" id="${id}" data-status="${apiPnl ? 'has-pnl' : 'active'}" data-ticker="${esc(tkr).toUpperCase()}" data-pnl="${apiPnl}" data-trade-status="${a.tradeStatus || ''}">
+                <div class="open-trade-item needs-attention${subClass}" id="${id}" data-status="${apiPnl ? 'has-pnl' : 'active'}" data-ticker="${esc(tkr).toUpperCase()}" data-row="${row}" data-trade-uid="${esc(tradeUid)}" data-pnl="${apiPnl}" data-trade-status="${a.tradeStatus || ''}">
                     <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem">
                         <div style="flex:1">
-                            <div class="ticker-header">
-                                <img class="ticker-icon" src="${iconUrl}" alt="" onerror="${onerrorAttr}">
-                                <div class="ticker-icon-fallback">${fallbackText}</div>
-                                <span class="ticker-badge">${esc(tkr)}</span>
-                                <span class="signal-tag ${signalClass}">${signalLabel(signalType)}</span>
-                            </div>
+                            ${headerHtml}
                             <div class="meta" style="font-size:0.6rem">@ $${prc}${a.timestamp ? ' &middot; ' + esc(a.timestamp) : ''}</div>
                             <div class="action-buttons">
                                 <input type="text" class="entry-input" placeholder="P&L $" id="${id}-profit" style="width:55px">
-                                <button class="action-btn entered" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'0x0','${id}')">0x0</button>
-                                <button class="action-btn won" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Won','${id}')">Hit TP</button>
-                                <button class="action-btn lost" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Lost','${id}','Stopped Out')">Stopped Out</button>
-                                <button class="action-btn skipped" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Closed','${id}','Close')">Closed</button>
-                                <button class="action-btn cancel-trade" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Cancelled','${id}','Cancel')" title="Cancel — doesn\'t count as a trade">&times;</button>
+                                <button class="action-btn entered" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'0x0','${id}',${row})">0x0</button>
+                                <button class="action-btn won" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Won','${id}',${row})">Hit TP</button>
+                                <button class="action-btn lost" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Lost','${id}','Stopped Out',${row})">Stopped Out</button>
+                                <button class="action-btn skipped" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Closed','${id}','Close',${row})">Closed</button>
+                                <button class="action-btn cancel-trade" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Cancelled','${id}','Cancel',${row})" title="Cancel — doesn\'t count as a trade">&times;</button>
                                 <button class="action-btn trade-clock" id="${id}-clock" data-entered="${a.timestamp || ''}" onclick="dismissTradeClock('${id}')"></button>
                             </div>
                         </div>
@@ -3977,8 +4085,11 @@ const BACKTEST = {
         document.querySelectorAll('.trade-clock').forEach(el => {
             const card = el.closest('.open-trade-item');
             const ticker = card ? (card.dataset.ticker || '') : '';
+            const row = card ? (Number(card.dataset.row) || 0) : 0;
             const signal = card ? (card.querySelector('.signal-tag')?.textContent?.toLowerCase() || '') : '';
-            const resetKey = 'clock_' + ticker + '_' + signal;
+            const resetKey = row
+                ? 'clock_' + ticker + '_' + signal + '_r' + row
+                : 'clock_' + ticker + '_' + signal;
             const resetTs = Number(localStorage.getItem(resetKey) || 0);
             const entered = el.dataset.entered;
             if (!entered && !resetTs) { el.textContent = '--'; return; }
@@ -4020,13 +4131,38 @@ const BACKTEST = {
     function dismissTradeClock(id) {
         const clock = document.getElementById(id + '-clock');
         if (!clock) return;
-        const ticker = document.getElementById(id)?.dataset.ticker || '';
-        const signal = document.getElementById(id)?.querySelector('.signal-tag')?.textContent?.toLowerCase() || '';
+        const card = document.getElementById(id);
+        const ticker = card?.dataset.ticker || '';
+        const row = Number(card?.dataset.row) || 0;
+        const signal = card?.querySelector('.signal-tag')?.textContent?.toLowerCase() || '';
         // Save reset time to localStorage
-        localStorage.setItem('clock_' + ticker + '_' + signal, String(Date.now()));
+        const clockKey = row
+            ? 'clock_' + ticker + '_' + signal + '_r' + row
+            : 'clock_' + ticker + '_' + signal;
+        localStorage.setItem(clockKey, String(Date.now()));
         clock.classList.remove('warn', 'overdue');
         clock.textContent = '0h';
         updateTradeClocks();
+    }
+
+    // Remove a trade card and clean up empty group wrappers
+    function removeTradeCard(el) {
+        const group = el.closest('.open-trade-group');
+        el.remove();
+        if (group) {
+            const remaining = group.querySelectorAll('.open-trade-item');
+            if (remaining.length === 0) {
+                group.remove();
+            } else if (remaining.length === 1) {
+                // Only 1 trade left — no longer needs grouping,
+                // but keep it grouped for visual consistency
+                const badge = group.querySelector('.trade-count-badge');
+                if (badge) badge.textContent = '1 trade';
+            } else {
+                const badge = group.querySelector('.trade-count-badge');
+                if (badge) badge.textContent = remaining.length + ' trades';
+            }
+        }
     }
 
     // ====== BLACKLIST ======
@@ -4066,7 +4202,11 @@ const BACKTEST = {
         // Refresh open trades display
         const list = document.getElementById('openTradesList');
         list.querySelectorAll('.open-trade-item').forEach(el => {
-            if ((el.dataset.ticker || '').toUpperCase() === sym) el.remove();
+            if ((el.dataset.ticker || '').toUpperCase() === sym) removeTradeCard(el);
+        });
+        // Also remove any now-empty group wrappers
+        list.querySelectorAll('.open-trade-group').forEach(g => {
+            if (!g.querySelector('.open-trade-item')) g.remove();
         });
         const remaining = list.querySelectorAll('.open-trade-item').length;
         document.getElementById('openTradesCount').textContent = remaining;
@@ -4094,18 +4234,32 @@ const BACKTEST = {
     }
 
     // ====== OPEN TRADE LOCAL STATE (survives refresh) ======
-    function tradeStateKey(ticker, signal) { return 'trade_' + ticker.toUpperCase() + '_' + signal.toLowerCase(); }
-    function saveTradeState(ticker, signal, state) {
-        localStorage.setItem(tradeStateKey(ticker, signal), JSON.stringify(state));
+    function tradeStateKey(ticker, signal, row) {
+        // If row is provided, use it for unique multi-trade keys
+        if (row) return 'trade_' + ticker.toUpperCase() + '_' + signal.toLowerCase() + '_r' + row;
+        return 'trade_' + ticker.toUpperCase() + '_' + signal.toLowerCase();
     }
-    function getTradeState(ticker, signal) {
+    function saveTradeState(ticker, signal, state, row) {
+        localStorage.setItem(tradeStateKey(ticker, signal, row), JSON.stringify(state));
+        // Also save under legacy key for backwards compat with single trades
+        if (row) localStorage.setItem(tradeStateKey(ticker, signal), JSON.stringify(state));
+    }
+    function getTradeState(ticker, signal, row) {
+        // Try row-specific key first, then legacy
+        if (row) {
+            try { const v = JSON.parse(localStorage.getItem(tradeStateKey(ticker, signal, row))); if (v) return v; } catch(e) {}
+        }
         try { return JSON.parse(localStorage.getItem(tradeStateKey(ticker, signal))) || null; } catch(e) { return null; }
     }
-    function clearTradeState(ticker, signal) {
+    function clearTradeState(ticker, signal, row) {
+        if (row) localStorage.removeItem(tradeStateKey(ticker, signal, row));
         localStorage.removeItem(tradeStateKey(ticker, signal));
         // Also clear the clock so a new trade with the same ticker+signal starts fresh
-        const clockKey = 'clock_' + ticker.toUpperCase() + '_' + signal.toLowerCase();
+        const clockKey = row
+            ? 'clock_' + ticker.toUpperCase() + '_' + signal.toLowerCase() + '_r' + row
+            : 'clock_' + ticker.toUpperCase() + '_' + signal.toLowerCase();
         localStorage.removeItem(clockKey);
+        if (row) localStorage.removeItem('clock_' + ticker.toUpperCase() + '_' + signal.toLowerCase());
     }
 
     // ====== POKEBALL TOGGLE (click to mark used/available) ======
@@ -4197,9 +4351,10 @@ const BACKTEST = {
     function restoreOpenTradeStates() {
         document.querySelectorAll('.open-trade-item').forEach(el => {
             const ticker = el.dataset.ticker;
+            const row = Number(el.dataset.row) || 0;
             const signal = el.querySelector('.signal-tag')?.textContent?.toLowerCase() || '';
             // Check localStorage first, then fall back to API data
-            let state = getTradeState(ticker, signal);
+            let state = getTradeState(ticker, signal, row);
             let status = '', pnl = 0;
             if (state) {
                 status = state.status || 'active';
@@ -5639,12 +5794,12 @@ const BACKTEST = {
         }
     }
 
-    async function confirmOutcome(ticker, signal, price, value, elemId, label) {
+    async function confirmOutcome(ticker, signal, price, value, elemId, label, row) {
         const ok = await showModal({ message: label + ' ' + ticker + '?', okLabel: label, okClass: value === 'Lost' ? 'modal-btn-danger' : 'modal-btn-ok' });
-        if (ok) markOutcome(ticker, signal, price, value, elemId);
+        if (ok) markOutcome(ticker, signal, price, value, elemId, row);
     }
 
-    async function markOutcome(ticker, signal, price, value, elemId) {
+    async function markOutcome(ticker, signal, price, value, elemId, row) {
         const profitInput = document.getElementById(elemId + '-profit');
         const inputVal = parseFloat(profitInput ? profitInput.value : '') || 0;
         const el = document.getElementById(elemId);
@@ -5680,8 +5835,9 @@ const BACKTEST = {
             }
 
             // Save to localStorage + sheet (retry up to 3x)
-            saveTradeState(ticker, signal, { status: 'tp', pnl: newTotal });
+            saveTradeState(ticker, signal, { status: 'tp', pnl: newTotal }, row);
             const tpParams = new URLSearchParams({ action: 'update', ticker, signal, price, field: 'pnl', profitLocked: newTotal.toFixed(2), tradeStatus: 'tp' });
+            if (row) tpParams.set('row', row);
             const tpUrl = POST_URL + '?' + tpParams;
             let tpOk = false;
             for (let attempt = 0; attempt < 3 && !tpOk; attempt++) {
@@ -5720,8 +5876,9 @@ const BACKTEST = {
             }
 
             // Save to localStorage + sheet (retry up to 3x)
-            saveTradeState(ticker, signal, { status: '0x0', pnl: newTotal });
+            saveTradeState(ticker, signal, { status: '0x0', pnl: newTotal }, row);
             const zParams = new URLSearchParams({ action: 'update', ticker, signal, price, field: 'pnl', profitLocked: newTotal.toFixed(2), tradeStatus: '0x0' });
+            if (row) zParams.set('row', row);
             const zUrl = POST_URL + '?' + zParams;
             let zOk = false;
             for (let attempt = 0; attempt < 3 && !zOk; attempt++) {
@@ -5735,13 +5892,14 @@ const BACKTEST = {
 
         } else if (value === 'Cancelled') {
             // Cancel — delete from sheet, doesn't count as a trade
-            clearTradeState(ticker, signal);
+            clearTradeState(ticker, signal, row);
             el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
             try {
                 const params = new URLSearchParams({
                     action: 'update', ticker, signal, price,
                     field: 'outcome', value: 'Cancelled'
                 });
+                if (row) params.set('row', row);
                 await fireGet(POST_URL + '?' + params);
                 setTimeout(() => {
                     el.style.transition = 'opacity 0.5s, max-height 0.5s';
@@ -5750,7 +5908,7 @@ const BACKTEST = {
                     el.style.overflow = 'hidden';
                     el.style.padding = '0';
                     el.style.margin = '0';
-                    setTimeout(() => el.remove(), 600);
+                    setTimeout(() => removeTradeCard(el), 600);
                 }, 400);
                 actionCooldownUntil = Date.now() + ACTION_COOLDOWN_MS;
             } catch (err) {
@@ -5772,7 +5930,7 @@ const BACKTEST = {
                 grandTotal = prevTotal + manualVal;
             }
             const finalValue = value === 'Lost' ? 'Lost' : 'Closed';
-            clearTradeState(ticker, signal);
+            clearTradeState(ticker, signal, row);
 
             el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
 
@@ -5782,6 +5940,7 @@ const BACKTEST = {
                     field: 'outcome', value: finalValue,
                     profitLocked: grandTotal.toFixed(2)
                 });
+                if (row) params.set('row', row);
                 await fireGet(POST_URL + '?' + params);
 
                 // Flash the total before fading
@@ -5805,7 +5964,7 @@ const BACKTEST = {
                     el.style.overflow = 'hidden';
                     el.style.padding = '0';
                     el.style.margin = '0';
-                    setTimeout(() => el.remove(), 600);
+                    setTimeout(() => removeTradeCard(el), 600);
                 }, 1200);
 
                 // Delay the refresh so action cards aren't wiped mid-interaction
