@@ -714,6 +714,29 @@ function addTrade_(ss, data) {
   }
 
   var posSheet = ss.getSheetByName(POSITIONS);
+
+  // Check for existing open trade (same symbol+signal, Entered, outcome open/empty)
+  var newEntry = entry ? Number(entry) : 0;
+  if (newEntry && (outcome === 'open' || outcome === '')) {
+    var posData = posSheet.getDataRange().getValues();
+    for (var i = posData.length - 1; i >= 1; i--) {
+      var rowSymbol  = String(posData[i][1]).toUpperCase();
+      var rowSignal  = String(posData[i][2]).toLowerCase();
+      var rowAction  = String(posData[i][8] || '').trim().toLowerCase();
+      var rowOutcome = String(posData[i][9] || '').toLowerCase().trim();
+      if (rowSymbol === symbol && rowSignal === signal && rowAction === 'entered' && (rowOutcome === '' || rowOutcome === 'open')) {
+        // Found open trade — average entry price
+        var oldEntry = Number(posData[i][3]) || 0;
+        var avgEntry = oldEntry ? (oldEntry + newEntry) / 2 : newEntry;
+        posSheet.getRange(i + 1, 4).setValue(avgEntry); // Column D = Entry
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: 'ok', symbol: symbol, merged: true, old_entry: oldEntry, new_entry: newEntry, avg_entry: avgEntry }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+  }
+
+  // No open trade found — append new row
   posSheet.appendRow([
     new Date(),   // Timestamp
     symbol,       // Symbol

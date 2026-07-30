@@ -2535,6 +2535,7 @@
                     <input type="radio" name="at-outcome" value="0x0"> 0x0
                 </label>
             </div>
+            <input id="at-entry" type="text" placeholder="Entry price (for DCA into open trade)">
             <input id="at-pnl" type="text" placeholder="P&L (e.g. 0.50 or -0.30)">
         `;
         const btns = document.createElement('div');
@@ -2550,6 +2551,7 @@
             const symbol = box.querySelector('#at-symbol').value.trim().toUpperCase();
             const signal = box.querySelector('input[name="at-signal"]:checked').value;
             const outcome = box.querySelector('input[name="at-outcome"]:checked').value;
+            const entryPrice = box.querySelector('#at-entry').value.trim();
             const pnl = box.querySelector('#at-pnl').value.trim();
             if (!symbol) { showToast('Symbol required'); return; }
             overlay.remove();
@@ -2557,9 +2559,13 @@
                 action: 'add_trade', symbol, signal, outcome,
                 realized_pnl: pnl || '0'
             });
+            if (entryPrice) params.set('entry', entryPrice);
             try {
-                await fireGet(POST_URL + '?' + params);
-                showToast(`${symbol} ${outcome} added`, 'success');
+                const resp = await fireGet(POST_URL + '?' + params);
+                const msg = (resp && resp.merged)
+                    ? `${symbol} DCA'd — avg entry: ${resp.avg_entry}`
+                    : `${symbol} ${outcome} added`;
+                showToast(msg, 'success');
                 scheduleFetch(1000);
             } catch (e) {
                 showToast('Failed to add trade: ' + e.message);
