@@ -175,7 +175,7 @@ function processQueue() {
 
     var symbol    = (d.symbol || '').toUpperCase();
     var signal    = (d.signal || '').toLowerCase();
-    var entry     = d.entry || '';
+    var entry     = d.entry || d.price || '';
     var sl        = d.sl || '';
     var tp1       = d.tp1 || '';
     var tp2       = d.tp2 || '';
@@ -345,7 +345,7 @@ function calcSignalScore_(macd, cross, inZone, volume, signalsUsed, data) {
   var d = data || {};
   var rsi = d.rsi !== undefined ? Number(d.rsi) : null;
   var signal = (d.signal || '').toLowerCase();
-  var entry = Number(d.entry || 0);
+  var entry = Number(d.entry || d.price || 0);
   var sl = Number(d.sl || 0);
   var tp1 = Number(d.tp1 || 0);
   var touches = d.touches !== undefined ? Number(d.touches) : 0;
@@ -699,7 +699,7 @@ function saveClaudeAnalysis_(ss, data) {
 function addTrade_(ss, data) {
   var symbol     = (data.symbol || '').toUpperCase();
   var signal     = (data.signal || '').toLowerCase();
-  var entry      = data.entry || '';
+  var entry      = data.entry || data.price || '';
   var sl         = data.sl || '';
   var tp1        = data.tp1 || '';
   var tp2        = data.tp2 || '';
@@ -737,6 +737,8 @@ function addTrade_(ss, data) {
   }
 
   // No open trade found — append new row
+  // Normalize outcome display: 'open' → 'Open', 'won' → 'Won', etc.
+  var displayOutcome = outcome === 'open' ? 'Open' : outcome === 'won' ? 'Won' : outcome === 'lost' ? 'Lost' : outcome;
   posSheet.appendRow([
     new Date(),   // Timestamp
     symbol,       // Symbol
@@ -747,7 +749,7 @@ function addTrade_(ss, data) {
     tp2,          // TP2
     score,        // Score
     'Entered',    // Action
-    outcome,      // Outcome (won/lost)
+    displayOutcome, // Outcome
     realizedPnl   // Realized P&L
   ]);
 
