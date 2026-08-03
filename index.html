@@ -5692,6 +5692,10 @@ const BACKTEST = {
         const inputVal = parseFloat(profitInput ? profitInput.value : '') || 0;
         const el = document.getElementById(elemId);
 
+        // Mark acted locally so auto-refresh doesn't restore the card
+        addActedItem(ticker, signal);
+        actionCooldownUntil = Date.now() + ACTION_COOLDOWN_MS;
+
         // Running P&L total stored on the element
         const prevTotal = parseFloat(el.dataset.pnl || '0');
 
@@ -5795,8 +5799,8 @@ const BACKTEST = {
                     el.style.margin = '0';
                     setTimeout(() => el.remove(), 600);
                 }, 400);
-                actionCooldownUntil = Date.now() + ACTION_COOLDOWN_MS;
             } catch (err) {
+                removeActedItem(ticker, signal);
                 el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
                 showToast('Failed to cancel: ' + err.message);
             }
@@ -5851,9 +5855,8 @@ const BACKTEST = {
                     setTimeout(() => el.remove(), 600);
                 }, 1200);
 
-                // Delay the refresh so action cards aren't wiped mid-interaction
-                actionCooldownUntil = Date.now() + ACTION_COOLDOWN_MS;
             } catch (err) {
+                removeActedItem(ticker, signal);
                 el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
                 showToast('Failed to update: ' + err.message);
             }
