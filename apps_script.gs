@@ -546,6 +546,19 @@ function updatePosition_(ss, data) {
   }
 
   if (matchRows.length === 0) {
+    // Check if row already has the target value (idempotent — bot or prior request already set it)
+    if (field === 'action') {
+      for (var chk = posData.length - 1; chk >= 1; chk--) {
+        var chkSym = String(posData[chk][1]).toUpperCase();
+        var chkSig = String(posData[chk][2]).toLowerCase();
+        var chkAct = String(posData[chk][8] || '').trim();
+        if (chkSym === symbol && chkSig === signal && chkAct.toLowerCase() === value.toLowerCase()) {
+          return ContentService
+            .createTextOutput(JSON.stringify({ status: 'ok', updated: 'action', value: value, rows: 0, alreadySet: true }))
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+      }
+    }
     return ContentService
       .createTextOutput(JSON.stringify({ status: 'error', message: 'No matching row found' }))
       .setMimeType(ContentService.MimeType.JSON);

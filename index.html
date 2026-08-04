@@ -5640,19 +5640,19 @@ const BACKTEST = {
         if (entrySize) params.set('entry_size', entrySize);
         const url = POST_URL + '?' + params;
         let ok = false;
+        let noRow = false;
         for (let attempt = 0; attempt < 3 && !ok; attempt++) {
             if (attempt > 0) await new Promise(r => setTimeout(r, 1500));
             const res = await fireGet(url);
             if (res && res.status === 'ok') ok = true;
+            if (res && res.message === 'No matching row found') { noRow = true; break; }
         }
-        if (ok) {
-            // Don't scheduleFetch here — the card is already hidden locally
-            // and a premature re-render can wipe other cards the user hasn't
-            // acted on yet. The next normal refresh (60s) will sync state.
-            // Update the visible count instead:
+        if (ok || noRow) {
+            // noRow = row was already acted on (bot or prior request) — keep card hidden
             const remaining = document.querySelectorAll('#actionList .action-item:not([style*="display: none"])');
             const actionCount = document.getElementById('actionCount');
             if (actionCount) actionCount.textContent = remaining.length;
+            if (noRow) showToast(ticker + ' already handled — removed');
         } else {
             // Undo local hide so card comes back
             removeActedItem(ticker, signal);
