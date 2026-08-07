@@ -2562,9 +2562,11 @@
             const pnl = box.querySelector('#at-pnl').value.trim();
             if (!symbol) { showToast('Symbol required'); return; }
             overlay.remove();
+            let finalPnl = parseFloat(pnl) || 0;
+            if (outcome === 'lost' && finalPnl > 0) finalPnl = -finalPnl;
             const params = new URLSearchParams({
                 action: 'add_trade', symbol, signal, outcome,
-                realized_pnl: pnl || '0'
+                realized_pnl: String(finalPnl)
             });
             if (entryPrice) params.set('entry', entryPrice);
             try {
