@@ -3910,6 +3910,9 @@ const BACKTEST = {
             }
         });
 
+        // Filter out trades already acted on (closed/cancelled/stopped)
+        trades = trades.filter(a => !isActed(a.ticker || a.symbol || '', a.signal || ''));
+
         // Deduplicate by ticker — consolidate multiple entries
         // Also filter blacklisted coins
         const seen = {};
