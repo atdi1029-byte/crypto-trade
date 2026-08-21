@@ -3896,9 +3896,11 @@ const BACKTEST = {
         const countEl = document.getElementById('openTradesCount');
 
         // During cooldown, don't rebuild — user is actively working through cards
-        if (Date.now() < actionCooldownUntil && list.querySelector('.open-trade-item')) {
+        // But always rebuild if a trade was just entered
+        if (Date.now() < actionCooldownUntil && list.querySelector('.open-trade-item') && !window._forceOpenTradesRefresh) {
             return;
         }
+        window._forceOpenTradesRefresh = false;
 
         // Save any typed P&L input values before re-render
         const savedInputs = {};
@@ -5649,6 +5651,11 @@ const BACKTEST = {
             const actionCount = document.getElementById('actionCount');
             if (actionCount) actionCount.textContent = remaining.length;
             if (noRow) showToast(ticker + ' already handled — removed');
+            // If entered, refresh after short delay so trade appears in Open Trades
+            if (value === 'Entered') {
+                window._forceOpenTradesRefresh = true;
+                setTimeout(fetchData, 2000);
+            }
         } else {
             // Undo local hide so card comes back
             removeActedItem(ticker, signal);
