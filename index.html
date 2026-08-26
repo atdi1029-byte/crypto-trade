@@ -3620,7 +3620,7 @@ const BACKTEST = {
         // Use Claude picks if available, otherwise fall back to auto-scored
         const hasClaude = claudePicks && claudePicks.length > 0;
         const allPicks = hasClaude ? claudePicks : signals.filter(s => (s.score || s._score) >= 5);
-        const picks = allPicks.filter(s => {
+        const picks = allPicks.sort((a, b) => (b.score || b._score || 0) - (a.score || a._score || 0)).filter(s => {
             const sym = (s.symbol || s.ticker || '').toUpperCase();
             const sig = (s.signal || s.direction || '').toLowerCase();
             const key = sym + '|' + sig;
