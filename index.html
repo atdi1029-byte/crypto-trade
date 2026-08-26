@@ -686,6 +686,19 @@
             letter-spacing: 0.5px;
         }
         .top-picks-section { margin-bottom: 1.5rem; }
+        .show-more-btn {
+            grid-column: 1 / -1;
+            padding: 0.6rem 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--accent-glow);
+            border-radius: 6px;
+            color: var(--accent);
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .show-more-btn:hover { background: rgba(74, 158, 255, 0.15); }
         .top-picks-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -3622,7 +3635,28 @@ const BACKTEST = {
             return;
         }
 
-        grid.innerHTML = picks.map((s, i) => renderPickCard(s, i, false)).join('');
+        // Paginate: show 10 at a time
+        window._topPicks = picks;
+        window._topPicksPage = 1;
+        const PAGE_SIZE = 10;
+        const visible = picks.slice(0, PAGE_SIZE);
+        grid.innerHTML = visible.map((s, i) => renderPickCard(s, i, false)).join('');
+        if (picks.length > PAGE_SIZE) {
+            grid.innerHTML += `<button class="show-more-btn" onclick="showMorePicks()">Show More (${picks.length - PAGE_SIZE} remaining)</button>`;
+        }
+    }
+
+    function showMorePicks() {
+        const PAGE_SIZE = 10;
+        window._topPicksPage = (window._topPicksPage || 1) + 1;
+        const end = window._topPicksPage * PAGE_SIZE;
+        const visible = window._topPicks.slice(0, end);
+        const grid = document.getElementById('topPicksGrid');
+        grid.innerHTML = visible.map((s, i) => renderPickCard(s, i, false)).join('');
+        const remaining = window._topPicks.length - end;
+        if (remaining > 0) {
+            grid.innerHTML += `<button class="show-more-btn" onclick="showMorePicks()">Show More (${remaining} remaining)</button>`;
+        }
     }
 
     function signalLabel(s) {
