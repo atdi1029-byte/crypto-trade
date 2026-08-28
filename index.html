@@ -3981,6 +3981,8 @@ const BACKTEST = {
                     if (input) input.value = savedInputs[ticker];
                 }
             });
+            // Check which trades are actually open on Bitunix
+            syncBitunixPositions();
         }, 50);
     }
 
@@ -4316,6 +4318,45 @@ const BACKTEST = {
                 }
             }
         });
+    }
+
+    // ====== BITUNIX POSITION SYNC ======
+    // Flags open trade cards that have no matching Bitunix position
+    let _lastPosSync = 0;
+    const POS_SYNC_INTERVAL = 60000; // check every 60s max
+    async function syncBitunixPositions() {
+        if (Date.now() - _lastPosSync < POS_SYNC_INTERVAL) return;
+        _lastPosSync = Date.now();
+        try {
+            const res = await fireGet(POST_URL + '?action=get_positions');
+            if (!res || res.status !== 'ok' || !res.positions) return;
+            // Build set of open position symbols (strip USDT suffix)
+            const openSyms = new Set();
+            res.positions.forEach(p => {
+                const sym = (p.symbol || '').toUpperCase().replace(/USDT$/, '');
+                if (sym) openSyms.add(sym);
+            });
+            // Check each open trade card
+            document.querySelectorAll('.open-trade-item').forEach(el => {
+                const ticker = (el.dataset.ticker || '').toUpperCase().replace(/\.P$/, '').replace(/USDT$|USD$|USDC$/, '');
+                const status = el.dataset.status || 'active';
+                // Skip already resolved trades (tp, 0x0, has-pnl)
+                if (status !== 'active') return;
+                const badge = el.querySelector('.not-on-bx');
+                if (openSyms.has(ticker) || openSyms.has(BX_REMAP[ticker] || ticker)) {
+                    // Position exists — remove warning if present
+                    if (badge) badge.remove();
+                } else {
+                    // No position on Bitunix — flag it
+                    if (!badge) {
+                        const header = el.querySelector('.ticker-header');
+                        if (header) header.insertAdjacentHTML('beforeend',
+                            '<span class="not-on-bx" style="font-size:0.5rem;padding:1px 5px;border-radius:3px;background:#ff525222;color:var(--red-bright);font-weight:700;margin-left:3px;cursor:pointer" title="No matching position on Bitunix — may already be closed">NOT ON BX</span>');
+                    }
+                    el.style.borderLeftColor = 'var(--red-bright)';
+                }
+            });
+        } catch (e) { /* silent — non-critical */ }
     }
 
     // ====== OPEN TRADES FILTER ======
@@ -5622,9 +5663,10 @@ const BACKTEST = {
             window.open(DEFAULT_BX(ticker), '_blank');
             // Fire trade via API — await result before writing to sheet
             const cleanSym = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
+            const bxSym = BX_REMAP[cleanSym] || cleanSym;
             const tradeParams = new URLSearchParams({
                 action: 'execute_trade',
-                symbol: cleanSym,
+                symbol: bxSym,
                 side: tradeSide,
                 size_usd: entrySize,
                 sl_price: slPrice,
