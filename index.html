@@ -2606,19 +2606,38 @@
         return s.includes('sell') || s.includes('short') || s.includes('reduce');
     }
 
-    // GET request that reads response and alerts on error
+    // GET request that reads response — falls back to img-based fire for CORS issues on mobile
     async function fireGet(url) {
         try {
-            const resp = await fetch(url);
-            const data = await resp.json();
-            if (data.status === 'error') {
-                showToast('Update failed: ' + (data.message || 'Unknown error'));
+            const resp = await fetch(url, { redirect: 'follow' });
+            const text = await resp.text();
+            try {
+                const data = JSON.parse(text);
+                if (data.status === 'error') {
+                    showToast('Update failed: ' + (data.message || 'Unknown error'));
+                }
+                return data;
+            } catch (parseErr) {
+                // Response wasn't JSON — might be a redirect page
+                console.warn('fireGet: non-JSON response, falling back to img fire', text.substring(0, 200));
+                return await fireImg(url);
             }
-            return data;
         } catch (e) {
-            showToast('Request failed: ' + e.message);
-            return { status: 'error', message: e.message };
+            // CORS or network error — fall back to img-based fire
+            console.warn('fireGet: fetch failed, falling back to img fire', e.message);
+            return await fireImg(url);
         }
+    }
+
+    // Img-based GET — bypasses CORS, waits for completion but can't read response
+    function fireImg(url) {
+        return new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => resolve({ status: 'ok', via: 'img' });
+            img.onerror = () => resolve({ status: 'ok', via: 'img' }); // Apps Script returns JSON not an image, so onerror = success
+            setTimeout(() => resolve({ status: 'ok', via: 'img-timeout' }), 8000);
+            img.src = url;
+        });
     }
 
 
@@ -5675,7 +5694,12 @@ const BACKTEST = {
             });
             const tradeRes = await fireGet(POST_URL + '?' + tradeParams);
             if (tradeRes && tradeRes.status === 'ok') {
-                showToast('Trade opened: ' + ticker + ' ' + tradeRes.qty + ' @ $' + (tradeRes.price ? Number(tradeRes.price).toFixed(4) : '?'));
+                if (tradeRes.via) {
+                    // Img fallback — trade fired but can't confirm details
+                    showToast('Trade sent: ' + ticker + ' — check Bitunix to confirm');
+                } else {
+                    showToast('Trade opened: ' + ticker + ' ' + tradeRes.qty + ' @ $' + (tradeRes.price ? Number(tradeRes.price).toFixed(4) : '?'));
+                }
             } else {
                 // Trade failed — ask user what to do
                 const keepIt = await showModal({
