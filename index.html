@@ -5918,7 +5918,11 @@ const BACKTEST = {
             // Safety net: if P&L is $0, ask user to enter it
             if (grandTotal === 0) {
                 const entered = await showModal({ message: 'P&L for ' + ticker + '?', input: 'Amount (negative for loss)', okLabel: 'Submit' });
-                if (entered === null) return; // cancelled
+                if (entered === null) {
+                    // User cancelled — undo the acted cache so card stays visible
+                    removeActedItem(ticker, signal);
+                    return;
+                }
                 let manualVal = parseFloat(entered) || 0;
                 if (value === 'Lost' && manualVal > 0) manualVal = -manualVal;
                 grandTotal = prevTotal + manualVal;
