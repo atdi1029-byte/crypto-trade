@@ -2629,6 +2629,18 @@
         }
     }
 
+    // fireGet without img fallback — for trade execution where we NEED the real response
+    async function fireGetNoFallback(url) {
+        try {
+            const resp = await fetch(url, { redirect: 'follow' });
+            const text = await resp.text();
+            try { return JSON.parse(text); }
+            catch (e) { return { status: 'error', msg: 'Non-JSON response from server' }; }
+        } catch (e) {
+            return { status: 'error', msg: 'Network error: ' + e.message };
+        }
+    }
+
     // Img-based GET — bypasses CORS, waits for completion but can't read response
     function fireImg(url) {
         return new Promise(resolve => {
@@ -5692,12 +5704,10 @@ const BACKTEST = {
                 tp_price: tpPrice,
                 leverage: '3'
             });
-            const tradeRes = await fireGet(POST_URL + '?' + tradeParams);
+            const tradeRes = await fireGetNoFallback(POST_URL + '?' + tradeParams);
             if (tradeRes && tradeRes.status === 'ok') {
                 if (tradeRes.via === 'retry_no_sltp') {
                     showToast('⚠️ ' + ticker + ' opened WITHOUT SL/TP — set them on Bitunix!', 8000);
-                } else if (tradeRes.via) {
-                    showToast('Trade sent: ' + ticker + ' — check Bitunix to confirm');
                 } else {
                     showToast('Trade opened: ' + ticker + ' ' + tradeRes.qty + ' @ $' + (tradeRes.price ? Number(tradeRes.price).toFixed(4) : '?'));
                 }
