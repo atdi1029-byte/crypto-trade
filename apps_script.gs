@@ -1000,6 +1000,10 @@ function doGet(e) {
     return executeBitunixTrade_(e.parameter);
   }
 
+  if (action === 'get_positions') {
+    return getBitunixPositions_();
+  }
+
   return ContentService
     .createTextOutput(JSON.stringify({
       status: 'ok',
@@ -1106,57 +1110,106 @@ function executeBitunixTrade_(params) {
     }
     var price = Number(tickerResp.data[0].lastPrice);
 
-    // 3. Get min qty + precision from trading pairs
+    // 3. Get instrument info from trading pairs
     var pairResp = apiGet('/api/v1/futures/market/trading_pairs', { symbols: symbol });
     var minQty = 1;
-    var qtyDecimals = 1;
+    var qtyDecimals = 0;
+    var priceDecimals = 4;
     if (pairResp.code === 0 && pairResp.data && pairResp.data.length) {
-      minQty = Number(pairResp.data[0].minTradeVolume || 1);
-      var minStr = String(pairResp.data[0].minTradeVolume || '1');
-      var dotIdx = minStr.indexOf('.');
-      qtyDecimals = dotIdx >= 0 ? minStr.length - dotIdx - 1 : 0;
+      var pairData = pairResp.data[0];
+      minQty = Number(pairData.minTradeVolume || 1);
+      // Use basePrecision for qty decimals (not minTradeVolume string length)
+      if (pairData.basePrecision !== undefined) {
+        qtyDecimals = Number(pairData.basePrecision);
+      } else {
+        // Fallback: derive from minTradeVolume if basePrecision missing
+        var minStr = String(pairData.minTradeVolume || '1');
+        var dotIdx = minStr.indexOf('.');
+        qtyDecimals = dotIdx >= 0 ? minStr.length - dotIdx - 1 : 0;
+      }
+      // Use quotePrecision for price decimals, fall back to tickSize
+      if (pairData.quotePrecision !== undefined) {
+        priceDecimals = Number(pairData.quotePrecision);
+      } else if (pairData.tickSize) {
+        var tickStr = String(pairData.tickSize);
+        var tDot = tickStr.indexOf('.');
+        priceDecimals = tDot >= 0 ? tickStr.length - tDot - 1 : 0;
+      } else if (pairData.pricePrecision) {
+        priceDecimals = Number(pairData.pricePrecision);
+      }
+    } else {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 'error',
+        msg: 'Symbol ' + symbol + ' not found on Bitunix futures'
+      })).setMimeType(ContentService.MimeType.JSON);
     }
 
     // 4. Calculate qty from USD size (size_usd is margin, multiply by leverage for notional)
     var qty = (sizeUsd * Number(leverage)) / price;
-    // Round to pair's precision
+    // Round down to pair's precision (floor to avoid exceeding balance)
     var factor = Math.pow(10, qtyDecimals);
-    qty = Math.round(qty * factor) / factor;
+    qty = Math.floor(qty * factor) / factor;
     if (qty < minQty) {
       qty = minQty;
     }
-    // Block if actual margin cost exceeds 2x the requested size
+    // Block if actual margin cost exceeds 10x the requested size
     var actualCost = (qty * price) / Number(leverage);
-    if (actualCost > sizeUsd * 2) {
+    if (actualCost > sizeUsd * 10) {
       return ContentService.createTextOutput(JSON.stringify({
-        status: 'error', msg: 'Blocked: actual cost $' + actualCost.toFixed(2) + ' exceeds 2x your size ($' + sizeUsd + '). Bitunix minimum is too high for this amount.'
+        status: 'error', msg: 'Blocked: actual cost $' + actualCost.toFixed(2) + ' exceeds 10x your size ($' + sizeUsd + '). Bitunix minimum is too high for this amount.'
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // 5. Place order
+    // 5. Check position mode (one-way vs hedge)
+    var acctResp = apiGet('/api/v1/futures/account', { marginCoin: 'USDT' });
+    var isHedge = acctResp && acctResp.code === 0 && acctResp.data &&
+                  acctResp.data.positionMode === 'HEDGE';
+
+    // 6. Place market order WITHOUT TP/SL (attach them separately after)
     var orderSide = side === 'sell' ? 'SELL' : 'BUY';
     var orderData = {
       symbol: symbol,
       side: orderSide,
       qty: String(qty),
-      orderType: 'MARKET',
-      tradeSide: 'OPEN'
+      orderType: 'MARKET'
     };
-    if (tpPrice) {
-      orderData.tpPrice = String(tpPrice);
-      orderData.tpStopType = 'LAST_PRICE';
-      orderData.tpOrderType = 'MARKET';
-    }
-    if (slPrice) {
-      orderData.slPrice = String(slPrice);
-      orderData.slStopType = 'LAST_PRICE';
-      orderData.slOrderType = 'MARKET';
-    }
+    if (isHedge) orderData.tradeSide = 'OPEN';
 
     var orderResp = apiPost('/api/v1/futures/trade/place_order', orderData);
 
-    return ContentService.createTextOutput(JSON.stringify({
-      status: orderResp.code === 0 ? 'ok' : 'error',
+    if (orderResp.code !== 0) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 'error',
+        msg: orderResp.msg + ' (code ' + orderResp.code + ') | symbol=' + symbol +
+             ' qty=' + qty + ' qtyDecimals=' + qtyDecimals + ' price=' + price +
+             ' minQty=' + minQty
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 7. Attach TP/SL as separate position TP/SL order
+    var pFactor = Math.pow(10, priceDecimals);
+    var tpSlWarnings = [];
+    if (tpPrice || slPrice) {
+      var tpSlData = { symbol: symbol };
+      if (isHedge) tpSlData.positionSide = orderSide === 'BUY' ? 'LONG' : 'SHORT';
+      if (tpPrice) {
+        tpSlData.tpPrice = String(Math.round(Number(tpPrice) * pFactor) / pFactor);
+        tpSlData.tpStopType = 'LAST_PRICE';
+        tpSlData.tpOrderType = 'MARKET';
+      }
+      if (slPrice) {
+        tpSlData.slPrice = String(Math.round(Number(slPrice) * pFactor) / pFactor);
+        tpSlData.slStopType = 'LAST_PRICE';
+        tpSlData.slOrderType = 'MARKET';
+      }
+      var tpSlResp = apiPost('/api/v1/futures/tp_sl/place_position_tp_sl', tpSlData);
+      if (tpSlResp.code !== 0) {
+        tpSlWarnings.push('TP/SL failed: ' + tpSlResp.msg + ' (code ' + tpSlResp.code + ')');
+      }
+    }
+
+    var result = {
+      status: 'ok',
       msg: orderResp.msg,
       orderId: orderResp.data ? orderResp.data.orderId : null,
       symbol: symbol,
@@ -1165,8 +1218,77 @@ function executeBitunixTrade_(params) {
       price: price,
       sl: slPrice,
       tp: tpPrice
-    })).setMimeType(ContentService.MimeType.JSON);
+    };
+    if (tpSlWarnings.length) {
+      result.via = 'order_ok_tpsl_failed';
+      result.tpSlWarning = tpSlWarnings.join('; ');
+    }
 
+    return ContentService.createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'error', msg: err.message
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// ---------------------------------------------------------------
+// getBitunixPositions_ — Fetch all open positions from Bitunix
+// Called via: ?action=get_positions
+// ---------------------------------------------------------------
+function getBitunixPositions_() {
+  var API_KEY = PropertiesService.getScriptProperties().getProperty('BITUNIX_API_KEY');
+  var API_SECRET = PropertiesService.getScriptProperties().getProperty('BITUNIX_API_SECRET');
+  var BASE = 'https://fapi.bitunix.com';
+
+  function sha256(s) {
+    var raw = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, s);
+    return raw.map(function(b) { return ('0' + ((b + 256) % 256).toString(16)).slice(-2); }).join('');
+  }
+
+  function signedHeaders(queryParams, body) {
+    var nonce = Utilities.getUuid().replace(/-/g, '');
+    var timestamp = String(new Date().getTime());
+    var digest = sha256(nonce + timestamp + API_KEY + queryParams + body);
+    var sign = sha256(digest + API_SECRET);
+    return {
+      'api-key': API_KEY, 'sign': sign, 'nonce': nonce,
+      'timestamp': timestamp, 'language': 'en-US',
+      'Content-Type': 'application/json'
+    };
+  }
+
+  try {
+    var body = JSON.stringify({});
+    var headers = signedHeaders('', body);
+    var resp = UrlFetchApp.fetch(BASE + '/api/v1/futures/position', {
+      method: 'post', headers: headers,
+      payload: body, muteHttpExceptions: true
+    });
+    var data = JSON.parse(resp.getContentText());
+    var positions = [];
+    if (data.code === 0 && data.data) {
+      var list = data.data.positionList || data.data || [];
+      for (var i = 0; i < list.length; i++) {
+        var p = list[i];
+        if (Number(p.qty || 0) === 0) continue;
+        positions.push({
+          symbol: p.symbol,
+          side: p.side,
+          qty: p.qty,
+          entryPrice: p.avgOpenPrice,
+          markPrice: p.markPrice,
+          unrealizedPnl: p.unrealizedPNL,
+          leverage: p.leverage,
+          margin: p.positionMargin
+        });
+      }
+    }
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'ok', positions: positions, count: positions.length
+    })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({
       status: 'error', msg: err.message

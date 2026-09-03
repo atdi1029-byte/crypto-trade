@@ -5706,8 +5706,8 @@ const BACKTEST = {
             });
             const tradeRes = await fireGetNoFallback(POST_URL + '?' + tradeParams);
             if (tradeRes && tradeRes.status === 'ok') {
-                if (tradeRes.via === 'retry_no_sltp') {
-                    showToast('⚠️ ' + ticker + ' opened WITHOUT SL/TP — set them on Bitunix!', 8000);
+                if (tradeRes.via === 'order_ok_tpsl_failed') {
+                    showToast('⚠️ ' + ticker + ' opened but TP/SL failed — set them on Bitunix! ' + (tradeRes.tpSlWarning || ''), 8000);
                 } else {
                     showToast('Trade opened: ' + ticker + ' ' + tradeRes.qty + ' @ $' + (tradeRes.price ? Number(tradeRes.price).toFixed(4) : '?'));
                 }
