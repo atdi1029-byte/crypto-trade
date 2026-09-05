@@ -53,6 +53,8 @@ function fmtShortDate_(d) {
 // ---------------------------------------------------------------
 var QUEUE = 'Queue';
 
+var SCRIPT_VERSION = 'v3-2026-09-05-bitunix-fix';
+
 function doPost(e) {
   try {
     var raw = e.postData.contents;
@@ -808,6 +810,14 @@ function deleteTrade_(ss, data) {
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) || '';
 
+  // Safe probe: open <exec URL>?action=version in a browser. If you do NOT
+  // see this JSON, the deployment is still running old code.
+  if (action === 'version') {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'ok', script_version: SCRIPT_VERSION, has_dry_run: true
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+
   if (action === 'dashboard') {
     return serveDashboardJSON_();
   }
@@ -1016,39 +1026,94 @@ function doGet(e) {
 // ---------------------------------------------------------------
 // executeBitunixTrade_ — Open a trade on Bitunix via API
 // Params: symbol, side (buy/sell), size_usd, sl_price, tp_price, leverage
+//
+// v3 (2026-09): hardened after "Parameter error (10002)" on MELANIAUSDT
+//   - Looks up trading_pairs / tickers by exact symbol match instead of
+//     blindly using data[0] (Bitunix can return other pairs for an
+//     unknown/unlisted symbol filter -> wrong price & precision -> 10002)
+//   - Refuses symbols that are not OPEN or have API trading disabled
+//   - Formats qty with toFixed(basePrecision) so it can never carry
+//     float garbage (0.30000000000000004) or exponent notation (1e-7)
+//   - Caps qty at maxMarketOrderVolume
+//   - Every error now echoes the exact payload sent + the exchange code
+//   - Leverage/margin-mode calls are no longer fire-and-forget: failures
+//     are returned as warnings so a silent 20x default can't hide
+//   - change_leverage sends leverage as a NUMBER (API type is int; the
+//     old string "3" is a textbook 10002 "Parameter error")
+//   - TP/SL goes INLINE on place_order (documented fields). If Bitunix
+//     rejects the inline TP/SL, the bare order is placed and TP/SL is
+//     attached via the REAL endpoint /api/v1/futures/tpsl/position/place_order
+//     with the required positionId (old code used a non-existent path
+//     and never sent positionId, so stops never attached)
+//   - dry_run=1 returns the exact payload without sending anything
 // ---------------------------------------------------------------
 function executeBitunixTrade_(params) {
-  var symbol = (params.symbol || '').toUpperCase().replace(/\.P$/, '');
-  var side = (params.side || 'buy').toLowerCase();
-  var sizeUsd = Number(params.size_usd || 0);
-  var slPrice = params.sl_price || '';
-  var tpPrice = params.tp_price || '';
-  var leverage = params.leverage || '3';
+  var symbol   = String(params.symbol || '').toUpperCase().replace(/\.P$/, '').trim();
+  var side     = String(params.side || 'buy').toLowerCase();
+  var sizeUsd  = Number(params.size_usd || 0);
+  var slPrice  = params.sl_price || '';
+  var tpPrice  = params.tp_price || '';
+  var leverage = Number(params.leverage || 3);
+  if (!(leverage > 0)) leverage = 3;
+  var dryRun = String(params.dry_run || '') === '1' || String(params.dry_run || '').toLowerCase() === 'true';
 
-  if (!symbol || sizeUsd <= 0) {
-    return ContentService.createTextOutput(JSON.stringify({
-      status: 'error', msg: 'Missing symbol or size'
-    })).setMimeType(ContentService.MimeType.JSON);
+  function jsonOut_(obj) {
+    return ContentService.createTextOutput(JSON.stringify(obj))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  function fail_(msg, extra) {
+    var out = { status: 'error', msg: msg };
+    if (extra) for (var k in extra) out[k] = extra[k];
+    console.log('[execute_trade] FAIL ' + JSON.stringify(out));
+    return jsonOut_(out);
+  }
+  // Number -> plain decimal string with at most `decimals` places, no
+  // trailing zeros, never exponent notation. This is what the exchange
+  // actually parses, so it must be exact.
+  function fmtNum_(n, decimals) {
+    var d = Math.max(0, Math.min(20, Number(decimals) || 0));
+    var s = Number(n).toFixed(d);
+    if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+    return s;
+  }
+  function floorTo_(n, decimals) {
+    var f = Math.pow(10, Math.max(0, Number(decimals) || 0));
+    return Math.floor(n * f + 1e-8) / f;
+  }
+  function decimalsOf_(str) {
+    var s = String(str || '');
+    var i = s.indexOf('.');
+    return i >= 0 ? s.length - i - 1 : 0;
+  }
+  function findBySymbol_(arr, sym) {
+    if (!arr || !arr.length) return null;
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i] && String(arr[i].symbol || '').toUpperCase() === sym) return arr[i];
+    }
+    return null;
   }
 
-  // Map tokens that Bitunix lists with 1000x prefix
+  if (!symbol || !(sizeUsd > 0)) {
+    return fail_('Missing symbol or size');
+  }
+
+  // Normalise to BASE + USDT. Map tokens that Bitunix lists with 1000x prefix.
   var KILO_TOKENS = ['PEPE','SHIB','FLOKI','BONK','LUNC','BTTC','SATS','RATS','CAT'];
-  var base = symbol.replace(/USDT$|USD$|USDC$/, '');
-  var isKilo = false;
+  var base = symbol.replace(/USDT$|USDC$|USD$/, '');
   if (KILO_TOKENS.indexOf(base) >= 0 && base.indexOf('1000') !== 0) {
-    symbol = '1000' + base;
-    isKilo = true;
+    base = '1000' + base;
     // Scale SL/TP from raw price to 1000x price
     if (slPrice) slPrice = String(Number(slPrice) * 1000);
     if (tpPrice) tpPrice = String(Number(tpPrice) * 1000);
   }
-
-  // Ensure symbol ends with USDT
-  if (!symbol.match(/USDT$/)) symbol += 'USDT';
+  symbol = base + 'USDT';
 
   var API_KEY = PropertiesService.getScriptProperties().getProperty('BITUNIX_API_KEY');
   var API_SECRET = PropertiesService.getScriptProperties().getProperty('BITUNIX_API_SECRET');
   var BASE = 'https://fapi.bitunix.com';
+  if (!API_KEY || !API_SECRET) {
+    return fail_('BITUNIX_API_KEY / BITUNIX_API_SECRET not set in Script Properties');
+  }
 
   // --- Helper: double-SHA256 signature ---
   function sha256(s) {
@@ -1071,6 +1136,14 @@ function executeBitunixTrade_(params) {
     };
   }
 
+  function parseJson_(resp, label) {
+    var text = resp.getContentText();
+    try { return JSON.parse(text); }
+    catch (e) {
+      return { code: -1, msg: label + ' returned non-JSON (HTTP ' + resp.getResponseCode() + '): ' + text.substring(0, 200) };
+    }
+  }
+
   function apiPost(path, data) {
     var body = JSON.stringify(data);
     var headers = signedHeaders('', body);
@@ -1078,7 +1151,7 @@ function executeBitunixTrade_(params) {
       method: 'post', headers: headers,
       payload: body, muteHttpExceptions: true
     });
-    return JSON.parse(resp.getContentText());
+    return parseJson_(resp, path);
   }
 
   function apiGet(path, params) {
@@ -1089,123 +1162,200 @@ function executeBitunixTrade_(params) {
     var resp = UrlFetchApp.fetch(BASE + path + '?' + qs, {
       method: 'get', headers: headers, muteHttpExceptions: true
     });
-    return JSON.parse(resp.getContentText());
+    return parseJson_(resp, path);
   }
 
+  var warnings = [];
+
   try {
-    // 1. Set leverage + isolated margin
-    apiPost('/api/v1/futures/account/change_leverage', {
-      symbol: symbol, leverage: leverage, marginCoin: 'USDT'
-    });
-    apiPost('/api/v1/futures/account/change_margin_mode', {
-      symbol: symbol, marginMode: 'ISOLATION', marginCoin: 'USDT'
-    });
-
-    // 2. Get current price to calculate qty
-    var tickerResp = apiGet('/api/v1/futures/market/tickers', { symbols: symbol });
-    if (tickerResp.code !== 0 || !tickerResp.data || !tickerResp.data.length) {
-      return ContentService.createTextOutput(JSON.stringify({
-        status: 'error', msg: 'Could not get price for ' + symbol
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-    var price = Number(tickerResp.data[0].lastPrice);
-
-    // 3. Get instrument info from trading pairs
+    // 1. Instrument info FIRST — fail fast before touching leverage/margin
     var pairResp = apiGet('/api/v1/futures/market/trading_pairs', { symbols: symbol });
-    var minQty = 1;
-    var qtyDecimals = 0;
-    var priceDecimals = 4;
-    if (pairResp.code === 0 && pairResp.data && pairResp.data.length) {
-      var pairData = pairResp.data[0];
-      minQty = Number(pairData.minTradeVolume || 1);
-      // Use basePrecision for qty decimals (not minTradeVolume string length)
-      if (pairData.basePrecision !== undefined) {
-        qtyDecimals = Number(pairData.basePrecision);
-      } else {
-        // Fallback: derive from minTradeVolume if basePrecision missing
-        var minStr = String(pairData.minTradeVolume || '1');
-        var dotIdx = minStr.indexOf('.');
-        qtyDecimals = dotIdx >= 0 ? minStr.length - dotIdx - 1 : 0;
-      }
-      // Use quotePrecision for price decimals, fall back to tickSize
-      if (pairData.quotePrecision !== undefined) {
-        priceDecimals = Number(pairData.quotePrecision);
-      } else if (pairData.tickSize) {
-        var tickStr = String(pairData.tickSize);
-        var tDot = tickStr.indexOf('.');
-        priceDecimals = tDot >= 0 ? tickStr.length - tDot - 1 : 0;
-      } else if (pairData.pricePrecision) {
-        priceDecimals = Number(pairData.pricePrecision);
-      }
-    } else {
-      return ContentService.createTextOutput(JSON.stringify({
-        status: 'error',
-        msg: 'Symbol ' + symbol + ' not found on Bitunix futures'
-      })).setMimeType(ContentService.MimeType.JSON);
+    if (!pairResp || pairResp.code !== 0) {
+      return fail_('trading_pairs failed: ' + (pairResp && pairResp.msg) + ' (code ' + (pairResp && pairResp.code) + ')', { symbol: symbol });
+    }
+    var pairData = findBySymbol_(pairResp.data, symbol);
+    if (!pairData) {
+      return fail_('Symbol ' + symbol + ' not found on Bitunix futures' +
+                   (pairResp.data && pairResp.data.length
+                     ? ' (Bitunix returned ' + pairResp.data.length + ' other pair(s), none matched)'
+                     : ''),
+                   { symbol: symbol });
+    }
+    if (pairData.symbolStatus && String(pairData.symbolStatus).toUpperCase() !== 'OPEN') {
+      return fail_(symbol + ' is not tradable right now (symbolStatus=' + pairData.symbolStatus + ')', { symbol: symbol });
+    }
+    if (pairData.isApiSupported === false) {
+      return fail_(symbol + ' has API trading disabled on Bitunix (isApiSupported=false) — open it manually', { symbol: symbol });
     }
 
-    // 4. Calculate qty from USD size (size_usd is margin, multiply by leverage for notional)
-    var qty = (sizeUsd * Number(leverage)) / price;
-    // Round down to pair's precision (floor to avoid exceeding balance)
-    var factor = Math.pow(10, qtyDecimals);
-    qty = Math.floor(qty * factor) / factor;
-    if (qty < minQty) {
-      qty = minQty;
+    var minQty = Number(pairData.minTradeVolume) > 0 ? Number(pairData.minTradeVolume) : 0;
+    var maxMarketQty = Number(pairData.maxMarketOrderVolume) > 0 ? Number(pairData.maxMarketOrderVolume) : 0;
+    var qtyDecimals = (pairData.basePrecision !== undefined && pairData.basePrecision !== null)
+      ? Number(pairData.basePrecision)
+      : decimalsOf_(pairData.minTradeVolume || '1');
+    var priceDecimals = (pairData.quotePrecision !== undefined && pairData.quotePrecision !== null)
+      ? Number(pairData.quotePrecision)
+      : (pairData.tickSize ? decimalsOf_(pairData.tickSize)
+         : (pairData.pricePrecision !== undefined ? Number(pairData.pricePrecision) : 4));
+    if (!(qtyDecimals >= 0)) qtyDecimals = 0;
+    if (!(priceDecimals >= 0)) priceDecimals = 4;
+
+    // 2. Current price — again match by symbol, don't trust data[0]
+    var tickerResp = apiGet('/api/v1/futures/market/tickers', { symbols: symbol });
+    var tick = (tickerResp && tickerResp.code === 0) ? findBySymbol_(tickerResp.data, symbol) : null;
+    var price = tick ? Number(tick.lastPrice || tick.markPrice || 0) : 0;
+    if (!(price > 0)) {
+      return fail_('Could not get price for ' + symbol + ': ' + (tickerResp && tickerResp.msg) + ' (code ' + (tickerResp && tickerResp.code) + ')', { symbol: symbol });
+    }
+
+    // 4. Qty from USD size (size_usd is margin; x leverage = notional)
+    var rawQty = (sizeUsd * leverage) / price;
+    var qty = floorTo_(rawQty, qtyDecimals);
+    if (minQty > 0 && qty < minQty) qty = minQty;
+    if (maxMarketQty > 0 && qty > maxMarketQty) {
+      return fail_('Blocked: qty ' + fmtNum_(qty, qtyDecimals) + ' exceeds Bitunix max market order qty ' + maxMarketQty + ' for ' + symbol,
+                   { symbol: symbol, price: price });
+    }
+    var qtyStr = fmtNum_(qty, qtyDecimals);
+    if (!(Number(qtyStr) > 0)) {
+      return fail_('Computed qty is 0 for ' + symbol + ' (size $' + sizeUsd + ' x' + leverage + ' @ ' + price + ', basePrecision=' + qtyDecimals + ')',
+                   { symbol: symbol, price: price });
     }
     // Block if actual margin cost exceeds 10x the requested size
-    var actualCost = (qty * price) / Number(leverage);
+    var actualCost = (Number(qtyStr) * price) / leverage;
     if (actualCost > sizeUsd * 10) {
-      return ContentService.createTextOutput(JSON.stringify({
-        status: 'error', msg: 'Blocked: actual cost $' + actualCost.toFixed(2) + ' exceeds 10x your size ($' + sizeUsd + '). Bitunix minimum is too high for this amount.'
-      })).setMimeType(ContentService.MimeType.JSON);
+      return fail_('Blocked: actual cost $' + actualCost.toFixed(2) + ' exceeds 10x your size ($' + sizeUsd + '). Bitunix minimum (' + minQty + ' ' + base + ') is too high for this amount.',
+                   { symbol: symbol, price: price, qty: qtyStr });
     }
 
-    // 5. Check position mode (one-way vs hedge)
+    // 5. Position mode (one-way vs hedge)
     var acctResp = apiGet('/api/v1/futures/account', { marginCoin: 'USDT' });
-    var isHedge = acctResp && acctResp.code === 0 && acctResp.data &&
-                  acctResp.data.positionMode === 'HEDGE';
+    var isHedge = !!(acctResp && acctResp.code === 0 && acctResp.data &&
+                     String(acctResp.data.positionMode || '').toUpperCase() === 'HEDGE');
 
-    // 6. Place market order WITHOUT TP/SL (attach them separately after)
-    var orderSide = side === 'sell' ? 'SELL' : 'BUY';
+    // 6. Market order WITHOUT TP/SL (attached separately after)
+    var orderSide = side === 'sell' || side === 'short' ? 'SELL' : 'BUY';
     var orderData = {
       symbol: symbol,
       side: orderSide,
-      qty: String(qty),
-      orderType: 'MARKET'
+      qty: qtyStr,
+      orderType: 'MARKET',
+      tradeSide: 'OPEN'
     };
-    if (isHedge) orderData.tradeSide = 'OPEN';
+    // TP/SL: attached INLINE on place_order (documented fields), so the
+    // stop is live the instant the fill happens. Formatted to quotePrecision.
+    var tpStr = tpPrice ? fmtNum_(Number(tpPrice), priceDecimals) : '';
+    var slStr = slPrice ? fmtNum_(Number(slPrice), priceDecimals) : '';
+    var hasTpSl = !!(tpStr || slStr);
+    if (tpStr) {
+      orderData.tpPrice = tpStr;
+      orderData.tpStopType = 'LAST_PRICE';
+      orderData.tpOrderType = 'MARKET';
+    }
+    if (slStr) {
+      orderData.slPrice = slStr;
+      orderData.slStopType = 'LAST_PRICE';
+      orderData.slOrderType = 'MARKET';
+    }
+    // Fallback payload (correct endpoint + positionId, looked up after fill)
+    var tpSlData = hasTpSl ? { symbol: symbol, positionId: '(looked up after fill)' } : null;
+    if (tpSlData && tpStr) { tpSlData.tpPrice = tpStr; tpSlData.tpStopType = 'LAST_PRICE'; }
+    if (tpSlData && slStr) { tpSlData.slPrice = slStr; tpSlData.slStopType = 'LAST_PRICE'; }
 
-    var orderResp = apiPost('/api/v1/futures/trade/place_order', orderData);
+    console.log('[execute_trade] ' + (dryRun ? 'DRY RUN ' : '') + 'place_order ' + JSON.stringify(orderData) +
+                ' price=' + price + ' rawQty=' + rawQty + ' basePrecision=' + qtyDecimals +
+                ' minTradeVolume=' + pairData.minTradeVolume + ' hedge=' + isHedge);
 
-    if (orderResp.code !== 0) {
-      return ContentService.createTextOutput(JSON.stringify({
-        status: 'error',
-        msg: orderResp.msg + ' (code ' + orderResp.code + ') | symbol=' + symbol +
-             ' qty=' + qty + ' qtyDecimals=' + qtyDecimals + ' price=' + price +
-             ' minQty=' + minQty
-      })).setMimeType(ContentService.MimeType.JSON);
+    // ---- DRY RUN: stop here, nothing on the account has been touched ----
+    if (dryRun) {
+      return jsonOut_({
+        status: 'dry_run',
+        note: 'Nothing was sent to Bitunix. This is exactly what a live call would send.',
+        wouldSend_place_order: orderData,
+        fallback_position_tp_sl: tpSlData,
+        price: price, rawQty: rawQty, qtyDecimals: qtyDecimals, priceDecimals: priceDecimals,
+        minQty: minQty, maxMarketQty: maxMarketQty, actualCostUsd: Number(actualCost.toFixed(4)),
+        positionMode: (acctResp && acctResp.data && acctResp.data.positionMode) || '(unknown: ' + (acctResp && acctResp.msg) + ')',
+        pair: pairData
+      });
     }
 
-    // 7. Attach TP/SL as separate position TP/SL order
-    var pFactor = Math.pow(10, priceDecimals);
+    // 6b. Leverage + isolated margin — report failures instead of ignoring them
+    var levResp = apiPost('/api/v1/futures/account/change_leverage', {
+      symbol: symbol, leverage: leverage, marginCoin: 'USDT'
+    });
+    if (!levResp || levResp.code !== 0) {
+      warnings.push('change_leverage: ' + (levResp && levResp.msg) + ' (code ' + (levResp && levResp.code) + ')');
+    }
+    var mmResp = apiPost('/api/v1/futures/account/change_margin_mode', {
+      symbol: symbol, marginMode: 'ISOLATION', marginCoin: 'USDT'
+    });
+    if (!mmResp || mmResp.code !== 0) {
+      warnings.push('change_margin_mode: ' + (mmResp && mmResp.msg) + ' (code ' + (mmResp && mmResp.code) + ')');
+    }
+
+    var orderResp = apiPost('/api/v1/futures/trade/place_order', orderData);
+    var via = hasTpSl ? 'inline_tpsl' : 'no_tpsl';
+    var firstAttempt = null;
+
+    // If the inline TP/SL was what Bitunix rejected (price-side rules 300xx,
+    // or a generic 10002), retry the bare order and attach TP/SL afterwards.
+    if (orderResp && orderResp.code !== 0 && hasTpSl) {
+      var c = Number(orderResp.code);
+      var tpSlRelated = c === 10002 || (c >= 30005 && c <= 30041);
+      if (tpSlRelated) {
+        firstAttempt = 'inline attempt: ' + orderResp.msg + ' (code ' + orderResp.code + ')';
+        var bare = { symbol: symbol, side: orderSide, qty: qtyStr, orderType: 'MARKET', tradeSide: 'OPEN' };
+        console.log('[execute_trade] retrying WITHOUT inline TP/SL after: ' + firstAttempt);
+        orderResp = apiPost('/api/v1/futures/trade/place_order', bare);
+        orderData = bare;
+        via = 'bare_then_position_tpsl';
+      }
+    }
+
+    if (!orderResp || orderResp.code !== 0) {
+      return fail_(
+        (orderResp && orderResp.msg) + ' (code ' + (orderResp && orderResp.code) + ')' +
+        (firstAttempt ? ' [' + firstAttempt + ']' : '') +
+        ' | sent=' + JSON.stringify(orderData) +
+        ' | price=' + price + ' rawQty=' + rawQty +
+        ' basePrecision=' + qtyDecimals + ' minTradeVolume=' + pairData.minTradeVolume +
+        ' maxMarketOrderVolume=' + pairData.maxMarketOrderVolume +
+        ' hedge=' + isHedge +
+        (warnings.length ? ' | warnings: ' + warnings.join('; ') : ''),
+        { symbol: symbol, code: orderResp && orderResp.code, sent: orderData }
+      );
+    }
+
+    // 7. If TP/SL could not go inline, attach a position TP/SL order.
+    //    Endpoint per docs: POST /api/v1/futures/tpsl/position/place_order,
+    //    and it REQUIRES positionId -> look it up from pending positions.
     var tpSlWarnings = [];
-    if (tpPrice || slPrice) {
-      var tpSlData = { symbol: symbol };
-      if (isHedge) tpSlData.positionSide = orderSide === 'BUY' ? 'LONG' : 'SHORT';
-      if (tpPrice) {
-        tpSlData.tpPrice = String(Math.round(Number(tpPrice) * pFactor) / pFactor);
-        tpSlData.tpStopType = 'LAST_PRICE';
-        tpSlData.tpOrderType = 'MARKET';
+    if (via === 'bare_then_position_tpsl' && tpSlData) {
+      var wantSide = orderSide === 'BUY' ? 'LONG' : 'SHORT';
+      var pos = null;
+      for (var attempt = 0; attempt < 4 && !pos; attempt++) {
+        if (attempt > 0) Utilities.sleep(700);
+        var posResp = apiGet('/api/v1/futures/position/get_pending_positions', { symbol: symbol });
+        var list = (posResp && posResp.code === 0 && posResp.data) ? posResp.data : [];
+        for (var i = 0; i < list.length; i++) {
+          var pp = list[i];
+          if (String(pp.symbol).toUpperCase() !== symbol) continue;
+          if (!(Number(pp.qty) > 0)) continue;
+          if (isHedge && String(pp.side).toUpperCase() !== wantSide) continue;
+          pos = pp; break;
+        }
       }
-      if (slPrice) {
-        tpSlData.slPrice = String(Math.round(Number(slPrice) * pFactor) / pFactor);
-        tpSlData.slStopType = 'LAST_PRICE';
-        tpSlData.slOrderType = 'MARKET';
+      if (!pos) {
+        tpSlWarnings.push('TP/SL not set: position not found after fill (' + (posResp && posResp.msg) + ')');
+      } else {
+        tpSlData.positionId = String(pos.positionId);
+        var tpSlResp = apiPost('/api/v1/futures/tpsl/position/place_order', tpSlData);
+        if (!tpSlResp || tpSlResp.code !== 0) {
+          tpSlWarnings.push('TP/SL failed: ' + (tpSlResp && tpSlResp.msg) + ' (code ' + (tpSlResp && tpSlResp.code) + ') sent=' + JSON.stringify(tpSlData));
+        }
       }
-      var tpSlResp = apiPost('/api/v1/futures/tp_sl/place_position_tp_sl', tpSlData);
-      if (tpSlResp.code !== 0) {
-        tpSlWarnings.push('TP/SL failed: ' + tpSlResp.msg + ' (code ' + tpSlResp.code + ')');
-      }
+      if (firstAttempt) warnings.push(firstAttempt);
     }
 
     var result = {
@@ -1214,24 +1364,60 @@ function executeBitunixTrade_(params) {
       orderId: orderResp.data ? orderResp.data.orderId : null,
       symbol: symbol,
       side: orderSide,
-      qty: qty,
+      qty: qtyStr,
       price: price,
-      sl: slPrice,
-      tp: tpPrice
+      sl: slStr,
+      tp: tpStr,
+      via: via
     };
     if (tpSlWarnings.length) {
       result.via = 'order_ok_tpsl_failed';
       result.tpSlWarning = tpSlWarnings.join('; ');
     }
+    if (warnings.length) {
+      // Order went through but leverage/margin-mode may not be what you asked for
+      result.warnings = warnings.join('; ');
+    }
+    console.log('[execute_trade] OK ' + JSON.stringify(result));
 
-    return ContentService.createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonOut_(result);
 
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({
-      status: 'error', msg: err.message
-    })).setMimeType(ContentService.MimeType.JSON);
+    return fail_('Script error: ' + err.message + (err.stack ? ' @ ' + String(err.stack).split('\n')[1] : ''), { symbol: symbol });
   }
+}
+
+// ---------------------------------------------------------------
+// DEBUG HELPERS — run these from the Apps Script editor:
+//   pick the function name in the toolbar dropdown -> Run -> look at
+//   "Execution log" at the bottom. They use the code as SAVED in the
+//   editor, so they work even if the web-app deployment is stale.
+// ---------------------------------------------------------------
+
+// Safe: nothing is sent to Bitunix. Shows the exact place_order payload,
+// the pair's precision/min-qty/status, price, and position mode.
+function testTradeDryRun() {
+  var out = executeBitunixTrade_({
+    symbol: 'MELANIA', side: 'sell', size_usd: '20', leverage: '3',
+    sl_price: '0.1150', tp_price: '0.1024',
+    dry_run: '1'
+  });
+  Logger.log(out.getContent());
+}
+
+// LIVE — places a real market order (default $5 margin x3). Only runs if
+// you flip LIVE_TEST_CONFIRM to true. The full Bitunix reply (code + msg +
+// payload) lands in the execution log, which is what we need to see.
+var LIVE_TEST_CONFIRM = false;
+function testTradeLive() {
+  if (!LIVE_TEST_CONFIRM) {
+    Logger.log('Set LIVE_TEST_CONFIRM = true first. This places a REAL order.');
+    return;
+  }
+  var out = executeBitunixTrade_({
+    symbol: 'MELANIA', side: 'sell', size_usd: '5', leverage: '3'
+  });
+  Logger.log(out.getContent());
 }
 
 // ---------------------------------------------------------------
@@ -1261,13 +1447,18 @@ function getBitunixPositions_() {
   }
 
   try {
-    var body = JSON.stringify({});
-    var headers = signedHeaders('', body);
-    var resp = UrlFetchApp.fetch(BASE + '/api/v1/futures/position', {
-      method: 'post', headers: headers,
-      payload: body, muteHttpExceptions: true
+    // GET /api/v1/futures/position/get_pending_positions (documented endpoint;
+    // the previous POST /api/v1/futures/position is not part of the API)
+    var headers = signedHeaders('', '');
+    var resp = UrlFetchApp.fetch(BASE + '/api/v1/futures/position/get_pending_positions', {
+      method: 'get', headers: headers, muteHttpExceptions: true
     });
     var data = JSON.parse(resp.getContentText());
+    if (data.code !== 0) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 'error', msg: 'get_pending_positions: ' + data.msg + ' (code ' + data.code + ')'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
     var positions = [];
     if (data.code === 0 && data.data) {
       var list = data.data.positionList || data.data || [];
@@ -1275,11 +1466,13 @@ function getBitunixPositions_() {
         var p = list[i];
         if (Number(p.qty || 0) === 0) continue;
         positions.push({
+          positionId: p.positionId,
           symbol: p.symbol,
           side: p.side,
           qty: p.qty,
           entryPrice: p.avgOpenPrice,
           markPrice: p.markPrice,
+          liqPrice: p.liqPrice,
           unrealizedPnl: p.unrealizedPNL,
           leverage: p.leverage,
           margin: p.positionMargin

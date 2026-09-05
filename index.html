@@ -2455,6 +2455,7 @@
 </div>
 
 <script>
+    console.log('crypto-trade dashboard v3-2026-09-05 (bitunix fix)');
     // ====== CONFIG ======
     const API_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec?action=dashboard';
     const POST_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec';
@@ -5690,7 +5691,7 @@ const BACKTEST = {
             // Open Bitunix so user can see position + adjust TP2
             const sym = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
             const pair = (BX_REMAP[sym] || sym) + 'USDT';
-            navigator.clipboard.writeText(pair);
+            navigator.clipboard.writeText(pair).catch(() => {});
             window.open(DEFAULT_BX(ticker), '_blank');
             // Fire trade via API — await result before writing to sheet
             const cleanSym = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
@@ -5711,10 +5712,13 @@ const BACKTEST = {
                 } else {
                     showToast('Trade opened: ' + ticker + ' ' + tradeRes.qty + ' @ $' + (tradeRes.price ? Number(tradeRes.price).toFixed(4) : '?'));
                 }
+                if (tradeRes.warnings) {
+                    showToast('⚠️ ' + ticker + ': ' + tradeRes.warnings + ' — check leverage/margin mode on Bitunix', 8000);
+                }
             } else {
                 // Trade failed — ask user what to do
                 const keepIt = await showModal({
-                    message: ticker + ' trade failed to open' + (tradeRes && tradeRes.msg ? ': ' + tradeRes.msg : '') + '\n\nMark as Entered anyway?',
+                    message: '<b>' + ticker + ' trade failed to open</b>' + (tradeRes && tradeRes.msg ? '<br><span style="font-size:0.8em;opacity:0.85;word-break:break-all">' + String(tradeRes.msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</span>' : '') + '<br><br>Mark as Entered anyway?',
                     okLabel: 'Keep as Entered',
                     cancelLabel: 'Skip it',
                     okClass: 'modal-btn-ok'
@@ -5733,7 +5737,7 @@ const BACKTEST = {
             // No size entered — old behavior: copy ticker + open Bitunix
             const s = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
             const pair = (BX_REMAP[s] || s) + 'USDT';
-            navigator.clipboard.writeText(pair);
+            navigator.clipboard.writeText(pair).catch(() => {});
             window.open(DEFAULT_BX(ticker), '_blank');
             // Set clock start to now (not signal time)
             localStorage.setItem('clock_' + ticker.toUpperCase() + '_' + signal.toLowerCase(), String(Date.now()));
@@ -5991,7 +5995,7 @@ const BACKTEST = {
         if (value === 'Entered') {
             const s2 = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
             const pair = (BX_REMAP[s2] || s2) + 'USDT';
-            navigator.clipboard.writeText(pair);
+            navigator.clipboard.writeText(pair).catch(() => {});
             window.open(DEFAULT_BX(ticker), '_blank');
             // Set clock start to now (not signal time)
             localStorage.setItem('clock_' + ticker.toUpperCase() + '_' + signal.toLowerCase(), String(Date.now()));
