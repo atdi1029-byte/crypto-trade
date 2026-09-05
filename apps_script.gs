@@ -1056,6 +1056,7 @@ function executeBitunixTrade_(params) {
   var leverage = Number(params.leverage || 3);
   if (!(leverage > 0)) leverage = 3;
   var dryRun = String(params.dry_run || '') === '1' || String(params.dry_run || '').toLowerCase() === 'true';
+  var signalTs = String(params.signal_ts || '').replace(/[^a-zA-Z0-9_:\-]/g, '');
 
   function jsonOut_(obj) {
     return ContentService.createTextOutput(JSON.stringify(obj))
@@ -1235,6 +1236,10 @@ function executeBitunixTrade_(params) {
 
     // 6. Market order WITHOUT TP/SL (attached separately after)
     var orderSide = side === 'sell' || side === 'short' ? 'SELL' : 'BUY';
+    // clientId = idempotency key: Bitunix rejects duplicates (code 30042)
+    var clientId = signalTs
+      ? (symbol + '_' + signalTs).replace(/[^a-zA-Z0-9_\-]/g, '').substring(0, 64)
+      : '';
     var orderData = {
       symbol: symbol,
       side: orderSide,
@@ -1242,6 +1247,7 @@ function executeBitunixTrade_(params) {
       orderType: 'MARKET',
       tradeSide: 'OPEN'
     };
+    if (clientId) orderData.clientId = clientId;
     // TP/SL: attached INLINE on place_order (documented fields), so the
     // stop is live the instant the fill happens. Formatted to quotePrecision.
     var tpStr = tpPrice ? fmtNum_(Number(tpPrice), priceDecimals) : '';
@@ -1306,6 +1312,7 @@ function executeBitunixTrade_(params) {
       if (tpSlRelated) {
         firstAttempt = 'inline attempt: ' + orderResp.msg + ' (code ' + orderResp.code + ')';
         var bare = { symbol: symbol, side: orderSide, qty: qtyStr, orderType: 'MARKET', tradeSide: 'OPEN' };
+        if (clientId) bare.clientId = clientId;
         console.log('[execute_trade] retrying WITHOUT inline TP/SL after: ' + firstAttempt);
         orderResp = apiPost('/api/v1/futures/trade/place_order', bare);
         orderData = bare;

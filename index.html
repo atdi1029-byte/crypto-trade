@@ -3751,6 +3751,7 @@ const BACKTEST = {
                             ${bt ? `<input type="text" class="entry-input" placeholder="Entry $" id="${pickId}-entry" value="${p}" style="width:80px" oninput="recalcLevels('${pickId}')">` : ''}
                             <button class="action-btn entered" onclick="markPickAction('${esc(tkr)}','${esc(s.signal || s.direction)}',${prc},'Entered','${pickId}')">Entered</button>
                             <button class="action-btn skipped" onclick="markPickAction('${esc(tkr)}','${esc(s.signal || s.direction)}',${prc},'Skipped','${pickId}')">Skipped</button>
+                            <a href="${DEFAULT_BX(tkr)}" target="_blank" style="font-size:0.65rem;opacity:0.5;margin-left:0.3rem;text-decoration:none" title="Open on Bitunix">↗</a>
                         </div>
                     </div>
                 </div>
@@ -3924,11 +3925,12 @@ const BACKTEST = {
                             ${noteHtml ? `<div class="meta" style="margin-top:0.15rem">${noteHtml}</div>` : ''}
                             ${!lvl && levelsStr ? `<div class="meta" style="margin-top:0.15rem;font-size:0.7rem">${levelsStr}</div>` : ''}
                             ${btHtml}
-                            <div class="action-buttons" data-signal-sl="${lvl ? (isBuy ? p * (1 - lvl.sl / 100) : p * (1 + lvl.sl / 100)) : (sl || '')}" data-signal-tp="${lvl ? (isBuy ? p * (1 + lvl.halfTp / 100) : p * (1 - lvl.halfTp / 100)) : (tp1 || '')}" data-signal-side="${isBuy ? 'buy' : 'sell'}">
+                            <div class="action-buttons" data-signal-sl="${lvl ? (isBuy ? p * (1 - lvl.sl / 100) : p * (1 + lvl.sl / 100)) : (sl || '')}" data-signal-tp="${lvl ? (isBuy ? p * (1 + lvl.halfTp / 100) : p * (1 - lvl.halfTp / 100)) : (tp1 || '')}" data-signal-side="${isBuy ? 'buy' : 'sell'}" data-signal-ts="${esc(a.timestamp || '')}">
                                 <input type="text" class="entry-input" placeholder="Size $" id="${id}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
                                 ${lvl ? `<input type="text" class="entry-input" placeholder="Entry $" id="${id}-entry" value="${p}" style="width:80px" oninput="recalcLevels('${id}')">` : ''}
                                 <button class="action-btn entered" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Entered','${id}')">Open</button>
                                 <button class="action-btn skipped" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Skipped','${id}')">Skip</button>
+                                <a href="${DEFAULT_BX(tkr)}" target="_blank" style="font-size:0.65rem;opacity:0.5;margin-left:0.3rem;text-decoration:none" title="Open on Bitunix">↗</a>
                             </div>
                         </div>
                     </div>`;
@@ -5688,11 +5690,7 @@ const BACKTEST = {
             const slPrice = btnDiv ? btnDiv.dataset.signalSl : '';
             const tpPrice = btnDiv ? btnDiv.dataset.signalTp : '';
             const tradeSide = btnDiv ? btnDiv.dataset.signalSide : 'buy';
-            // Open Bitunix so user can see position + adjust TP2
-            const sym = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
-            const pair = (BX_REMAP[sym] || sym) + 'USDT';
-            navigator.clipboard.writeText(pair).catch(() => {});
-            window.open(DEFAULT_BX(ticker), '_blank');
+            const signalTs = btnDiv ? btnDiv.dataset.signalTs : '';
             // Fire trade via API — await result before writing to sheet
             const cleanSym = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
             const bxSym = BX_REMAP[cleanSym] || cleanSym;
@@ -5703,7 +5701,8 @@ const BACKTEST = {
                 size_usd: entrySize,
                 sl_price: slPrice,
                 tp_price: tpPrice,
-                leverage: '3'
+                leverage: '3',
+                signal_ts: signalTs
             });
             const tradeRes = await fireGetNoFallback(POST_URL + '?' + tradeParams);
             if (tradeRes && tradeRes.status === 'ok') {
@@ -5716,15 +5715,16 @@ const BACKTEST = {
                     showToast('⚠️ ' + ticker + ': ' + tradeRes.warnings + ' — check leverage/margin mode on Bitunix', 8000);
                 }
             } else {
-                // Trade failed — ask user what to do
+                // Trade failed — open Bitunix so user can act manually
+                window.open(DEFAULT_BX(ticker), '_blank');
                 const keepIt = await showModal({
-                    message: '<b>' + ticker + ' trade failed to open</b>' + (tradeRes && tradeRes.msg ? '<br><span style="font-size:0.8em;opacity:0.85;word-break:break-all">' + String(tradeRes.msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</span>' : '') + '<br><br>Mark as Entered anyway?',
-                    okLabel: 'Keep as Entered',
-                    cancelLabel: 'Skip it',
-                    okClass: 'modal-btn-ok'
+                    message: '<b>' + ticker + ' trade failed to open</b>' + (tradeRes && tradeRes.msg ? '<br><span style="font-size:0.8em;opacity:0.85;word-break:break-all">' + String(tradeRes.msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</span>' : '') + '<br><br>What do you want to do?',
+                    okLabel: 'Skip it',
+                    cancelLabel: 'I opened it manually',
+                    okClass: 'modal-btn-danger'
                 });
-                if (!keepIt) {
-                    // Revert — skip instead of entering
+                if (keepIt) {
+                    // User chose Skip (now the primary button)
                     value = 'Skipped';
                     removeActedItem(ticker, signal);
                     addActedItem(ticker, signal);
@@ -5734,11 +5734,10 @@ const BACKTEST = {
                 localStorage.setItem('clock_' + ticker.toUpperCase() + '_' + signal.toLowerCase(), String(Date.now()));
             }
         } else if (value === 'Entered') {
-            // No size entered — old behavior: copy ticker + open Bitunix
+            // No size entered — copy ticker to clipboard (no auto-tab)
             const s = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
             const pair = (BX_REMAP[s] || s) + 'USDT';
             navigator.clipboard.writeText(pair).catch(() => {});
-            window.open(DEFAULT_BX(ticker), '_blank');
             // Set clock start to now (not signal time)
             localStorage.setItem('clock_' + ticker.toUpperCase() + '_' + signal.toLowerCase(), String(Date.now()));
         }
