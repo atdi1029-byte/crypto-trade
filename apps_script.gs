@@ -1244,9 +1244,9 @@ function executeBitunixTrade_(params) {
       symbol: symbol,
       side: orderSide,
       qty: qtyStr,
-      orderType: 'MARKET',
-      tradeSide: 'OPEN'
+      orderType: 'MARKET'
     };
+    if (isHedge) orderData.tradeSide = 'OPEN';
     if (clientId) orderData.clientId = clientId;
     // TP/SL: attached INLINE on place_order (documented fields), so the
     // stop is live the instant the fill happens. Formatted to quotePrecision.
@@ -1311,7 +1311,8 @@ function executeBitunixTrade_(params) {
       var tpSlRelated = c === 10002 || (c >= 30005 && c <= 30041);
       if (tpSlRelated) {
         firstAttempt = 'inline attempt: ' + orderResp.msg + ' (code ' + orderResp.code + ')';
-        var bare = { symbol: symbol, side: orderSide, qty: qtyStr, orderType: 'MARKET', tradeSide: 'OPEN' };
+        var bare = { symbol: symbol, side: orderSide, qty: qtyStr, orderType: 'MARKET' };
+        if (isHedge) bare.tradeSide = 'OPEN';
         if (clientId) bare.clientId = clientId;
         console.log('[execute_trade] retrying WITHOUT inline TP/SL after: ' + firstAttempt);
         orderResp = apiPost('/api/v1/futures/trade/place_order', bare);
