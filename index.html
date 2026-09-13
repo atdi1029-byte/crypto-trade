@@ -2455,7 +2455,7 @@
 </div>
 
 <script>
-    console.log('crypto-trade dashboard v3-2026-09-05 (bitunix fix)');
+    console.log('crypto-trade dashboard v4-2026-09-13 (url + open flow restored)');
     // ====== CONFIG ======
     const API_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec?action=dashboard';
     const POST_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec';
@@ -5719,12 +5719,12 @@ const BACKTEST = {
                 window.open(DEFAULT_BX(ticker), '_blank');
                 const keepIt = await showModal({
                     message: '<b>' + ticker + ' trade failed to open</b>' + (tradeRes && tradeRes.msg ? '<br><span style="font-size:0.8em;opacity:0.85;word-break:break-all">' + String(tradeRes.msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</span>' : '') + '<br><br>What do you want to do?',
-                    okLabel: 'Skip it',
-                    cancelLabel: 'I opened it manually',
-                    okClass: 'modal-btn-danger'
+                    okLabel: 'I opened it manually',
+                    cancelLabel: 'Skip it',
+                    okClass: 'modal-btn-ok'
                 });
-                if (keepIt) {
-                    // User chose Skip (now the primary button)
+                if (!keepIt) {
+                    // User chose Skip — revert to skipped instead of entered
                     value = 'Skipped';
                     removeActedItem(ticker, signal);
                     addActedItem(ticker, signal);
@@ -5734,10 +5734,11 @@ const BACKTEST = {
                 localStorage.setItem('clock_' + ticker.toUpperCase() + '_' + signal.toLowerCase(), String(Date.now()));
             }
         } else if (value === 'Entered') {
-            // No size entered — copy ticker to clipboard (no auto-tab)
+            // No size entered — manual entry: copy pair to clipboard and open Bitunix
             const s = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
             const pair = (BX_REMAP[s] || s) + 'USDT';
             navigator.clipboard.writeText(pair).catch(() => {});
+            window.open(DEFAULT_BX(ticker), '_blank');
             // Set clock start to now (not signal time)
             localStorage.setItem('clock_' + ticker.toUpperCase() + '_' + signal.toLowerCase(), String(Date.now()));
         }
