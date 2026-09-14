@@ -2455,7 +2455,7 @@
 </div>
 
 <script>
-    console.log('crypto-trade dashboard v4-2026-09-13 (url + open flow restored)');
+    console.log('crypto-trade dashboard v5-2026-09-13 (tab opens on click)');
     // ====== CONFIG ======
     const API_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec?action=dashboard';
     const POST_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec';
@@ -5691,9 +5691,13 @@ const BACKTEST = {
             const tpPrice = btnDiv ? btnDiv.dataset.signalTp : '';
             const tradeSide = btnDiv ? btnDiv.dataset.signalSide : 'buy';
             const signalTs = btnDiv ? btnDiv.dataset.signalTs : '';
-            // Fire trade via API — await result before writing to sheet
             const cleanSym = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
             const bxSym = BX_REMAP[cleanSym] || cleanSym;
+            // Open Bitunix NOW, while still inside the click gesture — a window.open after the
+            // API await gets popup-blocked. Copy the pair so it's ready to paste.
+            navigator.clipboard.writeText(bxSym + 'USDT').catch(() => {});
+            window.open(DEFAULT_BX(ticker), '_blank');
+            // Fire trade via API — await result before writing to sheet
             const tradeParams = new URLSearchParams({
                 action: 'execute_trade',
                 symbol: bxSym,
@@ -5715,10 +5719,9 @@ const BACKTEST = {
                     showToast('⚠️ ' + ticker + ': ' + tradeRes.warnings + ' — check leverage/margin mode on Bitunix', 8000);
                 }
             } else {
-                // Trade failed — open Bitunix so user can act manually
-                window.open(DEFAULT_BX(ticker), '_blank');
+                // Trade failed — the Bitunix tab is already open from the click; offer a link too
                 const keepIt = await showModal({
-                    message: '<b>' + ticker + ' trade failed to open</b>' + (tradeRes && tradeRes.msg ? '<br><span style="font-size:0.8em;opacity:0.85;word-break:break-all">' + String(tradeRes.msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</span>' : '') + '<br><br>What do you want to do?',
+                    message: '<b>' + ticker + ' trade failed to open</b>' + (tradeRes && tradeRes.msg ? '<br><span style="font-size:0.8em;opacity:0.85;word-break:break-all">' + String(tradeRes.msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</span>' : '') + '<br><br><a href="' + DEFAULT_BX(ticker) + '" target="_blank" style="color:#58a6ff">Open ' + bxSym + 'USDT on Bitunix ↗</a><br><br>What do you want to do?',
                     okLabel: 'I opened it manually',
                     cancelLabel: 'Skip it',
                     okClass: 'modal-btn-ok'
