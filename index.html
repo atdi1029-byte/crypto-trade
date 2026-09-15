@@ -2455,7 +2455,7 @@
 </div>
 
 <script>
-    console.log('crypto-trade dashboard v5-2026-09-13 (tab opens on click)');
+    console.log('crypto-trade dashboard v5-2026-09-15 (fix float SL/TP)');
     // ====== CONFIG ======
     const API_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec?action=dashboard';
     const POST_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec';
@@ -5687,10 +5687,14 @@ const BACKTEST = {
         // If Entered and size is provided, execute trade via Bitunix API
         if (value === 'Entered' && entrySize && Number(entrySize) > 0) {
             const btnDiv = el.querySelector('.action-buttons');
-            const slPrice = btnDiv ? btnDiv.dataset.signalSl : '';
-            const tpPrice = btnDiv ? btnDiv.dataset.signalTp : '';
+            const slPriceRaw = btnDiv ? btnDiv.dataset.signalSl : '';
+            const tpPriceRaw = btnDiv ? btnDiv.dataset.signalTp : '';
             const tradeSide = btnDiv ? btnDiv.dataset.signalSide : 'buy';
             const signalTs = btnDiv ? btnDiv.dataset.signalTs : '';
+            // Clean floating point garbage from computed SL/TP (e.g. 0.0007571025000000001 → 0.0007571025)
+            const fmtP = v => { const n = Number(v); return (!v || isNaN(n)) ? '' : parseFloat(n.toPrecision(10)).toString(); };
+            const slPrice = fmtP(slPriceRaw);
+            const tpPrice = fmtP(tpPriceRaw);
             const cleanSym = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
             const bxSym = BX_REMAP[cleanSym] || cleanSym;
             // Open Bitunix NOW, while still inside the click gesture — a window.open after the
