@@ -5693,10 +5693,20 @@ const BACKTEST = {
             const signalTs = btnDiv ? btnDiv.dataset.signalTs : '';
             // Clean floating point garbage from computed SL/TP (e.g. 0.0007571025000000001 → 0.0007571025)
             const fmtP = v => { const n = Number(v); return (!v || isNaN(n)) ? '' : parseFloat(n.toPrecision(10)).toString(); };
-            const slPrice = fmtP(slPriceRaw);
-            const tpPrice = fmtP(tpPriceRaw);
+            let slPrice = fmtP(slPriceRaw);
+            let tpPrice = fmtP(tpPriceRaw);
             const cleanSym = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
             const bxSym = BX_REMAP[cleanSym] || cleanSym;
+            // Validate SL/TP direction before sending — strip wrong-side values
+            // BUY: SL must be below price, TP must be above. SELL: opposite.
+            if (slPrice || tpPrice) {
+                const cur = Number(price);
+                const isBuy = tradeSide === 'buy';
+                if (slPrice && isBuy && Number(slPrice) >= cur) { console.warn('Stripped invalid BUY SL', slPrice, '>= price', cur); slPrice = ''; }
+                if (tpPrice && isBuy && Number(tpPrice) <= cur) { console.warn('Stripped invalid BUY TP', tpPrice, '<= price', cur); tpPrice = ''; }
+                if (slPrice && !isBuy && Number(slPrice) <= cur) { console.warn('Stripped invalid SELL SL', slPrice, '<= price', cur); slPrice = ''; }
+                if (tpPrice && !isBuy && Number(tpPrice) >= cur) { console.warn('Stripped invalid SELL TP', tpPrice, '>= price', cur); tpPrice = ''; }
+            }
             // Open Bitunix NOW, while still inside the click gesture — a window.open after the
             // API await gets popup-blocked. Copy the pair so it's ready to paste.
             navigator.clipboard.writeText(bxSym + 'USDT').catch(() => {});
