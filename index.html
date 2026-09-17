@@ -5772,7 +5772,9 @@ const BACKTEST = {
                 leverage: '3',
                 signal_ts: signalTs
             });
+            console.log('[execute_trade] request:', Object.fromEntries(tradeParams));
             const tradeRes = await fireGetNoFallback(POST_URL + '?' + tradeParams);
+            console.log('[execute_trade] response:', JSON.stringify(tradeRes));
             if (tradeRes && tradeRes.status === 'ok') {
                 if (tradeRes.via === 'order_ok_tpsl_failed') {
                     showToast('⚠️ ' + ticker + ' opened but TP/SL failed — set them on Bitunix! ' + (tradeRes.tpSlWarning || ''), 8000);
@@ -5784,8 +5786,9 @@ const BACKTEST = {
                 }
             } else {
                 // Trade failed — the Bitunix tab is already open from the click; offer a link too
+                const errDetail = tradeRes ? JSON.stringify(tradeRes, null, 0) : 'no response';
                 const keepIt = await showModal({
-                    message: '<b>' + ticker + ' trade failed to open</b>' + (tradeRes && tradeRes.msg ? '<br><span style="font-size:0.8em;opacity:0.85;word-break:break-all">' + String(tradeRes.msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</span>' : '') + '<br><br><a href="' + DEFAULT_BX(ticker) + '" target="_blank" style="color:#58a6ff">Open ' + bxSym + 'USDT on Bitunix ↗</a><br><br>What do you want to do?',
+                    message: '<b>' + ticker + ' trade failed to open</b>' + (tradeRes && tradeRes.msg ? '<br><span style="font-size:0.8em;opacity:0.85;word-break:break-all">' + String(tradeRes.msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</span>' : '') + '<br><details style="margin:0.5rem 0;font-size:0.7em;opacity:0.7"><summary>Debug</summary><pre style="white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;text-align:left">' + errDetail.replace(/[<>]/g, c => c === '<' ? '&lt;' : '&gt;') + '</pre></details><a href="' + DEFAULT_BX(ticker) + '" target="_blank" style="color:#58a6ff">Open ' + bxSym + 'USDT on Bitunix ↗</a><br><br>What do you want to do?',
                     okLabel: 'I opened it manually',
                     cancelLabel: 'Skip it',
                     okClass: 'modal-btn-ok'
