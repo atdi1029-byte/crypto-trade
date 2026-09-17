@@ -5773,19 +5773,39 @@ const BACKTEST = {
                 signal_ts: signalTs
             });
             console.log('[execute_trade] request:', Object.fromEntries(tradeParams));
-            const tradeRes = await fireGetNoFallback(POST_URL + '?' + tradeParams);
+            let tradeRes = await fireGetNoFallback(POST_URL + '?' + tradeParams);
             console.log('[execute_trade] response:', JSON.stringify(tradeRes));
+            // If trade failed and we sent SL/TP, retry without them — SL/TP precision
+            // mismatch is the most common cause of "Parameter error" from Bitunix
+            if (tradeRes && tradeRes.status !== 'ok' && (slPrice || tpPrice)) {
+                console.warn('[execute_trade] retrying WITHOUT SL/TP after:', tradeRes.msg);
+                const retryParams = new URLSearchParams({
+                    action: 'execute_trade',
+                    symbol: bxSym,
+                    side: tradeSide,
+                    size_usd: entrySize,
+                    sl_price: '',
+                    tp_price: '',
+                    leverage: '3',
+                    signal_ts: signalTs
+                });
+                tradeRes = await fireGetNoFallback(POST_URL + '?' + retryParams);
+                console.log('[execute_trade] retry response:', JSON.stringify(tradeRes));
+                if (tradeRes && tradeRes.status === 'ok') {
+                    showToast('⚠️ ' + ticker + ' opened but TP/SL failed — set them on Bitunix!', 8000);
+                }
+            }
             if (tradeRes && tradeRes.status === 'ok') {
                 if (tradeRes.via === 'order_ok_tpsl_failed') {
                     showToast('⚠️ ' + ticker + ' opened but TP/SL failed — set them on Bitunix! ' + (tradeRes.tpSlWarning || ''), 8000);
-                } else {
+                } else if (!tradeRes._retried) {
                     showToast('Trade opened: ' + ticker + ' ' + tradeRes.qty + ' @ $' + (tradeRes.price ? Number(tradeRes.price).toFixed(4) : '?'));
                 }
                 if (tradeRes.warnings) {
                     showToast('⚠️ ' + ticker + ': ' + tradeRes.warnings + ' — check leverage/margin mode on Bitunix', 8000);
                 }
             } else {
-                // Trade failed — the Bitunix tab is already open from the click; offer a link too
+                // Trade failed even without SL/TP — show error modal
                 const errDetail = tradeRes ? JSON.stringify(tradeRes, null, 0) : 'no response';
                 const keepIt = await showModal({
                     message: '<b>' + ticker + ' trade failed to open</b>' + (tradeRes && tradeRes.msg ? '<br><span style="font-size:0.8em;opacity:0.85;word-break:break-all">' + String(tradeRes.msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</span>' : '') + '<br><details style="margin:0.5rem 0;font-size:0.7em;opacity:0.7"><summary>Debug</summary><pre style="white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;text-align:left">' + errDetail.replace(/[<>]/g, c => c === '<' ? '&lt;' : '&gt;') + '</pre></details><a href="' + DEFAULT_BX(ticker) + '" target="_blank" style="color:#58a6ff">Open ' + bxSym + 'USDT on Bitunix ↗</a><br><br>What do you want to do?',
