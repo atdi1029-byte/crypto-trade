@@ -5741,8 +5741,14 @@ const BACKTEST = {
             const tpPriceRaw = btnDiv ? btnDiv.dataset.signalTp : '';
             const tradeSide = btnDiv ? btnDiv.dataset.signalSide : 'buy';
             const signalTs = btnDiv ? btnDiv.dataset.signalTs : '';
-            // Clean floating point garbage from computed SL/TP (e.g. 0.0007571025000000001 → 0.0007571025)
-            const fmtP = v => { const n = Number(v); return (!v || isNaN(n)) ? '' : parseFloat(n.toPrecision(10)).toString(); };
+            // Format SL/TP to match the signal price's decimal precision — Bitunix
+            // rejects values with too many decimals ("Parameter error" 10002)
+            const priceDecimals = (() => {
+                const s = String(price);
+                const dot = s.indexOf('.');
+                return dot >= 0 ? s.length - dot - 1 : 0;
+            })();
+            const fmtP = v => { const n = Number(v); return (!v || isNaN(n)) ? '' : n.toFixed(priceDecimals); };
             let slPrice = fmtP(slPriceRaw);
             let tpPrice = fmtP(tpPriceRaw);
             const cleanSym = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
@@ -5775,30 +5781,10 @@ const BACKTEST = {
             console.log('[execute_trade] request:', Object.fromEntries(tradeParams));
             let tradeRes = await fireGetNoFallback(POST_URL + '?' + tradeParams);
             console.log('[execute_trade] response:', JSON.stringify(tradeRes));
-            // If trade failed and we sent SL/TP, retry without them — SL/TP precision
-            // mismatch is the most common cause of "Parameter error" from Bitunix
-            if (tradeRes && tradeRes.status !== 'ok' && (slPrice || tpPrice)) {
-                console.warn('[execute_trade] retrying WITHOUT SL/TP after:', tradeRes.msg);
-                const retryParams = new URLSearchParams({
-                    action: 'execute_trade',
-                    symbol: bxSym,
-                    side: tradeSide,
-                    size_usd: entrySize,
-                    sl_price: '',
-                    tp_price: '',
-                    leverage: '3',
-                    signal_ts: signalTs
-                });
-                tradeRes = await fireGetNoFallback(POST_URL + '?' + retryParams);
-                console.log('[execute_trade] retry response:', JSON.stringify(tradeRes));
-                if (tradeRes && tradeRes.status === 'ok') {
-                    showToast('⚠️ ' + ticker + ' opened but TP/SL failed — set them on Bitunix!', 8000);
-                }
-            }
             if (tradeRes && tradeRes.status === 'ok') {
                 if (tradeRes.via === 'order_ok_tpsl_failed') {
                     showToast('⚠️ ' + ticker + ' opened but TP/SL failed — set them on Bitunix! ' + (tradeRes.tpSlWarning || ''), 8000);
-                } else if (!tradeRes._retried) {
+                } else {
                     showToast('Trade opened: ' + ticker + ' ' + tradeRes.qty + ' @ $' + (tradeRes.price ? Number(tradeRes.price).toFixed(4) : '?'));
                 }
                 if (tradeRes.warnings) {
