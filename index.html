@@ -3308,8 +3308,11 @@ const BACKTEST = {
         try { return JSON.parse(localStorage.getItem(ACTED_KEY) || '[]'); } catch { return []; }
     }
     function addActedItem(ticker, signal) {
-        const items = getActedItems().filter(i => Date.now() - i.ts < 86400000); // keep 24hr
-        items.push({ t: ticker.toUpperCase(), s: signal.toLowerCase(), ts: Date.now() });
+        const items = getActedItems();
+        // Prevent duplicates
+        if (!items.some(i => i.t === ticker.toUpperCase() && i.s === signal.toLowerCase())) {
+            items.push({ t: ticker.toUpperCase(), s: signal.toLowerCase(), ts: Date.now() });
+        }
         localStorage.setItem(ACTED_KEY, JSON.stringify(items));
     }
     function removeActedItem(ticker, signal) {
@@ -3319,6 +3322,42 @@ const BACKTEST = {
     }
     function isActed(ticker, signal) {
         return getActedItems().some(i => i.t === ticker.toUpperCase() && i.s === signal.toLowerCase());
+    }
+
+    // Pending closures — trades the user closed but sheet write may have failed
+    const PENDING_CLOSE_KEY = 'crypto_pending_closures';
+    function getPendingClosures() {
+        try { return JSON.parse(localStorage.getItem(PENDING_CLOSE_KEY) || '[]'); } catch { return []; }
+    }
+    function addPendingClosure(ticker, signal, price, outcome, pnl) {
+        const items = getPendingClosures().filter(i =>
+            !(i.ticker === ticker.toUpperCase() && i.signal === signal.toLowerCase()));
+        items.push({ ticker: ticker.toUpperCase(), signal: signal.toLowerCase(),
+            price, outcome, pnl, ts: Date.now() });
+        localStorage.setItem(PENDING_CLOSE_KEY, JSON.stringify(items));
+    }
+    function removePendingClosure(ticker, signal) {
+        const t = ticker.toUpperCase(), s = signal.toLowerCase();
+        const items = getPendingClosures().filter(i => !(i.ticker === t && i.signal === s));
+        localStorage.setItem(PENDING_CLOSE_KEY, JSON.stringify(items));
+    }
+    async function retryPendingClosures() {
+        const pending = getPendingClosures();
+        if (pending.length === 0) return;
+        for (const p of pending) {
+            const params = new URLSearchParams({
+                action: 'update', ticker: p.ticker, signal: p.signal,
+                price: p.price, field: 'outcome', value: p.outcome,
+                profitLocked: String(p.pnl)
+            });
+            try {
+                const res = await fireGetNoFallback(POST_URL + '?' + params);
+                if (res && (res.status === 'ok' || (res.message || '').includes('No matching row'))) {
+                    removePendingClosure(p.ticker, p.signal);
+                    console.log('Retried pending closure for ' + p.ticker + ': success');
+                }
+            } catch (e) { /* will retry next refresh */ }
+        }
     }
 
     // ====== WEEKLY TASKS ======
@@ -3493,6 +3532,7 @@ const BACKTEST = {
 
             renderDashboard(data);
             checkNewPicks(data);
+            retryPendingClosures(); // retry any failed close writes
 
             dot.className = 'status-dot';
             statusText.textContent = 'Live';
@@ -3582,6 +3622,16 @@ const BACKTEST = {
         const openTrades = allActions.filter(a => a.type === 'mark_outcome');
         renderActions(newSignals, scoredSignals, openTrades);
         renderOpenTrades(openTrades);
+
+        // Prune acted items that are no longer in the API's open trades list
+        // (trade was successfully closed on the sheet — safe to forget)
+        const openKeys = new Set(openTrades.map(t =>
+            (t.ticker || t.symbol || '').toUpperCase() + '|' + (t.signal || '').toLowerCase()));
+        const acted = getActedItems();
+        const pruned = acted.filter(i => openKeys.has(i.t + '|' + i.s));
+        if (pruned.length !== acted.length) {
+            localStorage.setItem(ACTED_KEY, JSON.stringify(pruned));
+        }
 
         // --- Ticker Grid (sorted by most recent signal first) ---
         // Sort tickers by most recent signal (use lastSignalTime from API, fall back to signals data)
@@ -5963,13 +6013,27 @@ const BACKTEST = {
 
             el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
 
+            // Save pending closure so it survives page refresh if write fails
+            addPendingClosure(ticker, signal, price, finalValue, grandTotal.toFixed(2));
+
             try {
                 const params = new URLSearchParams({
                     action: 'update', ticker, signal, price,
                     field: 'outcome', value: finalValue,
                     profitLocked: grandTotal.toFixed(2)
                 });
-                await fireGet(POST_URL + '?' + params);
+                // Use fireGetNoFallback so we know if the write actually succeeded
+                let writeOk = false;
+                for (let attempt = 0; attempt < 3 && !writeOk; attempt++) {
+                    if (attempt > 0) await new Promise(r => setTimeout(r, 1500));
+                    const res = await fireGetNoFallback(POST_URL + '?' + params);
+                    if (res && res.status === 'ok') writeOk = true;
+                }
+                if (writeOk) {
+                    removePendingClosure(ticker, signal);
+                } else {
+                    showToast(ticker + ' close saved locally — will retry on next refresh');
+                }
 
                 // Flash the total before fading
                 const header = el.querySelector('.ticker-header');
@@ -5996,9 +6060,8 @@ const BACKTEST = {
                 }, 1200);
 
             } catch (err) {
-                removeActedItem(ticker, signal);
-                el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
-                showToast('Failed to update: ' + err.message);
+                // Keep pending closure + acted item so it stays hidden and retries next refresh
+                showToast(ticker + ' close saved locally — will retry on next refresh');
             }
         }
     }
