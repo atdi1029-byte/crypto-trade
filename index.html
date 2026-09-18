@@ -352,6 +352,7 @@
         /* ============ P&L CHART ============ */
         /* ============ P&L EQUITY (ink-stroke hero) ============ */
         /* ============ P&L EQUITY (ink-stroke hero) ============ */
+        /* ============ P&L EQUITY (ink-stroke hero) ============ */
         .pnl-chart-section {
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -450,6 +451,14 @@
         .pnl-change-pill.red   { background: rgba(239,83,80,0.16);  color: var(--red-bright); }
         .pnl-peak-note { color: var(--text-dim); }
         .pnl-peak-note.at-high { color: var(--green-bright); }
+        .pnl-stale {
+            display: inline-block;
+            padding: 2px 9px;
+            border-radius: 12px;
+            background: rgba(255,179,71,0.14);
+            color: #ffb347;
+            font-weight: 700;
+        }
 
         /* Range control: segmented, sliding indicator */
         .pnl-range-btns {
@@ -2337,6 +2346,7 @@
                 <div class="pnl-head-line">
                     <span class="pnl-change-pill" id="pnlChangePill"></span>
                     <span class="pnl-peak-note" id="pnlPeakNote"></span>
+                    <span class="pnl-stale" id="pnlStale" style="display:none" title="The Apps Script serving this page is older than v4-2026-09-17. Until it is redeployed, the curve is plotted by entry date, not close date.">Script out of date: curve by entry date</span>
                 </div>
             </div>
         </div>
@@ -2544,7 +2554,7 @@
 </div>
 
 <script>
-    console.log('crypto-trade dashboard v7-2026-09-17 (pnl ink hero)');
+    console.log('crypto-trade dashboard v9-2026-09-17 (stale-script notice)');
     // ====== CONFIG ======
     const API_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec?action=dashboard';
     const POST_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec';
@@ -7366,6 +7376,7 @@ const BACKTEST = {
     let pnlStatsCache = null;
     let pnlFilteredCache = [];
     let pnlXCache = [];
+    let pnlYCache = [];
     let pnlPadCache = { top: 0, right: 0, bottom: 0, left: 0 };
     let pnlAnimFrame = null;
     let pnlHasAnimatedValue = false;
@@ -7489,6 +7500,13 @@ const BACKTEST = {
             }
         }
 
+        // Old server script? (v4 sends `iso` on every point and maxDrawdown on trend)
+        const staleEl = document.getElementById('pnlStale');
+        if (staleEl) {
+            const serverIsOld = cumulative.length > 0 && !cumulative[0].iso;
+            staleEl.style.display = serverIsOld ? '' : 'none';
+        }
+
         // Recent form: last 20 trade results, from per-trade cumulative deltas
         renderPnlForm(cumulative);
 
@@ -7555,7 +7573,7 @@ const BACKTEST = {
             ctx.font = '11px Space Mono';
             ctx.textAlign = 'center';
             ctx.fillText(series.length ? 'One trade closed in this range so far' : 'No closed trades in this range', W / 2, H / 2 + 20);
-            pnlXCache = [];
+            pnlXCache = []; pnlYCache = [];
             return;
         }
 
@@ -7585,7 +7603,8 @@ const BACKTEST = {
         const toX = i => pad.left + ((series[i].t - t0) / tSpan) * plotW;
         const toY = v => pad.top + plotH * (1 - (v - pnlMin) / pnlRangeV);
         pnlXCache = series.map((_, i) => toX(i));
-        const xs = pnlXCache, ys = series.map(d => toY(d.pnl));
+        pnlYCache = series.map(d => toY(d.pnl));
+        const xs = pnlXCache, ys = pnlYCache;
 
         // Running high-water mark per point
         const hwm = [];
@@ -7727,10 +7746,17 @@ const BACKTEST = {
                 '<div style="color:' + color + ';font-weight:700">' + fmtMoney(d.pnl) + '</div>' +
                 '<div class="pnl-tip-delta"><span style="color:' + dColor + '">' + fmtMoney(d.delta || 0) + '</span> from ' + n + (n === 1 ? ' trade' : ' trades') + '</div>';
             tooltip.style.display = 'block';
-            const tipX = pnlXCache[idx];
-            tooltip.style.left = Math.max(60, Math.min(rect.width - 60, tipX)) + 'px';
-            tooltip.style.top = (pad.top - 8) + 'px';
+            const tipX = pnlXCache[idx], ptY = pnlYCache[idx];
+            // Keep the whole box inside the card, and anchor it to the point:
+            // above it by default, below it when there's no room (or it would cover the headline)
+            const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+            const half = tw / 2 + 6;
+            tooltip.style.left = Math.max(half, Math.min(rect.width - half, tipX)) + 'px';
+            let top = ptY - th - 14;
+            if (top < pad.top + 4) top = ptY + 14;
+            tooltip.style.top = Math.min(top, rect.height - th - 4) + 'px';
             crosshair.style.display = 'block';
+            crosshair.style.top = pad.top + 'px';
             crosshair.style.left = tipX + 'px';
         }
         function hideTooltip() {
