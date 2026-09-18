@@ -2058,7 +2058,7 @@
         .pokemon-pnl.negative { color: var(--red-bright); text-shadow: 0 0 10px var(--red-bright); }
         .pokemon-pnl.zero { color: var(--text-dim); }
         .pokemon-sizes {
-            display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem;
             margin-top: 0.5rem;
         }
         .pokemon-size-chip {
@@ -2082,9 +2082,10 @@
         .pokemon-size-chip.mid { color: var(--accent); border-color: var(--accent); }
         .pokemon-size-chip.half { color: var(--accent); border-color: var(--accent); }
         .pokemon-size-chip.mud { color: #8d6e63; border-color: #8d6e63; }
+        .pokemon-size-chip.dust { color: #7e57c2; border-color: #7e57c2; }
+        .pokemon-size-chip.ghost { color: #546e7a; border-color: #546e7a; }
         .pokemon-size-chip.used { color: var(--text-dim); border-color: var(--border); opacity: 0.35; }
-        .pokemon-size-chip.used .pokeball-svg .ball-top { fill: #666; }
-        .pokemon-size-chip.used .pokeball-svg .ball-bottom { fill: #444; }
+        .pokemon-size-chip.used .pokeball-svg { opacity: 0.4; filter: saturate(0); }
         .pokemon-size-chip.used .ball-amt { text-decoration: line-through; }
         .pokemon-xp-bar { margin: 0.8rem auto 1rem; max-width: 450px; }
         .pokemon-xp-track {
@@ -2209,7 +2210,7 @@
             .pokemon-sprite { width: 180px; height: 180px; margin: -1rem 0 -2rem; }
             .pokemon-level-name { font-size: 1.2rem; }
             .pokemon-xp-bar { max-width: 100%; }
-            .pokemon-sizes { gap: 0.3rem; display: grid; grid-template-columns: 1fr 1fr; padding: 0 0.2rem; }
+            .pokemon-sizes { gap: 0.3rem; display: grid; grid-template-columns: repeat(4, 1fr); padding: 0 0.2rem; }
             .pokemon-size-chip { padding: 0.2rem 0.5rem 0.2rem 0.3rem; font-size: 0.65rem; }
             .pokeball-svg { width: 24px; height: 24px; }
             .weekly-tasks { display: none !important; }
@@ -7162,7 +7163,23 @@ const BACKTEST = {
         const xpProgress = xpRange > 0 ? Math.max(0, Math.min(100, ((activePnl - xpFrom) / xpRange) * 100)) : 100;
 
         // Kelly-based size chips
+        // Regular Pokeball (red/white)
         const pokeballSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path class="ball-top" d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle class="ball-center" cx="10" cy="10" r="3"/></svg>`;
+        // Great Ball (blue/white with red stripe)
+        const greatBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#42a5f5"/><path d="M2.5,7.5 A8,8 0 0 1 17.5,7.5" fill="#ef5350" stroke="none"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle class="ball-center" cx="10" cy="10" r="3"/></svg>`;
+        // Ultra Ball (black/yellow)
+        const ultraBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#333"/><path d="M3,8 h14" stroke="#fdd835" stroke-width="2" fill="none"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle cx="10" cy="10" r="3" fill="#fdd835" stroke="#333" stroke-width="1.5"/></svg>`;
+        // Master Ball (purple/pink with M)
+        const masterBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#7e57c2"/><text x="10" y="8" text-anchor="middle" fill="#e1bee7" font-size="6" font-weight="900">M</text><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle cx="10" cy="10" r="3" fill="#e1bee7" stroke="#333" stroke-width="1.5"/></svg>`;
+        // Dusk Ball (dark green/black)
+        const duskBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#2e7d32"/><path d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z" fill="#1a1a1a"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle cx="10" cy="10" r="3" fill="#66bb6a" stroke="#333" stroke-width="1.5"/></svg>`;
+        // Timer Ball (red/white with clock marks)
+        const timerBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#e53935"/><line x1="10" y1="2" x2="10" y2="5" stroke="#fff" stroke-width="1"/><line x1="10" y1="2" x2="10" y2="5" stroke="#fff" stroke-width="1" transform="rotate(90 10 10)"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle class="ball-center" cx="10" cy="10" r="3"/></svg>`;
+        // Net Ball (blue/cyan with net pattern)
+        const netBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#0097a7"/><path d="M3,5 L17,5 M5,3 L5,10 M10,2 L10,10 M15,3 L15,10" stroke="#4dd0e1" stroke-width="0.5" fill="none"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle cx="10" cy="10" r="3" fill="#4dd0e1" stroke="#333" stroke-width="1.5"/></svg>`;
+        // Quick Ball (quick blue/yellow)
+        const quickBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#1565c0"/><path d="M5,5 L15,8 M4,7 L16,4" stroke="#fdd835" stroke-width="1.2" fill="none"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle cx="10" cy="10" r="3" fill="#fdd835" stroke="#333" stroke-width="1.5"/></svg>`;
+        const ballSvgs = [ultraBallSvg, masterBallSvg, greatBallSvg, timerBallSvg, netBallSvg, duskBallSvg, quickBallSvg, pokeballSvg];
         // Compute Kelly fractions for pokeball sizing
         const _bWins = parseInt(stats.wins) || 0;
         const _bLosses = parseInt(stats.losses) || 0;
@@ -7187,12 +7204,14 @@ const BACKTEST = {
             { label: '\u{26A1}', amt: _totalSlots > 0 ? ((_kellyBudget / 4) / _totalSlots) : 0, cls: 'mid' },
             { label: '\u{1F331}', amt: _totalSlots > 0 ? ((_kellyBudget / 8) / _totalSlots) : 0, cls: 'half' },
             { label: '\u{1F4A9}', amt: _totalSlots > 0 ? ((_kellyBudget / 16) / _totalSlots) : 0, cls: 'mud' },
+            { label: '\u{1FAA8}', amt: _totalSlots > 0 ? ((_kellyBudget / 32) / _totalSlots) : 0, cls: 'dust' },
+            { label: '\u{1F47B}', amt: _totalSlots > 0 ? ((_kellyBudget / 64) / _totalSlots) : 0, cls: 'ghost' },
         ];
         let sizeChips = '';
-        const usedSlots = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false,false,false]');
-        for (let i = 0; i < 6; i++) {
+        const usedSlots = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false,false,false,false,false]');
+        for (let i = 0; i < 8; i++) {
             const cls = usedSlots[i] ? 'used' : kellySizes[i].cls;
-            sizeChips += `<span class="pokemon-size-chip ${cls}" onclick="togglePokeball(${i})" style="cursor:pointer">${pokeballSvg}<span class="ball-amt">${kellySizes[i].label} $${kellySizes[i].amt.toFixed(2)}</span></span>`;
+            sizeChips += `<span class="pokemon-size-chip ${cls}" onclick="togglePokeball(${i})" style="cursor:pointer">${ballSvgs[i]}<span class="ball-amt">${kellySizes[i].label} $${kellySizes[i].amt.toFixed(2)}</span></span>`;
         }
 
         const needStr = nextLevel ? '$' + (nextLevel.min - activePnl).toFixed(2) + ' to Evolve' : '';
