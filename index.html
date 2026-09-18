@@ -350,11 +350,13 @@
         }
 
         /* ============ P&L CHART ============ */
+        /* ============ P&L EQUITY (ink-stroke hero) ============ */
+        /* ============ P&L EQUITY (ink-stroke hero) ============ */
         .pnl-chart-section {
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 0.75rem 1rem;
+            padding: 0;
             margin-bottom: 1.5rem;
             position: relative;
             overflow: hidden;
@@ -365,99 +367,169 @@
             top: 0; left: 0; right: 0;
             height: 2px;
             background: linear-gradient(90deg, transparent, var(--accent-deep), transparent);
+            z-index: 2;
         }
-        .pnl-chart-header {
-            text-align: center;
-            margin-bottom: 0.4rem;
-        }
-        .pnl-chart-title {
-            font-size: 0.55rem;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 0.25rem;
-        }
-        .pnl-chart-value {
-            font-family: 'Space Mono', monospace;
-            font-size: 1.6rem;
-            font-weight: 700;
-            color: var(--text-bright);
-            line-height: 1.2;
-        }
-        .pnl-chart-value.green { color: var(--green-bright); text-shadow: 0 0 12px rgba(38,166,154,0.4); }
-        .pnl-chart-value.red { color: var(--red-bright); text-shadow: 0 0 12px rgba(239,83,80,0.4); }
-        .pnl-change-pill {
-            display: inline-block;
-            font-family: 'Space Mono', monospace;
-            font-size: 0.6rem;
-            font-weight: 700;
-            padding: 2px 10px;
-            border-radius: 12px;
-            margin-top: 4px;
-        }
-        .pnl-change-pill.green { background: rgba(38,166,154,0.15); color: var(--green-bright); }
-        .pnl-change-pill.red { background: rgba(239,83,80,0.15); color: var(--red-bright); }
-        .pnl-chart-wrap {
-            height: 130px;
+        /* The chart is the section. Everything else floats on it. */
+        .pnl-stage {
             position: relative;
-            margin: 0.5rem 0;
+            height: 260px;
         }
-        .pnl-chart-wrap canvas {
-            width: 100%;
-            height: 100%;
+        .pnl-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+        .pnl-crosshair {
+            position: absolute;
+            top: 0; bottom: 0;
+            width: 1px;
+            background: rgba(200,216,232,0.35);
+            pointer-events: none;
+            display: none;
+            z-index: 5;
         }
         .pnl-tooltip {
             position: absolute;
             pointer-events: none;
-            background: rgba(13,27,42,0.92);
-            border: 1px solid var(--accent);
+            background: rgba(12,17,25,0.94);
+            border: 1px solid var(--border-light);
             border-radius: 4px;
-            padding: 3px 8px;
+            padding: 6px 10px;
             font-family: 'Space Mono', monospace;
-            font-size: 0.6rem;
+            font-size: 0.62rem;
+            line-height: 1.5;
             color: var(--text-bright);
             white-space: nowrap;
             display: none;
             z-index: 10;
             transform: translateX(-50%);
         }
-        .pnl-crosshair {
+        .pnl-tooltip .pnl-tip-date { color: var(--text-dim); }
+        .pnl-tooltip .pnl-tip-delta { font-size: 0.58rem; }
+
+        /* Headline block, top-left inside the plot */
+        .pnl-head {
             position: absolute;
-            top: 0; bottom: 0;
-            width: 1px;
-            background: rgba(74,158,255,0.4);
+            top: 14px; left: 18px;
+            z-index: 6;
             pointer-events: none;
-            display: none;
-            z-index: 5;
+            max-width: 60%;
         }
-        .pnl-range-btns {
+        .pnl-chart-title {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.55rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 2px;
+        }
+        .pnl-chart-value {
+            font-family: 'Noto Serif JP', serif;
+            font-weight: 900;
+            font-size: 2.6rem;
+            line-height: 1;
+            letter-spacing: -0.01em;
+            color: var(--text-bright);
+            font-variant-numeric: tabular-nums;
+        }
+        .pnl-chart-value.green { color: var(--green-bright); text-shadow: 0 0 22px rgba(38,166,154,0.35); }
+        .pnl-chart-value.red   { color: var(--red-bright);   text-shadow: 0 0 22px rgba(239,83,80,0.35); }
+        .pnl-head-line {
+            margin-top: 6px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.62rem;
+            color: var(--text);
             display: flex;
-            justify-content: center;
-            gap: 0.4rem;
-            margin-bottom: 0.6rem;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .pnl-change-pill {
+            display: inline-block;
+            font-weight: 700;
+            padding: 2px 9px;
+            border-radius: 12px;
+        }
+        .pnl-change-pill.green { background: rgba(38,166,154,0.16); color: var(--green-bright); }
+        .pnl-change-pill.red   { background: rgba(239,83,80,0.16);  color: var(--red-bright); }
+        .pnl-peak-note { color: var(--text-dim); }
+        .pnl-peak-note.at-high { color: var(--green-bright); }
+
+        /* Range control: segmented, sliding indicator */
+        .pnl-range-btns {
+            position: absolute;
+            top: 14px; right: 14px;
+            z-index: 6;
+            /* direct child of the section on desktop; drops into flow on mobile */
+            display: inline-flex;
+            padding: 3px;
+            gap: 0;
+            border-radius: 6px;
+            background: rgba(12,17,25,0.55);
+            border: 1px solid var(--border);
+            backdrop-filter: blur(4px);
+        }
+        .pnl-range-ind {
+            position: absolute;
+            top: 3px; bottom: 3px; left: 3px;
+            width: 0;
+            border-radius: 4px;
+            background: var(--accent-deep);
+            box-shadow: 0 0 10px rgba(74,158,255,0.35);
+            transition: transform 0.25s cubic-bezier(.2,.8,.2,1), width 0.25s;
+            z-index: 0;
         }
         .pnl-range-btn {
+            position: relative;
+            z-index: 1;
             font-family: 'Space Mono', monospace;
             font-size: 0.6rem;
             font-weight: 700;
             padding: 3px 10px;
             border-radius: 4px;
-            background: var(--bg-card-hover);
+            background: transparent;
             color: var(--text-dim);
             cursor: pointer;
-            border: 1px solid var(--border);
-            transition: all 0.2s;
+            border: 0;
+            transition: color 0.2s;
         }
-        .pnl-range-btn:hover { border-color: var(--accent); color: var(--text-bright); }
-        .pnl-range-btn.active {
-            background: var(--accent-deep);
-            color: var(--text-bright);
-            border-color: var(--accent);
-            box-shadow: 0 0 8px rgba(74,158,255,0.3);
+        .pnl-range-btn:hover { color: var(--text-bright); }
+        .pnl-range-btn.active { color: var(--text-bright); }
+        .pnl-range-btn:focus-visible { outline: 2px solid var(--accent-glow); outline-offset: 1px; }
+
+        /* Footer: recent form + four stats */
+        .pnl-foot {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            padding: 0.6rem 1rem 0.7rem;
+            border-top: 1px solid var(--border);
+            background: rgba(12,17,25,0.25);
+            flex-wrap: wrap;
         }
+        .pnl-form { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .pnl-form-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 3px;
+            height: 26px;
+        }
+        .pnl-form-bar {
+            width: 5px;
+            border-radius: 2px 2px 1px 1px;
+            min-height: 4px;
+            background: var(--green-candle);
+            opacity: 0.85;
+        }
+        .pnl-form-bar.loss { background: var(--red-candle); }
+        .pnl-form-bar.latest { opacity: 1; box-shadow: 0 0 6px currentColor; }
+        .pnl-form-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.58rem;
+            color: var(--text-dim);
+            line-height: 1.4;
+            white-space: nowrap;
+        }
+        .pnl-form-label b { color: var(--text-bright); font-weight: 700; }
         .pnl-summary {
             display: flex;
-            justify-content: center;
             gap: 1.5rem;
             flex-wrap: wrap;
             font-family: 'Space Mono', monospace;
@@ -472,6 +544,10 @@
         .pnl-summary-item .pnl-summary-val {
             color: var(--text-bright);
             font-weight: 700;
+            font-size: 0.8rem;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .pnl-range-ind { transition: none; }
         }
 
         /* ============ TOP PICKS ============ */
@@ -2101,9 +2177,12 @@
             .perf-item { padding: 0.4rem 0.25rem; }
             .perf-item .perf-val { font-size: 0.9rem; }
             .perf-item .perf-label { font-size: 0.45rem; letter-spacing: 0.5px; }
-            .pnl-chart-wrap { height: 100px; }
-            .pnl-chart-value { font-size: 1.3rem; }
-            .pnl-summary { gap: 0.75rem; }
+            .pnl-stage { height: 250px; }
+            .pnl-chart-value { font-size: 1.9rem; }
+            .pnl-head { max-width: calc(100% - 28px); }
+            .pnl-range-btns { position: relative; top: auto; right: auto; margin: 8px 10px 4px auto; width: fit-content; display: flex; }
+            .pnl-foot { gap: 0.75rem; }
+            .pnl-summary { gap: 0.9rem 1.1rem; }
             .ticker-grid { max-height: 500px; overflow-y: auto; }
             .command-bar { display: none; }
             body::before { top: 0; left: 0; right: 0; bottom: 0; background: url('wave-bg-mobile.png') center center / cover no-repeat; filter: brightness(0.95); }
@@ -2248,24 +2327,34 @@
 
     <!-- P&L Chart -->
     <div class="pnl-chart-section" id="pnlChartSection">
-        <div class="pnl-chart-header">
-            <div class="pnl-chart-title">Total P&L</div>
-            <div class="pnl-chart-value" id="pnlChartValue">--</div>
-            <div class="pnl-change-pill" id="pnlChangePill"></div>
-        </div>
-        <div class="pnl-chart-wrap">
+        <div class="pnl-stage" id="pnlStage">
             <canvas id="pnlCanvas"></canvas>
             <div class="pnl-crosshair" id="pnlCrosshair"></div>
             <div class="pnl-tooltip" id="pnlTooltip"></div>
+            <div class="pnl-head">
+                <div class="pnl-chart-title">Total P&L</div>
+                <div class="pnl-chart-value" id="pnlChartValue">--</div>
+                <div class="pnl-head-line">
+                    <span class="pnl-change-pill" id="pnlChangePill"></span>
+                    <span class="pnl-peak-note" id="pnlPeakNote"></span>
+                </div>
+            </div>
         </div>
-        <div class="pnl-range-btns">
+        <div class="pnl-range-btns" role="tablist" aria-label="P&L range">
+            <div class="pnl-range-ind" id="pnlRangeInd"></div>
             <button class="pnl-range-btn active" onclick="setPnlRange('1M')">1M</button>
             <button class="pnl-range-btn" onclick="setPnlRange('3M')">3M</button>
             <button class="pnl-range-btn" onclick="setPnlRange('6M')">6M</button>
             <button class="pnl-range-btn" onclick="setPnlRange('1Y')">1Y</button>
             <button class="pnl-range-btn" onclick="setPnlRange('AT')">AT</button>
         </div>
-        <div class="pnl-summary" id="pnlSummary"></div>
+        <div class="pnl-foot">
+            <div class="pnl-form">
+                <div class="pnl-form-bars" id="pnlFormBars"></div>
+                <div class="pnl-form-label" id="pnlFormLabel"></div>
+            </div>
+            <div class="pnl-summary" id="pnlSummary"></div>
+        </div>
     </div>
 
     <!-- Trading Context Banner -->
@@ -2455,7 +2544,7 @@
 </div>
 
 <script>
-    console.log('crypto-trade dashboard v5-2026-09-15 (fix float SL/TP)');
+    console.log('crypto-trade dashboard v7-2026-09-17 (pnl ink hero)');
     // ====== CONFIG ======
     const API_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec?action=dashboard';
     const POST_URL = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec';
@@ -3308,11 +3397,8 @@ const BACKTEST = {
         try { return JSON.parse(localStorage.getItem(ACTED_KEY) || '[]'); } catch { return []; }
     }
     function addActedItem(ticker, signal) {
-        const items = getActedItems();
-        // Prevent duplicates
-        if (!items.some(i => i.t === ticker.toUpperCase() && i.s === signal.toLowerCase())) {
-            items.push({ t: ticker.toUpperCase(), s: signal.toLowerCase(), ts: Date.now() });
-        }
+        const items = getActedItems().filter(i => Date.now() - i.ts < 86400000); // keep 24hr
+        items.push({ t: ticker.toUpperCase(), s: signal.toLowerCase(), ts: Date.now() });
         localStorage.setItem(ACTED_KEY, JSON.stringify(items));
     }
     function removeActedItem(ticker, signal) {
@@ -3322,42 +3408,6 @@ const BACKTEST = {
     }
     function isActed(ticker, signal) {
         return getActedItems().some(i => i.t === ticker.toUpperCase() && i.s === signal.toLowerCase());
-    }
-
-    // Pending closures — trades the user closed but sheet write may have failed
-    const PENDING_CLOSE_KEY = 'crypto_pending_closures';
-    function getPendingClosures() {
-        try { return JSON.parse(localStorage.getItem(PENDING_CLOSE_KEY) || '[]'); } catch { return []; }
-    }
-    function addPendingClosure(ticker, signal, price, outcome, pnl) {
-        const items = getPendingClosures().filter(i =>
-            !(i.ticker === ticker.toUpperCase() && i.signal === signal.toLowerCase()));
-        items.push({ ticker: ticker.toUpperCase(), signal: signal.toLowerCase(),
-            price, outcome, pnl, ts: Date.now() });
-        localStorage.setItem(PENDING_CLOSE_KEY, JSON.stringify(items));
-    }
-    function removePendingClosure(ticker, signal) {
-        const t = ticker.toUpperCase(), s = signal.toLowerCase();
-        const items = getPendingClosures().filter(i => !(i.ticker === t && i.signal === s));
-        localStorage.setItem(PENDING_CLOSE_KEY, JSON.stringify(items));
-    }
-    async function retryPendingClosures() {
-        const pending = getPendingClosures();
-        if (pending.length === 0) return;
-        for (const p of pending) {
-            const params = new URLSearchParams({
-                action: 'update', ticker: p.ticker, signal: p.signal,
-                price: p.price, field: 'outcome', value: p.outcome,
-                profitLocked: String(p.pnl)
-            });
-            try {
-                const res = await fireGetNoFallback(POST_URL + '?' + params);
-                if (res && (res.status === 'ok' || (res.message || '').includes('No matching row'))) {
-                    removePendingClosure(p.ticker, p.signal);
-                    console.log('Retried pending closure for ' + p.ticker + ': success');
-                }
-            } catch (e) { /* will retry next refresh */ }
-        }
     }
 
     // ====== WEEKLY TASKS ======
@@ -3532,7 +3582,6 @@ const BACKTEST = {
 
             renderDashboard(data);
             checkNewPicks(data);
-            retryPendingClosures(); // retry any failed close writes
 
             dot.className = 'status-dot';
             statusText.textContent = 'Live';
@@ -3604,7 +3653,7 @@ const BACKTEST = {
         document.getElementById('statToday').textContent = stats.todaySignals || 0;
 
         // P&L chart
-        renderPnlChart(stats);
+        renderPnlChart(stats, true);
 
         // Won/Lost now rendered in perfGrid via renderPerformance()
 
@@ -3622,16 +3671,6 @@ const BACKTEST = {
         const openTrades = allActions.filter(a => a.type === 'mark_outcome');
         renderActions(newSignals, scoredSignals, openTrades);
         renderOpenTrades(openTrades);
-
-        // Prune acted items that are no longer in the API's open trades list
-        // (trade was successfully closed on the sheet — safe to forget)
-        const openKeys = new Set(openTrades.map(t =>
-            (t.ticker || t.symbol || '').toUpperCase() + '|' + (t.signal || '').toLowerCase()));
-        const acted = getActedItems();
-        const pruned = acted.filter(i => openKeys.has(i.t + '|' + i.s));
-        if (pruned.length !== acted.length) {
-            localStorage.setItem(ACTED_KEY, JSON.stringify(pruned));
-        }
 
         // --- Ticker Grid (sorted by most recent signal first) ---
         // Sort tickers by most recent signal (use lastSignalTime from API, fall back to signals data)
@@ -5737,32 +5776,12 @@ const BACKTEST = {
         // If Entered and size is provided, execute trade via Bitunix API
         if (value === 'Entered' && entrySize && Number(entrySize) > 0) {
             const btnDiv = el.querySelector('.action-buttons');
-            const slPriceRaw = btnDiv ? btnDiv.dataset.signalSl : '';
-            const tpPriceRaw = btnDiv ? btnDiv.dataset.signalTp : '';
+            const slPrice = btnDiv ? btnDiv.dataset.signalSl : '';
+            const tpPrice = btnDiv ? btnDiv.dataset.signalTp : '';
             const tradeSide = btnDiv ? btnDiv.dataset.signalSide : 'buy';
             const signalTs = btnDiv ? btnDiv.dataset.signalTs : '';
-            // Format SL/TP to match the signal price's decimal precision — Bitunix
-            // rejects values with too many decimals ("Parameter error" 10002)
-            const priceDecimals = (() => {
-                const s = String(price);
-                const dot = s.indexOf('.');
-                return dot >= 0 ? s.length - dot - 1 : 0;
-            })();
-            const fmtP = v => { const n = Number(v); return (!v || isNaN(n)) ? '' : n.toFixed(priceDecimals); };
-            let slPrice = fmtP(slPriceRaw);
-            let tpPrice = fmtP(tpPriceRaw);
             const cleanSym = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
             const bxSym = BX_REMAP[cleanSym] || cleanSym;
-            // Validate SL/TP direction before sending — strip wrong-side values
-            // BUY: SL must be below price, TP must be above. SELL: opposite.
-            if (slPrice || tpPrice) {
-                const cur = Number(price);
-                const isBuy = tradeSide === 'buy';
-                if (slPrice && isBuy && Number(slPrice) >= cur) { console.warn('Stripped invalid BUY SL', slPrice, '>= price', cur); slPrice = ''; }
-                if (tpPrice && isBuy && Number(tpPrice) <= cur) { console.warn('Stripped invalid BUY TP', tpPrice, '<= price', cur); tpPrice = ''; }
-                if (slPrice && !isBuy && Number(slPrice) <= cur) { console.warn('Stripped invalid SELL SL', slPrice, '<= price', cur); slPrice = ''; }
-                if (tpPrice && !isBuy && Number(tpPrice) >= cur) { console.warn('Stripped invalid SELL TP', tpPrice, '>= price', cur); tpPrice = ''; }
-            }
             // Open Bitunix NOW, while still inside the click gesture — a window.open after the
             // API await gets popup-blocked. Copy the pair so it's ready to paste.
             navigator.clipboard.writeText(bxSym + 'USDT').catch(() => {});
@@ -5778,9 +5797,7 @@ const BACKTEST = {
                 leverage: '3',
                 signal_ts: signalTs
             });
-            console.log('[execute_trade] request:', Object.fromEntries(tradeParams));
-            let tradeRes = await fireGetNoFallback(POST_URL + '?' + tradeParams);
-            console.log('[execute_trade] response:', JSON.stringify(tradeRes));
+            const tradeRes = await fireGetNoFallback(POST_URL + '?' + tradeParams);
             if (tradeRes && tradeRes.status === 'ok') {
                 if (tradeRes.via === 'order_ok_tpsl_failed') {
                     showToast('⚠️ ' + ticker + ' opened but TP/SL failed — set them on Bitunix! ' + (tradeRes.tpSlWarning || ''), 8000);
@@ -5791,10 +5808,9 @@ const BACKTEST = {
                     showToast('⚠️ ' + ticker + ': ' + tradeRes.warnings + ' — check leverage/margin mode on Bitunix', 8000);
                 }
             } else {
-                // Trade failed even without SL/TP — show error modal
-                const errDetail = tradeRes ? JSON.stringify(tradeRes, null, 0) : 'no response';
+                // Trade failed — the Bitunix tab is already open from the click; offer a link too
                 const keepIt = await showModal({
-                    message: '<b>' + ticker + ' trade failed to open</b>' + (tradeRes && tradeRes.msg ? '<br><span style="font-size:0.8em;opacity:0.85;word-break:break-all">' + String(tradeRes.msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</span>' : '') + '<br><details style="margin:0.5rem 0;font-size:0.7em;opacity:0.7"><summary>Debug</summary><pre style="white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;text-align:left">' + errDetail.replace(/[<>]/g, c => c === '<' ? '&lt;' : '&gt;') + '</pre></details><a href="' + DEFAULT_BX(ticker) + '" target="_blank" style="color:#58a6ff">Open ' + bxSym + 'USDT on Bitunix ↗</a><br><br>What do you want to do?',
+                    message: '<b>' + ticker + ' trade failed to open</b>' + (tradeRes && tradeRes.msg ? '<br><span style="font-size:0.8em;opacity:0.85;word-break:break-all">' + String(tradeRes.msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</span>' : '') + '<br><br><a href="' + DEFAULT_BX(ticker) + '" target="_blank" style="color:#58a6ff">Open ' + bxSym + 'USDT on Bitunix ↗</a><br><br>What do you want to do?',
                     okLabel: 'I opened it manually',
                     cancelLabel: 'Skip it',
                     okClass: 'modal-btn-ok'
@@ -6022,27 +6038,13 @@ const BACKTEST = {
 
             el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
 
-            // Save pending closure so it survives page refresh if write fails
-            addPendingClosure(ticker, signal, price, finalValue, grandTotal.toFixed(2));
-
             try {
                 const params = new URLSearchParams({
                     action: 'update', ticker, signal, price,
                     field: 'outcome', value: finalValue,
                     profitLocked: grandTotal.toFixed(2)
                 });
-                // Use fireGetNoFallback so we know if the write actually succeeded
-                let writeOk = false;
-                for (let attempt = 0; attempt < 3 && !writeOk; attempt++) {
-                    if (attempt > 0) await new Promise(r => setTimeout(r, 1500));
-                    const res = await fireGetNoFallback(POST_URL + '?' + params);
-                    if (res && res.status === 'ok') writeOk = true;
-                }
-                if (writeOk) {
-                    removePendingClosure(ticker, signal);
-                } else {
-                    showToast(ticker + ' close saved locally — will retry on next refresh');
-                }
+                await fireGet(POST_URL + '?' + params);
 
                 // Flash the total before fading
                 const header = el.querySelector('.ticker-header');
@@ -6069,8 +6071,9 @@ const BACKTEST = {
                 }, 1200);
 
             } catch (err) {
-                // Keep pending closure + acted item so it stays hidden and retries next refresh
-                showToast(ticker + ' close saved locally — will retry on next refresh');
+                removeActedItem(ticker, signal);
+                el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
+                showToast('Failed to update: ' + err.message);
             }
         }
     }
@@ -7357,84 +7360,185 @@ const BACKTEST = {
     }
 
     // ====== P&L CHART ======
+    // ====== P&L EQUITY CHART ======
     let pnlRange = '1M';
     let pnlCumulativeCache = null;
     let pnlStatsCache = null;
+    let pnlFilteredCache = [];
+    let pnlXCache = [];
+    let pnlPadCache = { top: 0, right: 0, bottom: 0, left: 0 };
+    let pnlAnimFrame = null;
+    let pnlHasAnimatedValue = false;
+    const PNL_REDUCED_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     function setPnlRange(range) {
         pnlRange = range;
         document.querySelectorAll('.pnl-range-btn').forEach(b => b.classList.toggle('active', b.textContent === range));
-        if (pnlCumulativeCache && pnlStatsCache) renderPnlChart(pnlStatsCache);
+        movePnlRangeIndicator();
+        if (pnlCumulativeCache && pnlStatsCache) renderPnlChart(pnlStatsCache, true);
     }
 
-    function filterByRange(data, range) {
-        if (range === 'AT' || !data.length) return data;
+    function movePnlRangeIndicator() {
+        const ind = document.getElementById('pnlRangeInd');
+        const active = document.querySelector('.pnl-range-btn.active');
+        if (!ind || !active) return;
+        ind.style.width = active.offsetWidth + 'px';
+        ind.style.transform = 'translateX(' + (active.offsetLeft - 3) + 'px)';
+    }
+
+    // Resolve a point's calendar date. New server payloads carry `iso` (YYYY-MM-DD);
+    // older ones only have MM/DD, in which case the year is inferred.
+    function pnlPointDate(d) {
+        if (d.iso) {
+            const [y, m, day] = d.iso.split('-').map(Number);
+            return new Date(y, m - 1, day);
+        }
         const now = new Date();
+        const parts = d.date.split('/');
+        const dt = new Date(now.getFullYear(), parseInt(parts[0]) - 1, parseInt(parts[1]));
+        if (dt > now) dt.setFullYear(now.getFullYear() - 1);
+        return dt;
+    }
+    const pnlShortDate = d => d.iso ? d.iso.slice(5).replace('-', '/') : d.date;
+
+    // Returns { points, baseline }: points inside the window (each with .t = ms),
+    // and baseline = cumulative P&L just before the window opened (0 if none),
+    // so "change over N" = last - baseline and includes the first day's trades.
+    function filterByRange(data, range) {
+        const withT = data.map(d => Object.assign({}, d, { t: pnlPointDate(d).getTime() }));
+        if (range === 'AT' || !withT.length) return { points: withT, baseline: 0 };
         const days = { '1M': 30, '3M': 90, '6M': 180, '1Y': 365 }[range] || 30;
-        const cutoff = new Date(now - days * 86400000);
-        const year = cutoff.getFullYear();
-        const thisYear = now.getFullYear();
-        return data.filter(d => {
-            const parts = d.date.split('/');
-            const m = parseInt(parts[0]) - 1, day = parseInt(parts[1]);
-            // Guess year: if month is ahead of cutoff month, assume this year
-            const dt = new Date(thisYear, m, day);
-            if (dt > now) dt.setFullYear(thisYear - 1);
-            return dt >= cutoff;
-        });
+        const cutoff = Date.now() - days * 86400000;
+        let baseline = 0;
+        const points = [];
+        withT.forEach(d => { if (d.t >= cutoff) points.push(d); else baseline = d.pnl; });
+        return { points, baseline };
     }
 
-    function renderPnlChart(stats) {
+    function fmtMoney(v, decimals) {
+        const d = decimals === undefined ? 2 : decimals;
+        return (v < 0 ? '-$' : '+$') + Math.abs(v).toFixed(d);
+    }
+
+    function renderPnlChart(stats, animate) {
         pnlStatsCache = stats;
         const cumulative = (stats.trend && stats.trend.cumulative) || [];
         pnlCumulativeCache = cumulative;
 
-        const filtered = filterByRange(cumulative, pnlRange);
-        // Group by day — keep end-of-day P&L
+        const { points: filtered, baseline } = filterByRange(cumulative, pnlRange);
+
+        // One point per day: end-of-day P&L, plus that day's change and trade count
         const byDay = {};
-        filtered.forEach(d => { byDay[d.date] = d; });
-        const daily = Object.values(byDay);
+        filtered.forEach(d => {
+            const k = d.iso || d.date;
+            if (!byDay[k]) byDay[k] = Object.assign({}, d, { trades: 0 });
+            byDay[k].pnl = d.pnl;
+            byDay[k].trades++;
+        });
+        const daily = Object.values(byDay).sort((a, b) => a.t - b.t);
+        let prev = baseline;
+        daily.forEach(d => { d.delta = d.pnl - prev; prev = d.pnl; });
+
         const pnl = parseFloat(stats.netPnl) || 0;
         const valueEl = document.getElementById('pnlChartValue');
         const pillEl = document.getElementById('pnlChangePill');
-        const summaryEl = document.getElementById('pnlSummary');
+        const noteEl = document.getElementById('pnlPeakNote');
 
-        // Big P&L value
-        valueEl.textContent = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2);
+        // Big number: counts up once on first load, then just updates
         valueEl.className = 'pnl-chart-value' + (pnl >= 0 ? ' green' : ' red');
+        if (!pnlHasAnimatedValue && !PNL_REDUCED_MOTION) {
+            pnlHasAnimatedValue = true;
+            const start = performance.now(), dur = 900;
+            (function tick(now) {
+                const p = Math.min(1, (now - start) / dur);
+                const e = 1 - Math.pow(1 - p, 3);
+                valueEl.textContent = fmtMoney(pnl * e);
+                if (p < 1) requestAnimationFrame(tick);
+            })(start);
+        } else {
+            valueEl.textContent = fmtMoney(pnl);
+        }
 
-        // Change pill
-        if (daily.length >= 2) {
+        // Change pill — measured from the P&L just before the window opened
+        if (daily.length >= 1) {
             const endPnl = daily[daily.length - 1].pnl;
-            const change = pnlRange === 'AT' ? endPnl : endPnl - daily[0].pnl;
+            const change = pnlRange === 'AT' ? endPnl : endPnl - baseline;
             const labels = { '1M': '1 month', '3M': '3 months', '6M': '6 months', '1Y': '1 year', 'AT': 'all time' };
-            pillEl.textContent = (change >= 0 ? '\u25B2 +$' : '\u25BC -$') + Math.abs(change).toFixed(2) + ' over ' + (labels[pnlRange] || pnlRange);
+            pillEl.textContent = (change >= 0 ? '\u25B2 ' : '\u25BC ') + fmtMoney(change) + ' over ' + (labels[pnlRange] || pnlRange);
             pillEl.className = 'pnl-change-pill ' + (change >= 0 ? 'green' : 'red');
             pillEl.style.display = '';
         } else {
             pillEl.style.display = 'none';
         }
 
+        // Peak / drawdown, in a sentence
+        if (noteEl) {
+            // Peak of the end-of-day series, so it matches what the chart draws
+            const eod = {};
+            cumulative.forEach(d => { eod[d.iso || d.date] = d.pnl; });
+            let peakPnl = -Infinity, peakIso = null;
+            Object.keys(eod).forEach(k => { if (eod[k] > peakPnl) { peakPnl = eod[k]; peakIso = k; } });
+            if (isFinite(peakPnl) && cumulative.length) {
+                const off = peakPnl - pnl;
+                const when = peakIso && peakIso.length === 10 ? peakIso.slice(5).replace('-', '/') : (peakIso || '');
+                const atHigh = off <= 0.005;
+                noteEl.textContent = atHigh ? 'At your all-time high' : ('Best was ' + fmtMoney(peakPnl) + ' on ' + when + ', now $' + off.toFixed(2) + ' below it');
+                noteEl.className = 'pnl-peak-note' + (atHigh ? ' at-high' : '');
+            } else {
+                noteEl.textContent = '';
+            }
+        }
+
+        // Recent form: last 20 trade results, from per-trade cumulative deltas
+        renderPnlForm(cumulative);
+
         // Summary stats
+        const summaryEl = document.getElementById('pnlSummary');
         const wr = stats.winRate || '0%';
         const avgTrade = stats.trend ? stats.trend.allTime.avgPerTrade : 0;
         const streak = stats.currentStreak || '--';
         const best = stats.bestTradePnl ? '+$' + parseFloat(stats.bestTradePnl).toFixed(2) : '--';
+        const dd = stats.trend && typeof stats.trend.maxDrawdown === 'number' ? '-$' + stats.trend.maxDrawdown.toFixed(2) : null;
         summaryEl.innerHTML = `
             <div class="pnl-summary-item"><div class="pnl-summary-label">Win Rate</div><div class="pnl-summary-val">${wr}</div></div>
             <div class="pnl-summary-item"><div class="pnl-summary-label">Avg Trade</div><div class="pnl-summary-val" style="color:${avgTrade >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'}">${avgTrade >= 0 ? '+' : ''}$${avgTrade.toFixed(3)}</div></div>
             <div class="pnl-summary-item"><div class="pnl-summary-label">Streak</div><div class="pnl-summary-val">${streak}</div></div>
             <div class="pnl-summary-item"><div class="pnl-summary-label">Best</div><div class="pnl-summary-val" style="color:var(--green-bright)">${best}</div></div>
+            ${dd ? `<div class="pnl-summary-item"><div class="pnl-summary-label">Max Drawdown</div><div class="pnl-summary-val" style="color:var(--red-bright)">${dd}</div></div>` : ''}
         `;
 
-        // Draw chart — one point per day
-        drawPnlChart(daily);
+        drawPnlChart(daily, !!animate);
+        movePnlRangeIndicator();
     }
 
-    function drawPnlChart(series) {
+    function renderPnlForm(cumulative) {
+        const bars = document.getElementById('pnlFormBars');
+        const label = document.getElementById('pnlFormLabel');
+        if (!bars || !label) return;
+        const N = 20;
+        const deltas = [];
+        for (let i = Math.max(1, cumulative.length - N); i < cumulative.length; i++) {
+            deltas.push(cumulative[i].pnl - cumulative[i - 1].pnl);
+        }
+        if (cumulative.length && cumulative.length <= N) deltas.unshift(cumulative[0].pnl);
+        if (!deltas.length) { bars.innerHTML = ''; label.textContent = ''; return; }
+        const maxAbs = Math.max(...deltas.map(Math.abs), 0.01);
+        bars.innerHTML = deltas.map((d, i) => {
+            const h = 4 + Math.round((Math.abs(d) / maxAbs) * 22);
+            const cls = 'pnl-form-bar' + (d < 0 ? ' loss' : '') + (i === deltas.length - 1 ? ' latest' : '');
+            return `<div class="${cls}" style="height:${h}px" title="${fmtMoney(d)}"></div>`;
+        }).join('');
+        const wins = deltas.filter(d => d > 0).length;
+        const net = deltas.reduce((a, b) => a + b, 0);
+        label.innerHTML = `<b>${wins} of ${deltas.length}</b> recent trades won<br><span style="color:${net >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'}">${fmtMoney(net)}</span> across them`;
+    }
+
+    function drawPnlChart(series, animate) {
         pnlFilteredCache = series;
         const canvas = document.getElementById('pnlCanvas');
         if (!canvas) return;
+        if (pnlAnimFrame) { cancelAnimationFrame(pnlAnimFrame); pnlAnimFrame = null; }
+
         const dpr = window.devicePixelRatio || 1;
         const rect = canvas.parentElement.getBoundingClientRect();
         canvas.width = rect.width * dpr;
@@ -7445,153 +7549,187 @@ const BACKTEST = {
         ctx.scale(dpr, dpr);
         const W = rect.width, H = rect.height;
 
-        ctx.clearRect(0, 0, W, H);
-
         if (series.length < 2) {
-            ctx.fillStyle = 'rgba(200,200,200,0.3)';
-            ctx.font = '12px Space Mono';
+            ctx.clearRect(0, 0, W, H);
+            ctx.fillStyle = 'rgba(200,216,232,0.35)';
+            ctx.font = '11px Space Mono';
             ctx.textAlign = 'center';
-            ctx.fillText('Not enough data', W / 2, H / 2);
+            ctx.fillText(series.length ? 'One trade closed in this range so far' : 'No closed trades in this range', W / 2, H / 2 + 20);
+            pnlXCache = [];
             return;
         }
 
-        const pad = { top: 15, right: 10, bottom: 25, left: 50 };
+        const pad = { top: 78, right: 54, bottom: 22, left: 0 };
+        if (W < 560) { pad.top = 120; pad.right = 46; }
         pnlPadCache = pad;
         const plotW = W - pad.left - pad.right;
         const plotH = H - pad.top - pad.bottom;
 
+        // Y scale on "nice" tick values (1-2-5 steps)
         const pnls = series.map(d => d.pnl);
-        let pnlMin = Math.min(...pnls, 0);
-        let pnlMax = Math.max(...pnls, 0);
-        const pnlPad = (pnlMax - pnlMin) * 0.1 || 1;
-        pnlMin -= pnlPad;
-        pnlMax += pnlPad;
-        const pnlRange = pnlMax - pnlMin;
+        const rawMin = Math.min(...pnls, 0), rawMax = Math.max(...pnls, 0);
+        const rawRange = (rawMax - rawMin) || 1;
+        const roughStep = rawRange / 4;
+        const mag = Math.pow(10, Math.floor(Math.log10(roughStep)));
+        const norm = roughStep / mag;
+        const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10) * mag;
+        const pnlMin = Math.floor(rawMin / step) * step;
+        const pnlMax = Math.ceil(rawMax / step) * step + (Math.abs(rawMax % step) < 1e-9 ? step * 0.25 : 0);
+        const pnlRangeV = pnlMax - pnlMin;
+        const decimals = step >= 1 ? 0 : step >= 0.1 ? 1 : 2;
+        const fmtTick = v => (v < 0 ? '-$' : '$') + Math.abs(v).toFixed(decimals);
 
-        const toX = i => pad.left + (i / (series.length - 1)) * plotW;
-        const toY = v => pad.top + plotH * (1 - (v - pnlMin) / pnlRange);
+        // X is calendar time
+        const t0 = series[0].t, t1 = series[series.length - 1].t;
+        const tSpan = (t1 - t0) || 1;
+        const toX = i => pad.left + ((series[i].t - t0) / tSpan) * plotW;
+        const toY = v => pad.top + plotH * (1 - (v - pnlMin) / pnlRangeV);
+        pnlXCache = series.map((_, i) => toX(i));
+        const xs = pnlXCache, ys = series.map(d => toY(d.pnl));
 
-        // Zero line
-        const zeroY = toY(0);
-        if (zeroY > pad.top && zeroY < pad.top + plotH) {
-            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-            ctx.lineWidth = 1;
-            ctx.setLineDash([4, 4]);
-            ctx.beginPath();
-            ctx.moveTo(pad.left, zeroY);
-            ctx.lineTo(pad.left + plotW, zeroY);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.fillStyle = 'rgba(200,200,200,0.4)';
-            ctx.font = '9px Space Mono';
-            ctx.textAlign = 'right';
-            ctx.fillText('$0', pad.left - 6, zeroY + 3);
-        }
-
-        // Grid lines (3 horizontal)
-        ctx.strokeStyle = 'rgba(74,158,255,0.08)';
-        ctx.lineWidth = 1;
-        const gridSteps = 3;
-        for (let i = 0; i <= gridSteps; i++) {
-            const val = pnlMin + (pnlRange * i / gridSteps);
-            const gy = toY(val);
-            ctx.beginPath();
-            ctx.moveTo(pad.left, gy);
-            ctx.lineTo(pad.left + plotW, gy);
-            ctx.stroke();
-            ctx.fillStyle = 'rgba(200,200,200,0.35)';
-            ctx.font = '9px Space Mono';
-            ctx.textAlign = 'right';
-            ctx.fillText('$' + val.toFixed(val > 100 || val < -100 ? 0 : 2), pad.left - 6, gy + 3);
-        }
-
-        // Area fill
+        // Running high-water mark per point
+        const hwm = [];
+        let runPeak = -Infinity, peakIdx = 0;
+        series.forEach((d, i) => { if (d.pnl > runPeak) { runPeak = d.pnl; peakIdx = i; } hwm.push(runPeak); });
         const lastPnl = series[series.length - 1].pnl;
-        const fillColor = lastPnl >= 0 ? '38,166,154' : '239,83,80';
-        const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + plotH);
-        grad.addColorStop(0, 'rgba(' + fillColor + ',0.2)');
-        grad.addColorStop(1, 'rgba(' + fillColor + ',0.02)');
-        ctx.beginPath();
-        ctx.moveTo(toX(0), toY(0));
-        for (let i = 0; i < series.length; i++) ctx.lineTo(toX(i), toY(series[i].pnl));
-        ctx.lineTo(toX(series.length - 1), toY(0));
-        ctx.closePath();
-        ctx.fillStyle = grad;
-        ctx.fill();
+        const inDrawdown = series[peakIdx].pnl > lastPnl + 0.005 && series[peakIdx].pnl > 0;
+        const lineRGB = lastPnl >= 0 ? '38,166,154' : '239,83,80';
+        const lineHex = lastPnl >= 0 ? '#4dd0c4' : '#ff6b6b';
 
-        // Line
-        const lineColor = lastPnl >= 0 ? '#26a69a' : '#ef5350';
-        ctx.strokeStyle = lineColor;
-        ctx.lineWidth = 2;
-        ctx.lineJoin = 'round';
-        ctx.beginPath();
-        for (let i = 0; i < series.length; i++) {
-            const x = toX(i), y = toY(series[i].pnl);
-            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-        }
-        ctx.stroke();
+        function paint(progress) {
+            ctx.clearRect(0, 0, W, H);
 
-        // Dots (only if few enough data points)
-        if (series.length <= 60) {
-            for (let i = 0; i < series.length; i++) {
-                ctx.beginPath();
-                ctx.arc(toX(i), toY(series[i].pnl), 3, 0, Math.PI * 2);
-                ctx.fillStyle = lineColor;
-                ctx.fill();
-                ctx.strokeStyle = '#0d1b2a';
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
+            // Gridlines + right-edge dollar ticks; the $0 tick is the dashed zero line
+            ctx.font = '9px Space Mono';
+            for (let v = pnlMin; v <= pnlMax + 1e-9; v += step) {
+                const val = Math.round(v / step) * step;
+                const gy = toY(val);
+                if (gy < pad.top - 1 || gy > pad.top + plotH + 1) continue;
+                const isZero = Math.abs(val) < step / 1000;
+                ctx.strokeStyle = isZero ? 'rgba(200,216,232,0.22)' : 'rgba(74,158,255,0.07)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash(isZero ? [4, 4] : []);
+                ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(pad.left + plotW, gy); ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = isZero ? 'rgba(200,216,232,0.55)' : 'rgba(200,216,232,0.35)';
+                ctx.textAlign = 'left';
+                ctx.fillText(fmtTick(val), pad.left + plotW + 8, gy + 3);
+            }
+
+            // Clip to the revealed portion for the draw-in
+            const revealX = pad.left + plotW * progress;
+            ctx.save();
+            ctx.beginPath(); ctx.rect(0, 0, revealX + 2, H); ctx.clip();
+
+            // Ink wash under the curve
+            const zeroClampY = Math.min(Math.max(toY(0), pad.top), pad.top + plotH);
+            const wash = ctx.createLinearGradient(0, pad.top, 0, pad.top + plotH);
+            wash.addColorStop(0, 'rgba(' + lineRGB + ',0.26)');
+            wash.addColorStop(1, 'rgba(' + lineRGB + ',0.0)');
+            ctx.beginPath();
+            ctx.moveTo(xs[0], zeroClampY);
+            for (let i = 0; i < series.length; i++) ctx.lineTo(xs[i], ys[i]);
+            ctx.lineTo(xs[series.length - 1], zeroClampY);
+            ctx.closePath();
+            ctx.fillStyle = wash; ctx.fill();
+
+            // Drawdown shading: between the running high-water mark and the curve
+            ctx.beginPath();
+            for (let i = 0; i < series.length; i++) ctx.lineTo(xs[i], toY(hwm[i]));
+            for (let i = series.length - 1; i >= 0; i--) ctx.lineTo(xs[i], ys[i]);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(239,83,80,0.16)'; ctx.fill();
+
+            // Brush stroke: soft wide bleed, then the crisp line
+            ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+            ctx.beginPath();
+            for (let i = 0; i < series.length; i++) i === 0 ? ctx.moveTo(xs[i], ys[i]) : ctx.lineTo(xs[i], ys[i]);
+            ctx.strokeStyle = 'rgba(' + lineRGB + ',0.22)'; ctx.lineWidth = 7; ctx.stroke();
+            ctx.shadowColor = 'rgba(' + lineRGB + ',0.55)'; ctx.shadowBlur = 10;
+            ctx.strokeStyle = lineHex; ctx.lineWidth = 2.25; ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            ctx.restore();
+
+            if (progress >= 1) {
+                // High-water mark: dashed vermilion from the peak to the right edge, sealed with a dot
+                if (inDrawdown) {
+                    const px = xs[peakIdx], py = ys[peakIdx];
+                    ctx.setLineDash([3, 5]);
+                    ctx.strokeStyle = 'rgba(239,83,80,0.75)'; ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(pad.left + plotW, py); ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = '#ef5350'; ctx.fill();
+                    ctx.strokeStyle = 'rgba(232,240,248,0.9)'; ctx.lineWidth = 1.25; ctx.stroke();
+                    ctx.fillStyle = 'rgba(255,107,107,0.9)';
+                    ctx.font = '9px Space Mono';
+                    ctx.textAlign = 'right';
+                    ctx.fillText('high ' + fmtMoney(series[peakIdx].pnl), pad.left + plotW - 8, py - 6);
+                }
+                // Live end point
+                const ex = xs[series.length - 1], ey = ys[series.length - 1];
+                ctx.beginPath(); ctx.arc(ex, ey, 7, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(' + lineRGB + ',0.22)'; ctx.fill();
+                ctx.beginPath(); ctx.arc(ex, ey, 3.5, 0, Math.PI * 2);
+                ctx.fillStyle = lineHex; ctx.fill();
+                ctx.strokeStyle = '#0c1119'; ctx.lineWidth = 1.5; ctx.stroke();
+            }
+
+            // Date labels by calendar position
+            ctx.fillStyle = 'rgba(200,216,232,0.4)';
+            ctx.font = '9px Space Mono';
+            const labelCount = Math.min(W < 560 ? 3 : 5, series.length);
+            for (let i = 0; i < labelCount; i++) {
+                const t = t0 + (tSpan * i) / (labelCount - 1);
+                let idx = 0, best = Infinity;
+                series.forEach((d, j) => { const dd = Math.abs(d.t - t); if (dd < best) { best = dd; idx = j; } });
+                ctx.textAlign = i === 0 ? 'left' : i === labelCount - 1 ? 'right' : 'center';
+                ctx.fillText(pnlShortDate(series[idx]), xs[idx] + (i === 0 ? 6 : 0), H - 7);
             }
         }
 
-        // End dot always
-        const ex = toX(series.length - 1), ey = toY(lastPnl);
-        ctx.beginPath();
-        ctx.arc(ex, ey, 4, 0, Math.PI * 2);
-        ctx.fillStyle = lineColor;
-        ctx.fill();
-        ctx.strokeStyle = '#0d1b2a';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // X-axis date labels
-        ctx.fillStyle = 'rgba(200,200,200,0.4)';
-        ctx.font = '9px Space Mono';
-        ctx.textAlign = 'center';
-        const labelCount = Math.min(5, series.length);
-        for (let i = 0; i < labelCount; i++) {
-            const idx = Math.floor(i * (series.length - 1) / (labelCount - 1));
-            ctx.fillText(series[idx].date, toX(idx), H - 4);
+        if (animate && !PNL_REDUCED_MOTION) {
+            const start = performance.now(), dur = 650;
+            const frame = now => {
+                const p = Math.min(1, (now - start) / dur);
+                paint(1 - Math.pow(1 - p, 3));
+                if (p < 1) pnlAnimFrame = requestAnimationFrame(frame); else pnlAnimFrame = null;
+            };
+            pnlAnimFrame = requestAnimationFrame(frame);
+        } else {
+            paint(1);
         }
     }
 
-    // ====== P&L CHART TOOLTIP ======
-    let pnlFilteredCache = [];
-    let pnlPadCache = { top: 15, right: 10, bottom: 25, left: 50 };
-
+    // Tooltip: nearest point by pixel; date, cumulative, that day's change and trade count
     (function setupPnlTooltip() {
-        const wrap = document.querySelector('.pnl-chart-wrap');
+        const wrap = document.getElementById('pnlStage');
         if (!wrap) return;
         const tooltip = document.getElementById('pnlTooltip');
         const crosshair = document.getElementById('pnlCrosshair');
 
         function showTooltip(clientX) {
             const series = pnlFilteredCache;
-            if (!series || series.length < 2) return;
+            if (!series || series.length < 2 || !pnlXCache.length) return;
             const rect = wrap.getBoundingClientRect();
             const x = clientX - rect.left;
             const pad = pnlPadCache;
-            const plotW = rect.width - pad.left - pad.right;
-            const idx = Math.round(((x - pad.left) / plotW) * (series.length - 1));
-            if (idx < 0 || idx >= series.length) { hideTooltip(); return; }
+            if (x < pad.left - 8 || x > rect.width - pad.right + 8) { hideTooltip(); return; }
+            let idx = 0, best = Infinity;
+            pnlXCache.forEach((px, j) => { const dd = Math.abs(px - x); if (dd < best) { best = dd; idx = j; } });
             const d = series[idx];
-            const pnl = d.pnl;
-            const color = pnl >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
-            tooltip.innerHTML = '<span style="color:' + color + '">' + (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2) + '</span> <span style="color:var(--text-dim)">' + d.date + '</span>';
+            const color = d.pnl >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
+            const dColor = d.delta >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
+            const n = d.trades || 0;
+            tooltip.innerHTML =
+                '<div class="pnl-tip-date">' + pnlShortDate(d) + '</div>' +
+                '<div style="color:' + color + ';font-weight:700">' + fmtMoney(d.pnl) + '</div>' +
+                '<div class="pnl-tip-delta"><span style="color:' + dColor + '">' + fmtMoney(d.delta || 0) + '</span> from ' + n + (n === 1 ? ' trade' : ' trades') + '</div>';
             tooltip.style.display = 'block';
-            const tipX = pad.left + (idx / (series.length - 1)) * plotW;
-            tooltip.style.left = tipX + 'px';
-            tooltip.style.top = '-4px';
+            const tipX = pnlXCache[idx];
+            tooltip.style.left = Math.max(60, Math.min(rect.width - 60, tipX)) + 'px';
+            tooltip.style.top = (pad.top - 8) + 'px';
             crosshair.style.display = 'block';
             crosshair.style.left = tipX + 'px';
         }
@@ -7603,6 +7741,11 @@ const BACKTEST = {
         wrap.addEventListener('mouseleave', hideTooltip);
         wrap.addEventListener('touchmove', e => { e.preventDefault(); showTooltip(e.touches[0].clientX); }, { passive: false });
         wrap.addEventListener('touchend', hideTooltip);
+        let resizeT = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeT);
+            resizeT = setTimeout(() => { if (pnlFilteredCache.length) drawPnlChart(pnlFilteredCache, false); movePnlRangeIndicator(); }, 120);
+        });
     })();
 
     // ====== STRATEGY REVIEW ======

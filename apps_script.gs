@@ -40,6 +40,12 @@ function fmtShortDate_(d) {
   return (m < 10 ? '0' : '') + m + '/' + (day < 10 ? '0' : '') + day;
 }
 
+function fmtIsoDate_(d) {
+  if (!(d instanceof Date)) return String(d);
+  var m = d.getMonth() + 1, day = d.getDate();
+  return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+}
+
 // ---------------------------------------------------------------
 // doPost — Webhook receiver (FAST — queue and return immediately)
 // TradingView sends JSON like:
@@ -53,7 +59,7 @@ function fmtShortDate_(d) {
 // ---------------------------------------------------------------
 var QUEUE = 'Queue';
 
-var SCRIPT_VERSION = 'v3-2026-09-05-bitunix-fix';
+var SCRIPT_VERSION = 'v4-2026-09-17-pnl-curve';
 
 function doPost(e) {
   try {
@@ -1222,10 +1228,10 @@ function executeBitunixTrade_(params) {
       return fail_('Computed qty is 0 for ' + symbol + ' (size $' + sizeUsd + ' x' + leverage + ' @ ' + price + ', basePrecision=' + qtyDecimals + ')',
                    { symbol: symbol, price: price });
     }
-    // Block if actual margin cost exceeds 10x the requested size
+    // Block if actual margin cost exceeds 2x the requested size (prevents minQty bumping you way past your intended size)
     var actualCost = (Number(qtyStr) * price) / leverage;
-    if (actualCost > sizeUsd * 10) {
-      return fail_('Blocked: actual cost $' + actualCost.toFixed(2) + ' exceeds 10x your size ($' + sizeUsd + '). Bitunix minimum (' + minQty + ' ' + base + ') is too high for this amount.',
+    if (actualCost > sizeUsd * 2) {
+      return fail_('Blocked: actual cost $' + actualCost.toFixed(2) + ' exceeds 2x your size ($' + sizeUsd + '). Bitunix minimum (' + minQty + ' ' + base + ') is too high for this amount.',
                    { symbol: symbol, price: price, qty: qtyStr });
     }
 
@@ -1951,16 +1957,26 @@ function serveDashboardJSON_() {
       var now = new Date();
       var d7 = new Date(now - 7*86400000), d14 = new Date(now - 14*86400000), d30 = new Date(now - 30*86400000);
       var pnl7 = 0, cnt7 = 0, pnl14 = 0, cnt14 = 0, pnl30 = 0, cnt30 = 0;
-      var cumulative = [];
-      var runningPnl = 0;
-      // trades are sorted oldest→newest from getAllCompletedTrades_
-      trades.forEach(function(t) {
-        runningPnl += t.realizedPnl;
+      // Equity curve keyed on the CLOSE date (when P&L was actually realized),
+      // not the entry date. Plotting on entry date books a loss weeks before it
+      // happened and creates phantom peaks the account never reached.
+      var byClose = trades.map(function(t) {
         var ts = t.timestamp instanceof Date ? t.timestamp : new Date(t.timestamp);
-        cumulative.push({ date: fmtShortDate_(ts), pnl: runningPnl });
-        // Use closedAt for rolling windows (not entry timestamp) so recently
-        // closed trades land in the right bucket even if entered >7d ago
         var closeTs = t.closedAt instanceof Date ? t.closedAt : ts;
+        return { t: t, closeTs: closeTs };
+      }).sort(function(a, b) { return a.closeTs - b.closeTs; });
+      var cumulative = [];
+      var runningPnl = 0, peakPnl = 0, peakDate = null, maxDD = 0;
+      byClose.forEach(function(e) {
+        var t = e.t, closeTs = e.closeTs;
+        runningPnl += t.realizedPnl;
+        if (runningPnl > peakPnl) { peakPnl = runningPnl; peakDate = closeTs; }
+        if (peakPnl - runningPnl > maxDD) maxDD = peakPnl - runningPnl;
+        cumulative.push({
+          date: fmtShortDate_(closeTs),          // kept for older dashboards
+          iso: fmtIsoDate_(closeTs),             // full date — no year guessing on the client
+          pnl: Math.round(runningPnl * 100) / 100
+        });
         if (closeTs >= d30) { pnl30 += t.realizedPnl; cnt30++; }
         if (closeTs >= d14) { pnl14 += t.realizedPnl; cnt14++; }
         if (closeTs >= d7)  { pnl7  += t.realizedPnl; cnt7++;  }
@@ -1976,6 +1992,8 @@ function serveDashboardJSON_() {
         avg14d: { pnl: Math.round(pnl14 * 100) / 100, trades: cnt14, avgPerTrade: Math.round(avg14 * 1000) / 1000 },
         avg30d: { pnl: Math.round(pnl30 * 100) / 100, trades: cnt30, avgPerTrade: Math.round(avg30 * 1000) / 1000 },
         allTime: { avgPerTrade: Math.round(avgAll * 1000) / 1000 },
+        peak: { pnl: Math.round(peakPnl * 100) / 100, iso: peakDate ? fmtIsoDate_(peakDate) : null },
+        maxDrawdown: Math.round(maxDD * 100) / 100,
         direction: direction,
         cumulative: cumulative // all data points for chart
       };
