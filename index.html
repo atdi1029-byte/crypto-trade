@@ -2058,21 +2058,22 @@
         .pokemon-pnl.negative { color: var(--red-bright); text-shadow: 0 0 10px var(--red-bright); }
         .pokemon-pnl.zero { color: var(--text-dim); }
         .pokemon-sizes {
-            display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem;
-            margin-top: 0.5rem;
+            display: grid; grid-template-columns: repeat(4, auto); gap: 0.4rem;
+            margin-top: 0.5rem; justify-content: center;
         }
         .pokemon-size-chip {
             display: flex;
             align-items: center;
-            gap: 0.3rem;
+            gap: 0.2rem;
             background: rgba(74,158,255,0.1);
             border: 1px solid var(--accent-deep);
-            border-radius: 20px;
-            padding: 0.3rem 0.7rem 0.3rem 0.4rem;
-            font-size: 0.75rem;
+            border-radius: 16px;
+            padding: 0.2rem 0.5rem 0.2rem 0.25rem;
+            font-size: 0.7rem;
             font-weight: 700;
+            white-space: nowrap;
         }
-        .pokeball-svg { width: 32px; height: 32px; flex-shrink: 0; }
+        .pokeball-svg { width: 24px; height: 24px; flex-shrink: 0; }
         .pokeball-svg .ball-top { fill: #ef5350; }
         .pokeball-svg .ball-bottom { fill: #fff; }
         .pokeball-svg .ball-line { stroke: #333; stroke-width: 1.5; fill: none; }
@@ -2210,9 +2211,9 @@
             .pokemon-sprite { width: 180px; height: 180px; margin: -1rem 0 -2rem; }
             .pokemon-level-name { font-size: 1.2rem; }
             .pokemon-xp-bar { max-width: 100%; }
-            .pokemon-sizes { gap: 0.3rem; display: grid; grid-template-columns: repeat(4, 1fr); padding: 0 0.2rem; }
-            .pokemon-size-chip { padding: 0.2rem 0.5rem 0.2rem 0.3rem; font-size: 0.65rem; }
-            .pokeball-svg { width: 24px; height: 24px; }
+            .pokemon-sizes { gap: 0.25rem; display: grid; grid-template-columns: repeat(4, auto); padding: 0 0.2rem; justify-content: center; }
+            .pokemon-size-chip { padding: 0.15rem 0.4rem 0.15rem 0.2rem; font-size: 0.6rem; }
+            .pokeball-svg { width: 20px; height: 20px; }
             .weekly-tasks { display: none !important; }
             .two-day-btn { display: none !important; }
             /* Action Needed cards - mobile tweaks */
