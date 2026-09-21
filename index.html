@@ -4156,7 +4156,6 @@ const BACKTEST = {
                             <div class="action-buttons">
                                 <input type="text" class="entry-input" placeholder="P&L $" id="${id}-profit" style="width:55px">
                                 <button class="action-btn entered" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'0x0','${id}')">0x0</button>
-                                <button class="action-btn won" onclick="markOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Won','${id}')">Hit TP</button>
                                 <button class="action-btn lost" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Lost','${id}','Stopped Out')">Stopped Out</button>
                                 <button class="action-btn skipped" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Closed','${id}','Close')">Closed</button>
                                 <button class="action-btn cancel-trade" onclick="confirmOutcome('${esc(tkr)}','${esc(a.signal)}',${prc},'Cancelled','${id}','Cancel')" title="Cancel — doesn\'t count as a trade">&times;</button>
@@ -5922,48 +5921,7 @@ const BACKTEST = {
         // Running P&L total stored on the element
         const prevTotal = parseFloat(el.dataset.pnl || '0');
 
-        if (value === 'Won') {
-            // Hit TP — add to running total, keep card open
-            const newTotal = prevTotal + inputVal;
-            el.dataset.pnl = newTotal;
-            el.dataset.status = 'tp';
-            el.style.borderLeftColor = 'var(--green-candle)';
-
-            // Update or create the P&L badge
-            let badge = el.querySelector('.pnl-badge');
-            if (!badge) {
-                const header = el.querySelector('.ticker-header');
-                if (header) {
-                    header.insertAdjacentHTML('beforeend', '<span class="pnl-badge" style="background:var(--green-dim);color:var(--green-bright)"></span>');
-                    badge = el.querySelector('.pnl-badge');
-                }
-            }
-            if (badge) badge.textContent = 'TP ' + (newTotal >= 0 ? '+$' + newTotal.toFixed(2) : '-$' + Math.abs(newTotal).toFixed(2));
-
-            // Update right-side P&L display: TP + amount on same line
-            const pnlDisplay = el.querySelector('.pnl-amount');
-            if (pnlDisplay) {
-                const amtStr = (newTotal >= 0 ? '+$' : '-$') + Math.abs(newTotal).toFixed(2);
-                const amtColor = newTotal >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
-                pnlDisplay.style.cssText = 'font-family:Space Mono,monospace;font-size:1.2rem;font-weight:700;display:flex;align-items:center;gap:20px;justify-content:flex-end';
-                pnlDisplay.innerHTML = `<span style="color:var(--green-bright)">TP</span><span style="color:${amtColor}">${amtStr}</span>`;
-            }
-
-            // Save to localStorage + sheet (retry up to 3x)
-            saveTradeState(ticker, signal, { status: 'tp', pnl: newTotal });
-            const tpParams = new URLSearchParams({ action: 'update', ticker, signal, price, field: 'pnl', profitLocked: newTotal.toFixed(2), tradeStatus: 'tp' });
-            const tpUrl = POST_URL + '?' + tpParams;
-            let tpOk = false;
-            for (let attempt = 0; attempt < 3 && !tpOk; attempt++) {
-                if (attempt > 0) await new Promise(r => setTimeout(r, 1500));
-                const res = await fireGet(tpUrl);
-                if (res && res.status === 'ok') tpOk = true;
-            }
-            if (!tpOk) showToast('TP save failed for ' + ticker + ' — will retry on next action');
-            if (profitInput) profitInput.value = '';
-            return;
-
-        } else if (value === '0x0') {
+        if (value === '0x0') {
             // Breakeven — add any input P&L, keep card open
             const newTotal = prevTotal + inputVal;
             el.dataset.pnl = newTotal;
