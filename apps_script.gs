@@ -1765,6 +1765,7 @@ function serveDashboardJSON_() {
   var actionNeeded = [];
   var sevenDaysAgo = new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000);
   var actionSeen = {}; // dedup by symbol+signal
+  var lockedPnl = 0;   // profit already banked (Hit TP / 0x0) on trades still open
   for (var k = 1; k < posData.length; k++) {
     var pr = posData[k];
     var pSymbol  = String(pr[1] || '').toUpperCase().trim();
@@ -1804,6 +1805,10 @@ function serveDashboardJSON_() {
     } else if (pAction.toLowerCase() === 'entered' && (pOutcome === '' || pOutcome.toLowerCase() === 'open')) {
       var savedPnl = pr[10] || 0;
       var savedStatus = pr[11] || '';
+      // Locked profit is real money in the account — count it in bankroll
+      if (savedPnl && !(statsStartDate && pr[0] instanceof Date && pr[0] < statsStartDate)) {
+        lockedPnl += Number(savedPnl) || 0;
+      }
       // Consolidate multiple entries of the same ticker into one open trade
       var openKey = pSymbol;
       var existing = null;
@@ -1868,6 +1873,8 @@ function serveDashboardJSON_() {
     if (t.win) grossWin += t.realizedPnl;
     else if (t.outcome === 'lost') grossLoss += t.realizedPnl;
   });
+  // Bankroll = closed P&L + profit locked on open trades (TP hits count before the trade closes)
+  totalPnl += lockedPnl;
   var decided = wins.length + losses.length;
   var winRate = decided > 0 ? (wins.length / decided * 100).toFixed(1) : '0.0';
   var streaks = trades.length > 0 ? calcStreaks_(trades) : { bestWin: 0, worstLoss: 0, current: 0 };
@@ -1936,6 +1943,7 @@ function serveDashboardJSON_() {
     grossLoss:       grossLoss.toFixed(2),
     winRate:         winRate + '%',
     netPnl:          totalPnl.toFixed(2),
+    lockedPnl:       lockedPnl.toFixed(2),
     openPositions:   totalOpen,
     totalDeployed:   totalDeployed,
     maxPositions:    maxPositions,

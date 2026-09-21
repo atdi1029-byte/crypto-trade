@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trade Analyzer</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0c1119;
+  --card: #1a2d45;
+  --border: #1e3a5f;
+  --text: #c8d8e8;
+  --dim: #6a8aaa;
+  --bright: #e8f0f8;
+  --green: #26a69a;
+  --red: #ef5350;
+  --accent: #4a9eff;
+}
+body {
+  font-family: 'Courier New', monospace;
+  background: var(--bg);
+  color: var(--text);
+  padding: 1rem;
+}
+h1 { color: var(--accent); margin-bottom: 0.5rem; font-size: 1.4rem; }
+.controls {
+  display: flex; gap: 0.5rem; flex-wrap: wrap;
+  align-items: center; margin-bottom: 1rem;
+}
+.controls label { color: var(--dim); font-size: 0.8rem; }
+.controls input, .controls select {
+  background: var(--card); border: 1px solid var(--border);
+  color: var(--text); padding: 0.3rem 0.5rem; border-radius: 4px;
+  font-family: inherit; width: 70px;
+}
+.controls select { width: auto; }
+.controls button {
+  background: var(--accent); color: #000; border: none;
+  padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer;
+  font-weight: bold; font-family: inherit;
+}
+.controls button:hover { opacity: 0.85; }
+.stats-bar {
+  display: flex; gap: 1.5rem; margin-bottom: 1rem;
+  padding: 0.6rem 1rem; background: var(--card);
+  border-radius: 6px; border: 1px solid var(--border);
+  flex-wrap: wrap; font-size: 0.85rem;
+}
+.stats-bar .s { color: var(--dim); }
+.stats-bar .v { color: var(--bright); font-weight: bold; }
+.stats-bar .v.green { color: var(--green); }
+.stats-bar .v.red { color: var(--red); }
+
+/* Trade list */
+.trade-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.trade-row {
+  display: grid;
+  grid-template-columns: 40px 90px 80px 50px 70px 70px 70px 80px 60px 30px;
+  gap: 0.5rem; align-items: center;
+  padding: 0.5rem 0.7rem; background: var(--card);
+  border: 1px solid var(--border); border-radius: 4px;
+  font-size: 0.8rem; cursor: pointer; transition: border-color 0.15s;
+}
+.trade-row:hover { border-color: var(--accent); }
+.trade-row.selected { border-color: var(--accent); background: #213754; }
+.trade-row.loss { border-left: 3px solid var(--red); }
+.trade-row.win { border-left: 3px solid var(--green); }
+.trade-row .num { color: var(--dim); }
+.trade-row .sym { color: var(--bright); font-weight: bold; }
+.trade-row .sig { font-size: 0.7rem; text-transform: uppercase; }
+.trade-row .sig.buy { color: var(--green); }
+.trade-row .sig.sell { color: var(--red); }
+.trade-row .outcome.won { color: var(--green); font-weight: bold; }
+.trade-row .outcome.lost { color: var(--red); font-weight: bold; }
+.trade-row .outcome.closed, .trade-row .outcome.draw { color: var(--green); }
+.trade-row .pnl { font-weight: bold; }
+.trade-row .pnl.pos { color: var(--green); }
+.trade-row .pnl.neg { color: var(--red); }
+.header-row {
+  display: grid;
+  grid-template-columns: 40px 90px 80px 50px 70px 70px 70px 80px 60px 30px;
+  gap: 0.5rem; padding: 0.3rem 0.7rem;
+  font-size: 0.7rem; color: var(--dim); text-transform: uppercase;
+}
+
+/* Detail panel */
+.detail {
+  margin-top: 1rem; padding: 1rem;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 6px; display: none;
+}
+.detail.show { display: block; }
+.detail h2 { color: var(--accent); font-size: 1.1rem; margin-bottom: 0.8rem; }
+.detail-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 0.4rem 2rem; font-size: 0.85rem;
+}
+.detail-grid .label { color: var(--dim); }
+.detail-grid .val { color: var(--bright); }
+.detail-grid .val.green { color: var(--green); }
+.detail-grid .val.red { color: var(--red); }
+.nav-btns { display: flex; gap: 0.5rem; margin-top: 0.8rem; }
+.nav-btns button {
+  background: var(--border); color: var(--text); border: none;
+  padding: 0.3rem 0.8rem; border-radius: 4px; cursor: pointer;
+  font-family: inherit;
+}
+.nav-btns button:hover { background: var(--accent); color: #000; }
+.tv-btn {
+  color: var(--accent); text-decoration: none; font-size: 0.75rem;
+  font-weight: bold; opacity: 0.6; transition: opacity 0.15s;
+}
+.tv-btn:hover { opacity: 1; }
+.loading { color: var(--dim); padding: 2rem; text-align: center; }
+</style>
+</head>
+<body>
+<h1>Trade Analyzer</h1>
+<div class="controls">
+  <label>From #</label>
+  <input id="fromNum" type="number" value="400">
+  <label>To #</label>
+  <input id="toNum" type="number" value="450">
+  <label>Filter</label>
+  <select id="filterType">
+    <option value="all">All</option>
+    <option value="losses">Losses Only</option>
+    <option value="wins">Wins Only</option>
+    <option value="closed">Closed/0x0</option>
+  </select>
+  <label>Symbol</label>
+  <input id="filterSym" type="text" placeholder="e.g. BTC" style="width:80px">
+  <button onclick="loadTrades()">Load</button>
+</div>
+<div class="stats-bar" id="statsBar" style="display:none"></div>
+<div class="header-row">
+  <span>#</span><span>Date</span><span>Symbol</span><span>Signal</span>
+  <span>Entry</span><span>SL</span><span>TP1</span><span>Outcome</span><span>PnL</span><span>TV</span>
+</div>
+<div id="tradeList" class="trade-list">
+  <div class="loading">Click Load to fetch trades...</div>
+</div>
+<div class="detail" id="detailPanel"></div>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbywWcasm7wwI14tUc64XpTscePJlgiU3Q7sZ4uY-TmqjqVZzuxJOhf6T8fO2ZpSaKwV/exec';
+let allTrades = [];
+let filtered = [];
+let selectedIdx = -1;
+
+async function loadTrades() {
+  const list = document.getElementById('tradeList');
+  list.innerHTML = '<div class="loading">Fetching trades...</div>';
+  document.getElementById('statsBar').style.display = 'none';
+  document.getElementById('detailPanel').className = 'detail';
+
+  try {
+    const r = await fetch(API + '?action=raw_trades');
+    const text = await r.text();
+    const data = JSON.parse(text);
+    allTrades = data.trades || [];
+    // Number them 1-based
+    allTrades.forEach((t, i) => t._num = i + 1);
+    applyFilters();
+  } catch(e) {
+    list.innerHTML = '<div class="loading" style="color:var(--red)">Error: ' + e.message + '</div>';
+  }
+}
+
+function applyFilters() {
+  const from = parseInt(document.getElementById('fromNum').value) || 1;
+  const to = parseInt(document.getElementById('toNum').value) || 9999;
+  const filter = document.getElementById('filterType').value;
+  const sym = document.getElementById('filterSym').value.trim().toUpperCase();
+
+  filtered = allTrades.filter(t => {
+    if (t._num < from || t._num > to) return false;
+    if (sym && !(t.ticker||t.symbol||'').includes(sym)) return false;
+    const oc = (t.outcome || '').toLowerCase();
+    if (filter === 'losses' && oc !== 'lost') return false;
+    if (filter === 'wins' && oc !== 'won' && oc !== 'closed' && oc !== '0x0') return false;
+    if (filter === 'closed' && oc !== 'closed' && oc !== '0x0') return false;
+    return true;
+  });
+
+  renderStats();
+  renderList();
+}
+
+function renderStats() {
+  const bar = document.getElementById('statsBar');
+  const total = filtered.length;
+  const wonOnly = filtered.filter(t => t.outcome === 'won').length;
+  const closed = filtered.filter(t => t.outcome === 'closed' || t.outcome === '0x0').length;
+  const wins = wonOnly + closed;
+  const losses = filtered.filter(t => t.outcome === 'lost').length;
+  const wr = (wins + losses) > 0 ? ((wins / (wins + losses)) * 100).toFixed(1) : '0';
+  const totalPnl = filtered.reduce((s, t) => s + (parseFloat(t.realizedPnl || t.pnl) || 0), 0);
+  const pnlClass = totalPnl >= 0 ? 'green' : 'red';
+
+  bar.style.display = 'flex';
+  bar.innerHTML = `
+    <span><span class="s">Showing: </span><span class="v">${total}</span></span>
+    <span><span class="s">Wins: </span><span class="v green">${wins} (${wonOnly}W + ${closed}C)</span></span>
+    <span><span class="s">Losses: </span><span class="v red">${losses}</span></span>
+    <span><span class="s">Win Rate: </span><span class="v ${parseFloat(wr)>=50?'green':'red'}">${wr}%</span></span>
+    <span><span class="s">Total PnL: </span><span class="v ${pnlClass}">${totalPnl>=0?'+':''}$${totalPnl.toFixed(2)}</span></span>
+  `;
+}
+
+function renderList() {
+  const list = document.getElementById('tradeList');
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="loading">No trades match filters</div>';
+    return;
+  }
+  list.innerHTML = filtered.map((t, i) => {
+    const oc = (t.outcome || '').toLowerCase();
+    const cls = (oc === 'won' || oc === 'closed' || oc === '0x0') ? 'win' : oc === 'lost' ? 'loss' : '';
+    const sigCls = (t.signal || '').includes('buy') ? 'buy' : 'sell';
+    const pnl = parseFloat(t.realizedPnl || t.pnl) || 0;
+    const pnlCls = pnl > 0 ? 'pos' : pnl < 0 ? 'neg' : '';
+    const dt = t.timestamp ? new Date(t.timestamp).toLocaleDateString('en-US', {month:'short',day:'numeric'}) : '';
+    return `<div class="trade-row ${cls}" onclick="showDetail(${i})" data-idx="${i}">
+      <span class="num">${t._num}</span>
+      <span>${dt}</span>
+      <span class="sym">${t.ticker || t.symbol || ''}</span>
+      <span class="sig ${sigCls}">${t.signal || ''}</span>
+      <span>${fmt(t.entry)}</span>
+      <span>${fmt(t.sl)}</span>
+      <span>${fmt(t.tp1)}</span>
+      <span class="outcome ${oc}">${t.outcome || ''}</span>
+      <span class="pnl ${pnlCls}">${pnl !== 0 ? (pnl>0?'+':'')+'$'+pnl.toFixed(2) : '—'}</span>
+      <a class="tv-btn" href="${tvUrl(t.ticker||t.symbol)}" target="_blank" onclick="event.stopPropagation()" title="Open on TradingView">TV</a>
+    </div>`;
+  }).join('');
+}
+
+function tvUrl(ticker) {
+  if (!ticker) return '';
+  // Strip .P suffix (perpetual), try BYBIT first
+  const clean = ticker.replace(/\.P$/, '').replace(/USDC$/, 'USDT');
+  return 'https://www.tradingview.com/chart/?symbol=BYBIT:' + clean;
+}
+
+function fmt(v) {
+  if (!v && v !== 0) return '—';
+  const n = parseFloat(v);
+  if (isNaN(n)) return v;
+  if (n >= 1000) return n.toFixed(2);
+  if (n >= 1) return n.toFixed(4);
+  return n.toPrecision(4);
+}
+
+function showDetail(idx) {
+  selectedIdx = idx;
+  const t = filtered[idx];
+  const panel = document.getElementById('detailPanel');
+  panel.className = 'detail show';
+
+  const oc = (t.outcome || '').toLowerCase();
+  const pnl = parseFloat(t.realizedPnl || t.pnl) || 0;
+  const pnlCls = pnl > 0 ? 'green' : pnl < 0 ? 'red' : '';
+  const ocCls = oc === 'won' ? 'green' : oc === 'lost' ? 'red' : '';
+
+  // RR calculation
+  const entry = parseFloat(t.entry) || 0;
+  const sl = parseFloat(t.sl) || 0;
+  const tp1 = parseFloat(t.tp1) || 0;
+  const risk = Math.abs(entry - sl);
+  const reward = Math.abs(tp1 - entry);
+  const rr = risk > 0 ? (reward / risk).toFixed(2) : '—';
+
+  panel.innerHTML = `
+    <h2>Trade #${t._num} — ${t.ticker || t.symbol || ''} ${(t.signal||'').toUpperCase()}</h2>
+    <div class="detail-grid">
+      <span class="label">Date</span>
+      <span class="val">${t.timestamp ? new Date(t.timestamp).toLocaleString() : '—'}</span>
+      <span class="label">Symbol</span>
+      <span class="val">${t.ticker || t.symbol || '—'}</span>
+      <span class="label">Signal</span>
+      <span class="val">${t.signal || '—'}</span>
+      <span class="label">Outcome</span>
+      <span class="val ${ocCls}">${t.outcome || '—'}</span>
+      <span class="label">Entry</span>
+      <span class="val">${t.entry || '—'}</span>
+      <span class="label">Stop Loss</span>
+      <span class="val">${t.sl || '—'}</span>
+      <span class="label">TP1</span>
+      <span class="val">${t.tp1 || '—'}</span>
+      <span class="label">TP2</span>
+      <span class="val">${t.tp2 || '—'}</span>
+      <span class="label">Risk:Reward</span>
+      <span class="val">${rr}</span>
+      <span class="label">Score</span>
+      <span class="val">${t.score || '—'}</span>
+      <span class="label">Realized PnL</span>
+      <span class="val ${pnlCls}">${pnl !== 0 ? (pnl>0?'+':'')+'$'+pnl.toFixed(2) : '—'}</span>
+      <span class="label">RSI</span>
+      <span class="val">${t.rsi || '—'}</span>
+      <span class="label">MACD</span>
+      <span class="val">${t.macd || '—'}</span>
+      <span class="label">Volume</span>
+      <span class="val">${t.volume || '—'}</span>
+      <span class="label">Timeframe</span>
+      <span class="val">${t.timeframe || '—'}</span>
+      <span class="label">Touches</span>
+      <span class="val">${t.touches || '—'}</span>
+      <span class="label">Divergence</span>
+      <span class="val">${t.divergence ? 'Yes' : '—'}</span>
+      <span class="label">DMI</span>
+      <span class="val">${t.dmi || '—'}</span>
+      <span class="label">Cross</span>
+      <span class="val">${t.cross || '—'}</span>
+    </div>
+    <div class="nav-btns">
+      <button onclick="showDetail(${idx-1})" ${idx===0?'disabled':''}>← Prev</button>
+      <button onclick="showDetail(${idx+1})" ${idx>=filtered.length-1?'disabled':''}>Next →</button>
+      <a href="${tvUrl(t.ticker||t.symbol)}" target="_blank" style="background:var(--accent);color:#000;padding:0.3rem 0.8rem;border-radius:4px;text-decoration:none;font-weight:bold;font-family:inherit;font-size:0.85rem">Open on TradingView</a>
+    </div>
+  `;
+
+  // Highlight row
+  document.querySelectorAll('.trade-row').forEach(r => r.classList.remove('selected'));
+  const row = document.querySelector(`.trade-row[data-idx="${idx}"]`);
+  if (row) { row.classList.add('selected'); row.scrollIntoView({block:'nearest'}); }
+}
+
+// Listen for filter changes
+['filterType','filterSym'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    if (allTrades.length) applyFilters();
+  });
+});
+document.getElementById('filterSym').addEventListener('input', () => {
+  if (allTrades.length) applyFilters();
+});
+
+// Keyboard nav
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' && selectedIdx < filtered.length - 1) {
+    e.preventDefault(); showDetail(selectedIdx + 1);
+  } else if (e.key === 'ArrowUp' && selectedIdx > 0) {
+    e.preventDefault(); showDetail(selectedIdx - 1);
+  }
+});
+</script>
+</body>
+</html>
