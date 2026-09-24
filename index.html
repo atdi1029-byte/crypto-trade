@@ -3408,18 +3408,20 @@ const BACKTEST = {
     function getActedItems() {
         try { return JSON.parse(localStorage.getItem(ACTED_KEY) || '[]'); } catch { return []; }
     }
-    function addActedItem(ticker, signal) {
+    // kind: 'action' = handled in Action Needed (Open/Skip), 'outcome' = open trade closed/cancelled.
+    // Kept separate so pressing Open doesn't also hide the new trade from Open Trades.
+    function addActedItem(ticker, signal, kind = 'action') {
         const items = getActedItems().filter(i => Date.now() - i.ts < 86400000); // keep 24hr
-        items.push({ t: ticker.toUpperCase(), s: signal.toLowerCase(), ts: Date.now() });
+        items.push({ t: ticker.toUpperCase(), s: signal.toLowerCase(), k: kind, ts: Date.now() });
         localStorage.setItem(ACTED_KEY, JSON.stringify(items));
     }
-    function removeActedItem(ticker, signal) {
+    function removeActedItem(ticker, signal, kind = 'action') {
         const t = ticker.toUpperCase(), s = signal.toLowerCase();
-        const items = getActedItems().filter(i => !(i.t === t && i.s === s));
+        const items = getActedItems().filter(i => !(i.t === t && i.s === s && (i.k || 'action') === kind));
         localStorage.setItem(ACTED_KEY, JSON.stringify(items));
     }
-    function isActed(ticker, signal) {
-        return getActedItems().some(i => i.t === ticker.toUpperCase() && i.s === signal.toLowerCase());
+    function isActed(ticker, signal, kind = 'action') {
+        return getActedItems().some(i => i.t === ticker.toUpperCase() && i.s === signal.toLowerCase() && (i.k || 'action') === kind);
     }
 
     // ====== WEEKLY TASKS ======
@@ -4082,7 +4084,7 @@ const BACKTEST = {
         });
 
         // Filter out trades already acted on (closed/cancelled/stopped)
-        trades = trades.filter(a => !isActed(a.ticker || a.symbol || '', a.signal || ''));
+        trades = trades.filter(a => !isActed(a.ticker || a.symbol || '', a.signal || '', 'outcome'));
 
         // Deduplicate by ticker — consolidate multiple entries
         // Also filter blacklisted coins
@@ -5914,8 +5916,6 @@ const BACKTEST = {
         const inputVal = parseFloat(profitInput ? profitInput.value : '') || 0;
         const el = document.getElementById(elemId);
 
-        // Mark acted locally so auto-refresh doesn't restore the card
-        addActedItem(ticker, signal);
         actionCooldownUntil = Date.now() + ACTION_COOLDOWN_MS;
 
         // Running P&L total stored on the element
@@ -5961,7 +5961,12 @@ const BACKTEST = {
             if (profitInput) profitInput.value = '';
             return;
 
-        } else if (value === 'Cancelled') {
+        }
+
+        // Mark acted locally so auto-refresh doesn't restore the card (not for 0x0 — that card stays open)
+        addActedItem(ticker, signal, 'outcome');
+
+        if (value === 'Cancelled') {
             // Cancel — delete from sheet, doesn't count as a trade
             clearTradeState(ticker, signal);
             el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
@@ -5981,7 +5986,7 @@ const BACKTEST = {
                     setTimeout(() => el.remove(), 600);
                 }, 400);
             } catch (err) {
-                removeActedItem(ticker, signal);
+                removeActedItem(ticker, signal, 'outcome');
                 el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
                 showToast('Failed to cancel: ' + err.message);
             }
@@ -5996,7 +6001,7 @@ const BACKTEST = {
                 const entered = await showModal({ message: 'P&L for ' + ticker + '?', input: 'Amount (negative for loss)', okLabel: 'Submit' });
                 if (entered === null) {
                     // User cancelled — undo the acted cache so card stays visible
-                    removeActedItem(ticker, signal);
+                    removeActedItem(ticker, signal, 'outcome');
                     return;
                 }
                 let manualVal = parseFloat(entered) || 0;
@@ -6041,7 +6046,7 @@ const BACKTEST = {
                 }, 1200);
 
             } catch (err) {
-                removeActedItem(ticker, signal);
+                removeActedItem(ticker, signal, 'outcome');
                 el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
                 showToast('Failed to update: ' + err.message);
             }
