@@ -5999,7 +5999,8 @@ const BACKTEST = {
                     action: 'update', ticker, signal, price,
                     field: 'outcome', value: 'Cancelled'
                 });
-                await fireGet(POST_URL + '?' + params);
+                const cancelRes = await sendOutcomeUpdate(POST_URL + '?' + params, ticker, signal);
+                if (!cancelRes.saved) throw new Error(cancelRes.msg);
                 setTimeout(() => {
                     el.style.transition = 'opacity 0.5s, max-height 0.5s';
                     el.style.opacity = '0';
@@ -6043,7 +6044,10 @@ const BACKTEST = {
                     field: 'outcome', value: finalValue,
                     profitLocked: grandTotal.toFixed(2)
                 });
-                await fireGet(POST_URL + '?' + params);
+                // Send to sheet and VERIFY it landed (retries 3x). A close that didn't reach the
+                // sheet must never hide the card — that's how a trade looks "logged" but comes back.
+                const outcomeRes = await sendOutcomeUpdate(POST_URL + '?' + params, ticker, signal);
+                if (!outcomeRes.saved) throw new Error(outcomeRes.msg);
 
                 // Flash the total before fading
                 const header = el.querySelector('.ticker-header');
@@ -6070,11 +6074,40 @@ const BACKTEST = {
                 }, 1200);
 
             } catch (err) {
+                // Put the card back exactly as it was so the user can try again
                 removeActedItem(ticker, signal, 'outcome');
                 el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
-                showToast('Failed to update: ' + err.message);
+                showToast(finalValue + ' NOT saved for ' + ticker + ' — ' + err.message + '. Tap again.', 'error', 6000);
             }
         }
+    }
+
+    // Send an outcome update to the sheet and confirm it stuck. Retries up to 3x.
+    // A real JSON reply from Apps Script is trusted; the img fallback (mobile CORS path)
+    // can't read the reply, so we re-read the dashboard and check the trade is gone.
+    async function sendOutcomeUpdate(url, ticker, signal) {
+        let msg = 'no response';
+        for (let attempt = 0; attempt < 3; attempt++) {
+            if (attempt > 0) await new Promise(r => setTimeout(r, 1500));
+            let res = null;
+            try { res = await fireGet(url); } catch (e) { msg = e.message; continue; }
+            if (!res || res.status !== 'ok') { msg = (res && (res.message || res.msg)) || 'no response'; continue; }
+            if (!res.via) return { saved: true, msg: '' };
+            if (await verifyTradeClosed(ticker, signal)) return { saved: true, msg: '' };
+            msg = 'sheet still shows it open';
+        }
+        return { saved: false, msg };
+    }
+    // Re-read the dashboard and confirm ticker+signal is no longer an open trade on the sheet
+    async function verifyTradeClosed(ticker, signal) {
+        try {
+            const resp = await fetch(API_URL);
+            const data = await resp.json();
+            const t = ticker.toUpperCase(), sg = (signal || '').toLowerCase();
+            return !(data.actionNeeded || []).some(a => a.type === 'mark_outcome'
+                && (a.symbol || a.ticker || '').toUpperCase() === t
+                && (a.signal || '').toLowerCase() === sg);
+        } catch (e) { return false; }
     }
 
     async function markPickAction(ticker, signal, price, value, elemId) {
