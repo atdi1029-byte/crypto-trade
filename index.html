@@ -621,6 +621,15 @@
         .ot-filter-btn.need-4day-btn.has-alerts.active {
             background: #2a1525;
         }
+        .ot-filter-btn.not-on-bx-btn.has-alerts {
+            border-color: var(--red-bright);
+            color: var(--red-bright);
+        }
+        .ot-filter-btn.not-on-bx-btn.has-alerts.active {
+            background: #2a1525;
+            border-color: var(--red-bright);
+            color: var(--red-bright);
+        }
         @keyframes flash4day {
             from { box-shadow: 0 0 8px rgba(239, 83, 80, 0.4); text-shadow: 0 0 6px rgba(239, 83, 80, 0.5); }
             to { box-shadow: 0 0 20px rgba(239, 83, 80, 0.8), 0 0 40px rgba(239, 83, 80, 0.3); text-shadow: 0 0 12px rgba(239, 83, 80, 0.8); }
@@ -2395,6 +2404,7 @@
             <button class="ot-filter-btn" data-filter="no-0x0" onclick="setOTFilter(this,'no-0x0')">No 0x0</button>
             <button class="ot-filter-btn" data-filter="no-tp" onclick="setOTFilter(this,'no-tp')">No TP</button>
             <button class="ot-filter-btn need-4day-btn" data-filter="need-4day" onclick="setOTFilter(this,'need-4day')" id="need4dayFilter">Need 4 Day</button>
+            <button class="ot-filter-btn not-on-bx-btn" data-filter="not-on-bx" onclick="setOTFilter(this,'not-on-bx')" id="notOnBxFilter" title="Open trades with no matching Bitunix position — stopped out or closed">Not on BX</button>
         </div>
         <div class="open-trades-list" id="openTradesList" style="max-height: 480px; overflow-y: auto;"></div>
     </div>
@@ -4459,8 +4469,11 @@ const BACKTEST = {
     // ====== BITUNIX POSITION SYNC ======
     // Flags open trade cards that have no matching Bitunix position
     let _lastPosSync = 0;
+    let _bxOpenSyms = null; // cached set of open Bitunix symbols (null until first successful fetch)
     const POS_SYNC_INTERVAL = 60000; // check every 60s max
     async function syncBitunixPositions() {
+        // Re-apply cached flags right away so a re-render never loses them
+        if (_bxOpenSyms) applyBitunixFlags();
         if (Date.now() - _lastPosSync < POS_SYNC_INTERVAL) return;
         _lastPosSync = Date.now();
         try {
@@ -4472,27 +4485,41 @@ const BACKTEST = {
                 const sym = (p.symbol || '').toUpperCase().replace(/USDT$/, '');
                 if (sym) openSyms.add(sym);
             });
-            // Check each open trade card
-            document.querySelectorAll('.open-trade-item').forEach(el => {
-                const ticker = (el.dataset.ticker || '').toUpperCase().replace(/\.P$/, '').replace(/USDT$|USD$|USDC$/, '');
-                const status = el.dataset.status || 'active';
-                // Skip already resolved trades (tp, 0x0, has-pnl)
-                if (status !== 'active') return;
-                const badge = el.querySelector('.not-on-bx');
-                if (openSyms.has(ticker) || openSyms.has(BX_REMAP[ticker] || ticker)) {
-                    // Position exists — remove warning if present
-                    if (badge) badge.remove();
-                } else {
-                    // No position on Bitunix — flag it
-                    if (!badge) {
-                        const header = el.querySelector('.ticker-header');
-                        if (header) header.insertAdjacentHTML('beforeend',
-                            '<span class="not-on-bx" style="font-size:0.5rem;padding:1px 5px;border-radius:3px;background:#ff525222;color:var(--red-bright);font-weight:700;margin-left:3px;cursor:pointer" title="No matching position on Bitunix — may already be closed">NOT ON BX</span>');
-                    }
-                    el.style.borderLeftColor = 'var(--red-bright)';
-                }
-            });
+            _bxOpenSyms = openSyms;
+            applyBitunixFlags();
         } catch (e) { /* silent — non-critical */ }
+    }
+    // Walk the open trade cards, add/remove the NOT ON BX badge, update the filter button count
+    function applyBitunixFlags() {
+        if (!_bxOpenSyms) return;
+        let missing = 0;
+        document.querySelectorAll('.open-trade-item').forEach(el => {
+            const ticker = (el.dataset.ticker || '').toUpperCase().replace(/\.P$/, '').replace(/USDT$|USD$|USDC$/, '');
+            const status = el.dataset.status || 'active';
+            const badge = el.querySelector('.not-on-bx');
+            // Skip already resolved trades (tp, 0x0, has-pnl)
+            if (status !== 'active') { if (badge) badge.remove(); return; }
+            if (_bxOpenSyms.has(ticker) || _bxOpenSyms.has(BX_REMAP[ticker] || ticker)) {
+                // Position exists — remove warning if present
+                if (badge) { badge.remove(); el.style.borderLeftColor = ''; }
+            } else {
+                // No position on Bitunix — flag it
+                missing++;
+                if (!badge) {
+                    const header = el.querySelector('.ticker-header');
+                    if (header) header.insertAdjacentHTML('beforeend',
+                        '<span class="not-on-bx" style="font-size:0.5rem;padding:1px 5px;border-radius:3px;background:#ff525222;color:var(--red-bright);font-weight:700;margin-left:3px;cursor:pointer" title="No matching position on Bitunix — may already be closed">NOT ON BX</span>');
+                }
+                el.style.borderLeftColor = 'var(--red-bright)';
+            }
+        });
+        const btn = document.getElementById('notOnBxFilter');
+        if (btn) {
+            btn.textContent = missing > 0 ? 'Not on BX (' + missing + ')' : 'Not on BX';
+            btn.classList.toggle('has-alerts', missing > 0);
+        }
+        // Re-run the filter so newly flagged cards appear if the Not on BX filter is active
+        filterOpenTrades();
     }
 
     // ====== OPEN TRADES FILTER ======
@@ -4513,6 +4540,7 @@ const BACKTEST = {
             if (otFilterMode === 'no-0x0') matchFilter = status !== '0x0';
             else if (otFilterMode === 'no-tp') matchFilter = status !== 'tp';
             else if (otFilterMode === 'done') matchFilter = status === '0x0' || status === 'tp';
+            else if (otFilterMode === 'not-on-bx') matchFilter = status === 'active' && !!card.querySelector('.not-on-bx');
             else if (otFilterMode === 'need-4day') {
                 const clock = card.querySelector('.trade-clock');
                 matchFilter = clock && clock.classList.contains('overdue');
