@@ -1,0 +1,43 @@
+CRYPTO DSS REVIEW  2026-09-27
+Trades split by entry date. Before DSS = 2026-06-04 to 2026-08-15; DSS era = 2026-08-15 on.
+"Loss" = how many average wins one average loss costs.
+
+                       trades   win%    net $  $/trade avg win avg loss    loss    PF
+Before DSS                398  75.7%    +5.09   +0.013   0.146   0.400    2.7x  1.14
+DSS era                   165  79.7%   +18.97   +0.115   0.204   0.212    1.0x  3.80
+  buys                    123  83.8%   +19.84   +0.161   0.246   0.226    0.9x  5.62
+  shorts                   42  68.3%    -0.86   -0.021   0.058   0.190    3.3x  0.65
+  without best week       102  72.2%    +3.12   +0.031   0.123   0.203    1.7x  1.57
+  BTC not rallying         48  66.7%    -1.35   -0.028   0.079   0.248    3.1x  0.64
+Previous 50 (DSS)          50  68.8%    +0.44   +0.009   0.121   0.236    2.0x  1.12
+Last 50 (DSS)              50  76.1%   +12.82   +0.256   0.406   0.127    0.3x 10.20
+
+DSS ERA BY WEEK
+week of         BTC trades    net $   buys $ shorts $ still open
+2026-08-10    -3.1%      8    +0.36    +0.33    +0.03          2
+2026-08-17   +23.8%     63   +15.86   +16.26    -0.40          7
+2026-08-24    -0.1%      9    +0.89    +0.82    +0.07           
+2026-08-31    +3.5%     11    +0.54    +0.27    +0.27          1
+2026-09-07    -4.4%     31    -2.60    -2.30    -0.29          4
+2026-09-14    +5.6%     29    +3.98    +4.19    -0.21         18
+2026-09-21    +4.0%     14    -0.05    +0.27    -0.32         15
+2026-09-28    -0.7%      0    +0.00    +0.00    +0.00          1
+Weeks with many trades still open are incomplete.
+
+CHECKS
+[OK  ] Losses stay small
+       Last 50 trades: a loss costs 0.3 wins. Before DSS it was 2.7; DSS era overall 1.0. This is what DSS fixed; above 2.5 means it is slipping back.
+[OK  ] Not a one-week wonder
+       Best week (2026-08-17, BTC +23.8%) made $15.86 of $18.97. Without it: $+3.12 over 102 trades ($+0.031/trade vs $+0.013 before DSS).
+[TEST] Makes money when BTC is not rallying
+       Not tested yet (48 of 100 trades). Running total $-1.35.
+[WARN] Shorts pull their weight
+       42 DSS-era shorts: $-0.86, 68% win rate, PF 0.65.
+[OK  ] Last 50 closed trades profitable
+       PF 10.20, 76% win rate, $+12.82. 9 of them were entered in the best week and made $+9.29. Previous 50: PF 1.12.
+[OK  ] Drawdown in check
+       Now $0.04 below the DSS-era peak; worst so far $2.64. Before DSS the worst was $15.65.
+[WARN] Open trades up to date
+       11 open trades entered over 21 days ago: RENDERUSDT (08-13), FETUSDT (08-16), STRKUSDT (08-16), IMXUSDT.P (08-19), METISUSDC (08-19), BONK (08-21), HYPEUSDT.P (08-21), METISUSDT (08-21), MORPHO (08-21), XLM (08-21), NAORISUSDT.P (09-02). If any were stopped out, mark them or the stats flatter you ("Not on BX" filter).
+
+VERDICT: 0 bad, 2 warnings, 1 untested. Holding so far, but not proven until the TEST items pass.

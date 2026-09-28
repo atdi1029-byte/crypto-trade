@@ -7822,7 +7822,15 @@ const BACKTEST = {
         const banner = document.getElementById('reviewBanner');
         const sub = document.getElementById('reviewSub');
         if (!banner) return;
-        const lastReview = parseInt(localStorage.getItem(REVIEW_KEY) || '0');
+        let lastReview = parseInt(localStorage.getItem(REVIEW_KEY) || '0');
+        // Stats window was reset so the trade count dropped below the last
+        // review mark (650 vs 562 after the Jun 4 reset) — re-anchor or the
+        // banner stays silent until the count climbs back past it
+        if (totalTrades > 0 && lastReview > totalTrades) {
+            lastReview = Math.floor(totalTrades / REVIEW_INTERVAL) * REVIEW_INTERVAL;
+            localStorage.setItem(REVIEW_KEY, String(lastReview));
+            fireGet(POST_URL + '?action=set_review&milestone=' + lastReview);
+        }
         const nextReview = lastReview + REVIEW_INTERVAL;
         if (totalTrades >= nextReview) {
             // Show the exact next milestone, not floored current count
