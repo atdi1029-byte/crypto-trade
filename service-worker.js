@@ -1,7 +1,9 @@
-const CACHE_NAME = 'crypto-trade-v319';
+const CACHE_NAME = 'crypto-trade-v320';
 const ASSETS = [
   './',
   './index.html',
+  './poke-fx.js',
+  './poke-fx.css',
   './logo.png',
   './icon-192.png',
   './icon-512.png',

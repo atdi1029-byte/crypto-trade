@@ -2233,6 +2233,7 @@
             .action-item .action-buttons { justify-content: center; flex-wrap: wrap; }
         }
     </style>
+    <link rel="stylesheet" href="poke-fx.css">
 </head>
 <body>
 
@@ -2563,6 +2564,7 @@
     </div>
 </div>
 
+<script src="poke-fx.js"></script>
 <script>
     console.log('crypto-trade dashboard v9-2026-09-17 (stale-script notice)');
     // ====== CONFIG ======
@@ -7238,8 +7240,11 @@ const BACKTEST = {
         const needStr = nextLevel ? '$' + (nextLevel.min - activePnl).toFixed(2) + ' to Evolve' : '';
 
         let html = `<div class="pokemon-header">
-            <div class="pokemon-level-name">${dcaMode ? 'DCA ' : ''}Lv.${levelIdx} \u2014 ${level.pokemon}</div>
-            <img class="pokemon-sprite" src="${POKE_SPRITE(level.pokeId)}" alt="${level.pokemon}">
+            <div class="pokemon-level-name">${dcaMode ? 'DCA ' : ''}Lv.${levelIdx} \u2014 ${level.pokemon}<span class="poke-type-badge">${pokeType(level.pokeId)}</span></div>
+            <div class="poke-stage">
+                <img class="pokemon-sprite" src="${pokeAnim(level.pokeId)}" onerror="pokeFallback(this, ${level.pokeId})" alt="${level.pokemon}">
+                <div class="poke-ground"></div>
+            </div>
             <div class="pokemon-pnl ${pnlClass}">P&L: ${pnlStr}${needStr ? ' <span style="color:var(--accent-glow);font-size:0.85rem">&middot; ' + needStr + '</span>' : ''}</div>
             <div class="pokemon-sizes">${sizeChips}</div>
         </div>`;
@@ -7294,7 +7299,7 @@ const BACKTEST = {
         </div>`;
 
         if (nextLevel) {
-            html += `<div class="pokemon-next-evolve">${level.pokemon} evolves at $${nextLevel.min.toLocaleString()} profit \u2014 Total risk: $${totalRisk}</div>`;
+            html += `<div class="pokemon-next-evolve"><img class="poke-next-shadow" src="${pokeStill(nextLevel.pokeId)}" alt="">${level.pokemon} evolves at $${nextLevel.min.toLocaleString()} profit \u2014 Total risk: $${totalRisk}</div>`;
         } else {
             html += `<div class="pokemon-next-evolve">MAX LEVEL \u2014 You are the very best!</div>`;
         }
@@ -7361,6 +7366,7 @@ const BACKTEST = {
         if (level.location && LOCATION_BG[level.location]) {
             box.style.setProperty('--location-bg', `url('${LOCATION_BG[level.location]}')`);
         }
+        pokeColors(box, level.pokeId);
         box.innerHTML = html;
         updateDCAControls();
         checkPokemonLevelUp(activePnl);
@@ -7389,17 +7395,33 @@ const BACKTEST = {
         const levelIdx = POKEMON_LEVELS.indexOf(level) + 1;
         const sizes = getCryptoSizes(level.min);
 
-        sprite.src = POKE_SPRITE(level.pokeId);
-        sprite.className = 'levelup-pokemon evolving';
+        const title = document.getElementById('levelupTitle');
+
+        // "Who's that Pokemon?": the silhouette first, then the flash reveals it
+        pokeColors(overlay, level.pokeId);
+        sprite.onerror = () => pokeFallback(sprite, level.pokeId);
+        sprite.src = pokeAnim(level.pokeId);
+        sprite.className = 'levelup-pokemon';
+        overlay.classList.add('poke-hidden');
+        title.textContent = 'WHO\u2019S THAT POK\u00c9MON?';
         pokename.textContent = level.pokemon;
         detail.innerHTML = `Lv.${levelIdx} \u2014 Profit hit <span style="color:var(--green-bright);font-weight:700">$${level.min.toLocaleString()}</span>`;
         sizesEl.textContent = sizes.map(s => '$' + s).join(' / ');
         overlay.style.display = 'flex';
-        setTimeout(() => { sprite.className = 'levelup-pokemon'; }, 1500);
+        clearTimeout(window._pokeRevealTimer);
+        window._pokeRevealTimer = setTimeout(() => {
+            overlay.classList.remove('poke-hidden');
+            sprite.className = 'levelup-pokemon evolving';
+            title.textContent = 'EVOLUTION!';
+            pokeConfetti(overlay, 60);
+            setTimeout(() => { sprite.className = 'levelup-pokemon'; }, 1500);
+        }, 1800);
     }
 
     function dismissLevelUp() {
         const overlay = document.getElementById('levelupOverlay');
+        clearTimeout(window._pokeRevealTimer);
+        overlay.classList.remove('poke-hidden');
         overlay.style.transition = 'opacity 0.4s';
         overlay.style.opacity = '0';
         setTimeout(() => {
