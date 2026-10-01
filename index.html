@@ -675,43 +675,6 @@
             100% { box-shadow: 0 0 8px rgba(255, 152, 0, 0.3); text-shadow: 0 0 6px rgba(255, 152, 0, 0.3); opacity: 1; }
         }
 
-        /* ============ STRATEGY INSIGHTS ============ */
-        .insights-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        .insight-row {
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-            padding: 0.5rem 0.7rem;
-            border-radius: 6px;
-            background: rgba(0,0,0,0.25);
-            border-left: 3px solid var(--border);
-            font-size: 0.65rem;
-            line-height: 1.4;
-        }
-        .insight-row.good { border-left-color: #4caf50; }
-        .insight-row.warn { border-left-color: #ff9800; }
-        .insight-row.bad { border-left-color: #ef5350; }
-        .insight-row.info { border-left-color: #64b5f6; }
-        .insight-icon {
-            font-size: 1rem;
-            flex-shrink: 0;
-            width: 1.4rem;
-            text-align: center;
-        }
-        .insight-text {
-            color: var(--text);
-        }
-        .insight-text strong {
-            color: var(--text-bright);
-        }
-        .insight-text .num-good { color: #4caf50; font-weight: 700; }
-        .insight-text .num-bad { color: #ef5350; font-weight: 700; }
-        .insight-text .num-warn { color: #ff9800; font-weight: 700; }
-
         .open-trades-list {
             display: flex;
             flex-direction: column;
@@ -1414,42 +1377,6 @@
         .score-badge.mid { background: #f9a82533; color: #f9c846; border: 1px solid #f9a825; }
         .score-badge.low { background: #ef535033; color: var(--red-bright); border: 1px solid var(--red-candle); }
 
-        /* ============ PERFORMANCE GRID ============ */
-        .bottom-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        .perf-grid {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 0.5rem;
-        }
-        .perf-item {
-            background: var(--bg-dark);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 0.6rem 0.4rem;
-            text-align: center;
-        }
-        .perf-item .perf-val {
-            font-family: 'Space Mono', monospace;
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: var(--text-bright);
-            line-height: 1.2;
-            white-space: nowrap;
-        }
-        .perf-item .perf-label {
-            font-size: 0.55rem;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-top: 4px;
-            white-space: nowrap;
-        }
-
         /* ============ BUDGET PANEL ============ */
         .pokemon-budget-panel {
             background: rgba(10,18,30,0.85);
@@ -1504,252 +1431,321 @@
             color: var(--text-dim);
         }
 
-        /* ============ KELLY EDGE OPTIMIZER ============ */
+        /* ============ KELLY + MONTE CARLO ============ */
         .kelly-section { margin-bottom: 1.5rem; }
-        .kelly-grid {
+        .rk-empty {
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.75rem;
+            padding: 0.5rem;
+        }
+        .rk-hero {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 0.6rem 1.1rem;
+            padding: 0.85rem 1rem;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(206,147,216,0.16), rgba(74,158,255,0.05));
+            border: 1px solid rgba(206,147,216,0.35);
+            margin-bottom: 0.5rem;
+        }
+        .rk-kicker {
+            font-size: 0.62rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+        .rk-big {
+            font-family: 'Space Mono', monospace;
+            font-size: 2.1rem;
+            font-weight: 700;
+            line-height: 1.05;
+            color: #ce93d8;
+            text-shadow: 0 0 18px rgba(206,147,216,0.45);
+        }
+        .rk-hero-mid {
+            font-size: 0.78rem;
+            line-height: 1.6;
+            color: var(--text);
+        }
+        .rk-hero-mid b, .rk-p b {
+            color: var(--text-bright);
+            font-family: 'Space Mono', monospace;
+        }
+        .rk-dim { color: var(--text-dim); }
+        .rk-chip {
+            display: inline-block;
+            padding: 0.3rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            white-space: nowrap;
+            border: 1px solid currentColor;
+        }
+        .rk-chip.good { color: var(--green-bright); background: rgba(77,208,196,0.12); }
+        .rk-chip.ok   { color: #64b5f6; background: rgba(100,181,246,0.12); }
+        .rk-chip.warn { color: #ffab40; background: rgba(255,171,64,0.12); }
+        .rk-chip.bad  { color: var(--red-bright); background: rgba(255,107,107,0.12); }
+        .rk-verdict {
+            font-size: 0.74rem;
+            line-height: 1.55;
+            color: var(--text);
+            padding: 0 0.2rem;
+            margin-bottom: 0.4rem;
+        }
+        .rk-balls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem 0.8rem;
+            font-size: 0.64rem;
+            color: var(--text-dim);
+            padding: 0 0.2rem;
+            margin-bottom: 0.8rem;
+        }
+        .rk-balls b { color: var(--text); font-weight: 600; }
+        .rk-h {
+            font-size: 0.66rem;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: var(--accent-glow);
+            margin-bottom: 0.4rem;
+        }
+        .rk-h .rk-dim {
+            font-weight: 400;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        .rk-canvas {
+            position: relative;
+            height: 190px;
+            margin-bottom: 0.35rem;
+            touch-action: pan-y;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .rk-canvas.mc { height: 230px; }
+        .rk-canvas canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .rk-tip {
+            position: absolute;
+            top: 6px;
+            display: none;
+            pointer-events: none;
+            z-index: 5;
+            background: rgba(8,16,28,0.96);
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            padding: 0.35rem 0.55rem;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.64rem;
+            line-height: 1.5;
+            color: var(--text-bright);
+            white-space: nowrap;
+        }
+        .rk-cross {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            display: none;
+            pointer-events: none;
+            background: rgba(232,240,248,0.35);
+        }
+        .rk-legend {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.3rem 0.9rem;
+            font-size: 0.62rem;
+            color: var(--text-dim);
+            margin-bottom: 0.8rem;
+        }
+        .rk-legend i {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            margin-right: 4px;
+            vertical-align: -1px;
+        }
+        .rk-legend i.line { height: 3px; vertical-align: 2px; }
+        .rk-tiles {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 0.5rem;
-            margin-bottom: 0.75rem;
+            margin-bottom: 0.6rem;
         }
-        .kelly-stat {
+        .rk-tile {
             background: var(--bg-dark);
             border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 0.5rem 0.4rem;
+            border-radius: 8px;
+            padding: 0.55rem 0.5rem;
             text-align: center;
         }
-        .kelly-stat .kval {
+        .rk-tile .v {
             font-family: 'Space Mono', monospace;
-            font-size: 1.1rem;
+            font-size: 1.15rem;
             font-weight: 700;
-            color: var(--text-bright);
             line-height: 1.2;
+            color: var(--text-bright);
         }
-        .kelly-stat .klbl {
-            font-size: 0.5rem;
+        .rk-tile .l {
+            font-size: 0.6rem;
             color: var(--text-dim);
             text-transform: uppercase;
             letter-spacing: 1px;
             margin-top: 3px;
         }
-        .kelly-compare {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.6rem 0.75rem;
+        .rk-tile .s {
+            font-size: 0.64rem;
+            color: var(--text);
+            margin-top: 2px;
+        }
+        .rk-card {
             background: var(--bg-dark);
             border: 1px solid var(--border);
-            border-radius: 6px;
-            margin-bottom: 0.5rem;
-        }
-        .kelly-compare-label {
-            font-size: 0.6rem;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            min-width: 70px;
-        }
-        .kelly-bar-track {
-            flex: 1;
-            height: 8px;
-            background: var(--bg-deep);
-            border-radius: 4px;
-            overflow: hidden;
-            position: relative;
-        }
-        .kelly-bar-fill {
-            height: 100%;
-            border-radius: 4px;
-            transition: width 0.5s ease;
-        }
-        .kelly-bar-marker {
-            position: absolute;
-            top: -3px;
-            width: 2px;
-            height: 14px;
-            background: #fff;
-            border-radius: 1px;
-            opacity: 0.7;
-        }
-        .kelly-compare-val {
-            font-family: 'Space Mono', monospace;
-            font-size: 0.75rem;
-            font-weight: 700;
-            min-width: 50px;
-            text-align: right;
-        }
-        .kelly-verdict {
-            text-align: center;
-            padding: 0.6rem;
-            border-radius: 6px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            letter-spacing: 1px;
-            margin-top: 0.5rem;
-        }
-        .kelly-verdict.safe {
-            background: rgba(77,208,196,0.1);
-            border: 1px solid var(--green-bright);
-            color: var(--green-bright);
-        }
-        .kelly-verdict.optimal {
-            background: rgba(74,158,255,0.1);
-            border: 1px solid var(--accent);
-            color: var(--accent-glow);
-        }
-        .kelly-verdict.hot {
-            background: rgba(255,107,107,0.1);
-            border: 1px solid var(--red-bright);
-            color: var(--red-bright);
-        }
-        .kelly-milestone {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.4rem 0.6rem;
-            font-size: 0.6rem;
-            color: var(--text-dim);
-            background: var(--bg-dark);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            margin-top: 0.5rem;
-        }
-        .kelly-milestone .km-val {
-            color: var(--green-bright);
-            font-weight: 700;
-            font-family: 'Space Mono', monospace;
-        }
-        /* ============ MONTE CARLO SECTION ============ */
-        .mc-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.4rem;
+            border-radius: 8px;
+            padding: 0.7rem 0.8rem;
             margin-bottom: 0.6rem;
         }
-        .mc-stat {
-            background: var(--bg-dark);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 0.4rem;
-            text-align: center;
+        .rk-p {
+            font-size: 0.72rem;
+            line-height: 1.6;
+            color: var(--text);
         }
-        .mc-stat .mval {
-            font-size: 1rem;
-            font-weight: 700;
-            font-family: 'Space Mono', monospace;
-        }
-        .mc-stat .mlbl {
-            font-size: 0.5rem;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-top: 0.15rem;
-        }
-        .mc-bar-row {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 0.35rem;
-            font-size: 0.6rem;
-        }
-        .mc-bar-label {
-            min-width: 45px;
-            color: var(--text-dim);
-            text-align: right;
-            font-family: 'Space Mono', monospace;
-        }
-        .mc-bar-track {
-            flex: 1;
-            height: 14px;
-            background: var(--bg-dark);
-            border-radius: 3px;
+        .rk-p + .rk-p { margin-top: 0.35rem; }
+        .rk-range {
             position: relative;
-            overflow: hidden;
+            height: 30px;
+            margin: 0.2rem 0.4rem 0;
         }
-        .mc-bar-fill {
-            height: 100%;
-            border-radius: 3px;
-            transition: width 0.3s;
-        }
-        .mc-bar-val {
-            min-width: 40px;
-            font-family: 'Space Mono', monospace;
-            color: var(--text-bright);
-        }
-        .mc-verdict {
-            text-align: center;
-            padding: 0.5rem;
-            border-radius: 6px;
-            font-size: 0.65rem;
-            font-weight: 600;
-            margin-top: 0.5rem;
-        }
-        .mc-verdict.lucky {
-            background: rgba(102,187,106,0.1);
-            border: 1px solid var(--green-bright);
-            color: var(--green-bright);
-        }
-        .mc-verdict.typical {
-            background: rgba(100,181,246,0.1);
-            border: 1px solid #64b5f6;
-            color: #64b5f6;
-        }
-        .mc-verdict.unlucky {
-            background: rgba(255,107,107,0.1);
-            border: 1px solid var(--red-bright);
-            color: var(--red-bright);
-        }
-        .mc-canvas-wrap {
-            position: relative;
-            width: 100%;
-            height: 200px;
-            margin: 0.5rem 0;
-            touch-action: none;
-        }
-        .mc-canvas-wrap canvas {
-            width: 100%;
-            height: 100%;
-        }
-        .mc-tooltip {
+        .rk-range-track {
             position: absolute;
-            pointer-events: none;
-            background: rgba(10,20,35,0.95);
-            border: 1px solid #64b5f6;
-            border-radius: 4px;
-            padding: 0.3rem 0.5rem;
-            font-size: 0.55rem;
+            left: 0;
+            right: 0;
+            top: 13px;
+            height: 4px;
+            border-radius: 2px;
+            background: var(--bg-deep);
+        }
+        .rk-range-band {
+            position: absolute;
+            top: 9px;
+            height: 12px;
+            border-radius: 6px;
+            background: linear-gradient(90deg, rgba(206,147,216,0.2), rgba(206,147,216,0.5), rgba(206,147,216,0.2));
+            border: 1px solid rgba(206,147,216,0.6);
+        }
+        .rk-range-mark {
+            position: absolute;
+            top: 3px;
+            width: 3px;
+            height: 24px;
+            border-radius: 2px;
+            transform: translateX(-1px);
+        }
+        .rk-range-lbl {
+            display: flex;
+            justify-content: space-between;
             font-family: 'Space Mono', monospace;
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            margin: 0 0.4rem 0.45rem;
+        }
+        .rk-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.72rem;
+        }
+        .rk-table th {
+            font-weight: 600;
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--text-dim);
+            padding: 0.3rem 0.35rem;
+            text-align: right;
+            border-bottom: 1px solid var(--border);
+        }
+        .rk-table td {
+            padding: 0.38rem 0.35rem;
+            text-align: right;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
             color: var(--text-bright);
             white-space: nowrap;
-            z-index: 10;
-            display: none;
         }
-        .mc-crosshair {
-            position: absolute;
-            top: 0;
-            width: 1px;
-            height: 100%;
-            background: rgba(100,181,246,0.4);
-            pointer-events: none;
-            display: none;
-            z-index: 5;
+        .rk-table th:first-child, .rk-table td:first-child {
+            text-align: left;
+            color: var(--text);
+            white-space: normal;
         }
-        .mc-edge-badge {
-            display: inline-block;
-            padding: 0.2rem 0.6rem;
-            border-radius: 4px;
-            font-size: 0.65rem;
-            font-weight: 700;
-            font-family: 'Space Mono', monospace;
+        .rk-table tr:last-child td { border-bottom: none; }
+        .rk-foot {
+            font-size: 0.64rem;
+            line-height: 1.6;
+            color: var(--text-dim);
+            text-align: center;
+            margin-top: 0.4rem;
         }
+        .rk-foot b { color: var(--text); }
+        .rk-link {
+            cursor: pointer;
+            text-decoration: underline;
+            color: var(--text-dim);
+            margin-left: 4px;
+        }
+        .mc-hero {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.85rem 1rem;
+            border-radius: 10px;
+            border: 1px solid;
+            margin-bottom: 0.8rem;
+        }
+        .mc-hero.good { border-color: rgba(77,208,196,0.45); background: linear-gradient(135deg, rgba(77,208,196,0.14), rgba(77,208,196,0.03)); }
+        .mc-hero.ok   { border-color: rgba(100,181,246,0.45); background: linear-gradient(135deg, rgba(100,181,246,0.14), rgba(100,181,246,0.03)); }
+        .mc-hero.warn { border-color: rgba(255,171,64,0.45); background: linear-gradient(135deg, rgba(255,171,64,0.14), rgba(255,171,64,0.03)); }
+        .mc-hero.bad  { border-color: rgba(255,107,107,0.45); background: linear-gradient(135deg, rgba(255,107,107,0.14), rgba(255,107,107,0.03)); }
+        .mc-hero .rk-big { text-shadow: 0 0 18px currentColor; }
+        .mc-hero.good .rk-big { color: var(--green-bright); }
+        .mc-hero.ok .rk-big   { color: #64b5f6; }
+        .mc-hero.warn .rk-big { color: #ffab40; }
+        .mc-hero.bad .rk-big  { color: var(--red-bright); }
+        .mc-hero .rk-chip { margin-bottom: 0.35rem; }
+        .mc-callout {
+            font-size: 0.72rem;
+            line-height: 1.55;
+            padding: 0.55rem 0.75rem;
+            border-radius: 8px;
+            border-left: 3px solid;
+            margin-bottom: 0.8rem;
+            color: var(--text);
+        }
+        .mc-callout.lucky   { border-color: var(--green-bright); background: rgba(77,208,196,0.08); }
+        .mc-callout.typical { border-color: #64b5f6; background: rgba(100,181,246,0.08); }
+        .mc-callout.unlucky { border-color: #ffab40; background: rgba(255,171,64,0.08); }
+        .mc-callout b { color: var(--text-bright); font-family: 'Space Mono', monospace; }
         @media (max-width: 768px) {
-            .kelly-grid { grid-template-columns: repeat(2, 1fr); gap: 0.35rem; }
-            .kelly-stat .kval { font-size: 0.9rem; }
-            .kelly-compare { flex-wrap: wrap; gap: 0.4rem; }
-            .kelly-compare-label { min-width: 60px; font-size: 0.5rem; }
+            .rk-hero { grid-template-columns: 1fr auto; }
+            .rk-hero > .rk-chip { grid-column: 2; grid-row: 1; justify-self: end; align-self: start; }
+            .rk-hero > .rk-hero-mid { grid-column: 1 / -1; grid-row: 2; }
+            .rk-big { font-size: 1.7rem; }
+            .rk-tiles { grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
+            .rk-canvas { height: 175px; }
+            .rk-canvas.mc { height: 210px; }
+            .rk-table { font-size: 0.68rem; }
+            .rk-table th { font-size: 0.55rem; letter-spacing: 0.3px; padding: 0.3rem 0.2rem; }
+            .rk-table td { padding: 0.36rem 0.2rem; }
+            .mc-hero { gap: 0.8rem; }
             .budget-row { font-size: 0.75rem !important; }
-            .mc-grid { grid-template-columns: repeat(2, 1fr); }
         }
 
         /* ============ LOADING / ERROR ============ */
@@ -2193,10 +2189,6 @@
             .ticker-grid { grid-template-columns: 1fr; }
             .top-picks-grid { grid-template-columns: 1fr; }
             .stats-bar { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
-            .perf-grid { grid-template-columns: repeat(3, 1fr); gap: 0.35rem; }
-            .perf-item { padding: 0.4rem 0.25rem; }
-            .perf-item .perf-val { font-size: 0.9rem; }
-            .perf-item .perf-label { font-size: 0.45rem; letter-spacing: 0.5px; }
             .pnl-stage { height: 250px; }
             .pnl-chart-value { font-size: 1.9rem; }
             .pnl-head { max-width: calc(100% - 28px); }
@@ -2457,74 +2449,24 @@
 
     <!-- Kelly Edge Optimizer -->
     <div class="kelly-section" id="kellySection">
-        <div class="section-header" style="cursor:pointer;border-left-color:var(--green-bright)" onclick="const c=document.getElementById('kellyContent');c.style.display=c.style.display==='none'?'block':'none';this.querySelector('.toggle-arrow').textContent=c.style.display==='none'?'▶':'▼'">
+        <div class="section-header" style="cursor:pointer;border-left-color:#ce93d8" onclick="toggleRiskPanel('kellyContent', this)">
             <span class="toggle-arrow">▼</span> Kelly Edge Optimizer
         </div>
         <div id="kellyContent">
             <div class="section-box" id="kellyBox" style="background:rgba(20,35,55,0.95)">
-                <div style="text-align:center;color:var(--text-dim);font-size:0.7rem">Loading stats...</div>
+                <div class="rk-empty">Loading stats...</div>
             </div>
         </div>
     </div>
 
     <!-- Monte Carlo Stress Test -->
     <div class="kelly-section" id="mcSection">
-        <div class="section-header" style="cursor:pointer;border-left-color:#64b5f6" onclick="const c=document.getElementById('mcContent');c.style.display=c.style.display==='none'?'block':'none';this.querySelector('.toggle-arrow').textContent=c.style.display==='none'?'▶':'▼'">
+        <div class="section-header" style="cursor:pointer;border-left-color:#64b5f6" onclick="toggleRiskPanel('mcContent', this)">
             <span class="toggle-arrow">▶</span> Monte Carlo Stress Test
         </div>
         <div id="mcContent" style="display:none">
             <div class="section-box" id="mcBox" style="background:rgba(20,35,55,0.95)">
-                <div style="text-align:center;color:var(--text-dim);font-size:0.7rem">Loading stats...</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Performance & Analysis (collapsible) -->
-    <div class="bottom-grid">
-        <div>
-            <div class="section-header" style="cursor:pointer" onclick="const c=document.getElementById('perfContent');c.style.display=c.style.display==='none'?'block':'none';this.querySelector('.toggle-arrow').textContent=c.style.display==='none'?'▶':'▼'">
-                <span class="toggle-arrow">▶</span> Performance & Analysis
-            </div>
-            <div id="perfContent" style="display:none">
-                <div class="section-box" style="margin-bottom:0.75rem">
-                    <div class="perf-grid" id="perfGrid"></div>
-                </div>
-                <div class="section-box" style="margin-bottom:0.75rem">
-                    <div style="font-size:0.7rem;color:var(--accent-glow);margin-bottom:0.5rem;font-weight:700">Score Breakdown</div>
-                    <div class="perf-grid" id="scoreGrid"></div>
-                </div>
-                <div class="section-box" style="margin-bottom:0.75rem">
-                    <div style="font-size:0.7rem;color:#80cbc4;margin-bottom:0.5rem;font-weight:700">Factor Analysis — What Actually Predicts Wins</div>
-                    <div class="perf-grid" id="factorGrid"></div>
-                </div>
-                <div class="section-box" style="margin-bottom:0.75rem">
-                    <div style="font-size:0.7rem;color:#f9c846;margin-bottom:0.5rem;font-weight:700">Trading Session</div>
-                    <div class="perf-grid" id="sessionGrid"></div>
-                </div>
-                <div class="section-box" style="margin-bottom:0.75rem">
-                    <div style="font-size:0.7rem;color:#ffab91;margin-bottom:0.5rem;font-weight:700">Day of Week</div>
-                    <div class="perf-grid" id="dayGrid"></div>
-                </div>
-                <div class="section-box" style="margin-bottom:0.75rem">
-                    <div style="font-size:0.7rem;color:#64b5f6;margin-bottom:0.5rem;font-weight:700">RSI at Entry</div>
-                    <div class="perf-grid" id="rsiGrid"></div>
-                </div>
-                <div class="section-box">
-                    <div style="font-size:0.7rem;color:#ce93d8;margin-bottom:0.5rem;font-weight:700">MACD Confirmation</div>
-                    <div class="perf-grid" id="macdGrid"></div>
-                </div>
-                <div class="section-box" style="margin-top:0.75rem">
-                    <div style="font-size:0.7rem;color:#80cbc4;margin-bottom:0.5rem;font-weight:700">Edge & Concentration</div>
-                    <div class="perf-grid" id="edgeGrid"></div>
-                </div>
-                <div class="section-box" style="margin-top:0.75rem">
-                    <div style="font-size:0.7rem;color:#f9c846;margin-bottom:0.5rem;font-weight:700">Strategy Insights</div>
-                    <div class="insights-grid" id="insightsGrid"></div>
-                </div>
-                <div class="section-box" style="margin-top:0.75rem">
-                    <div style="font-size:0.7rem;color:#81c784;margin-bottom:0.5rem;font-weight:700">Action Plan</div>
-                    <div class="insights-grid" id="actionPlanGrid"></div>
-                </div>
+                <div class="rk-empty">Loading stats...</div>
             </div>
         </div>
     </div>
@@ -3679,8 +3621,6 @@ const BACKTEST = {
         // P&L chart
         renderPnlChart(stats, true);
 
-        // Won/Lost now rendered in perfGrid via renderPerformance()
-
         // --- Context Banner ---
         renderContextBanner(stats);
 
@@ -3728,10 +3668,6 @@ const BACKTEST = {
 
         // --- All Signals Table ---
         renderSignalsTable(scoredSignals);
-
-        // --- Performance Summary ---
-        renderPerformance(stats);
-        renderDeepAnalysis(stats);
 
         // --- Kelly Edge Optimizer ---
         renderKelly(stats);
@@ -4576,133 +4512,6 @@ const BACKTEST = {
         }).join('');
     }
 
-    // ====== PERFORMANCE ======
-    function renderPerformance(stats) {
-        const perfGrid = document.getElementById('perfGrid');
-
-        // Calculate win rate by score range from available data
-        const wrByScore = stats.winRateByScore || {};
-
-        const streak = stats.currentStreak || '0';
-        const streakNum = parseInt(streak);
-        const streakColor = streak.includes('W') ? 'var(--green-bright)' : streak.includes('L') ? 'var(--red-bright)' : '';
-
-        const wins = parseInt(stats.wins) || 0;
-        const losses = parseInt(stats.losses) || 0;
-        const gw = parseFloat(stats.grossWin) || 0;
-        const gl = parseFloat(stats.grossLoss) || 0;
-
-        const trend = stats.trend;
-        const fmtPnl = (v) => v >= 0 ? '+$' + v.toFixed(2) : '-$' + Math.abs(v).toFixed(2);
-        const fmtAvg = (v) => v >= 0 ? '+$' + v.toFixed(3) : '-$' + Math.abs(v).toFixed(3);
-        const avgColor = (v) => v > 0 ? 'var(--green-bright)' : v < 0 ? 'var(--red-bright)' : '';
-        const dirIcon = trend ? (trend.direction === 'improving' ? '&#9650;' : trend.direction === 'declining' ? '&#9660;' : '&#9654;') : '';
-        const dirColor = trend ? (trend.direction === 'improving' ? 'var(--green-bright)' : trend.direction === 'declining' ? 'var(--red-bright)' : 'var(--accent)') : '';
-        let trendPct = '';
-        if (trend && trend.allTime.avgPerTrade !== 0) {
-            const pctDiff = ((trend.avg14d.avgPerTrade - trend.allTime.avgPerTrade) / Math.abs(trend.allTime.avgPerTrade) * 100);
-            trendPct = (pctDiff >= 0 ? '+' : '') + pctDiff.toFixed(0) + '%';
-        } else if (trend) {
-            trendPct = trend.direction.toUpperCase();
-        }
-
-        // DCA vs Initial
-        const dvi = stats.dcaVsInitial || {};
-        const ini = dvi.initial || {};
-        const dca = dvi.dca || {};
-        // Side breakdown
-        const sides = stats.sideBreakdown || {};
-        const buySide = sides.buy || {};
-        const sellSide = sides.sell || {};
-        // SL/TP efficiency
-        const eff = stats.slTpEfficiency || {};
-
-        perfGrid.innerHTML = `
-            <div class="perf-item">
-                <div class="perf-val" style="color:var(--green-bright);text-shadow:0 0 15px var(--green-bright),0 0 30px rgba(0,255,136,0.4)">${wins} <span style="font-size:0.7rem;font-weight:400">Won</span></div>
-                <div class="perf-label" style="color:var(--green-bright)">+$${gw.toFixed(2)}</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:var(--red-bright);text-shadow:0 0 15px var(--red-bright),0 0 30px rgba(255,68,68,0.4)">${losses} <span style="font-size:0.7rem;font-weight:400">Lost</span></div>
-                <div class="perf-label" style="color:var(--red-bright)">-$${Math.abs(gl).toFixed(2)}</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:var(--green-bright)">${wrByScore.high || '-'}</div>
-                <div class="perf-label">WR Score 7-10</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:#f9c846">${wrByScore.mid || '-'}</div>
-                <div class="perf-label">WR Score 4-6</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:var(--red-bright)">${wrByScore.low || '-'}</div>
-                <div class="perf-label">WR Score 0-3</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:${dirColor}">${trend ? dirIcon + ' ' + trendPct : '-'}</div>
-                <div class="perf-label">14d vs All-Time</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:var(--green-bright)">+$${stats.bestTradePnl || '0'}</div>
-                <div class="perf-label">Best Trade</div>
-                <div style="font-size:0.55rem;color:var(--green-bright);margin-top:2px">${stats.bestTrade || '-'}</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:var(--red-bright)">${parseFloat(stats.worstTradePnl || 0) < 0 ? '-$' + Math.abs(parseFloat(stats.worstTradePnl)).toFixed(2) : '$' + (stats.worstTradePnl || '0')}</div>
-                <div class="perf-label">Worst Trade</div>
-                <div style="font-size:0.55rem;color:var(--red-bright);margin-top:2px">${stats.worstTrade || '-'}</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:#f9c846">${stats.bestWinStreak || 0} Wins</div>
-                <div class="perf-label">Best Streak</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:${trend ? (trend.avg14d.pnl >= 0 ? '#64b5f6' : 'var(--red-bright)') : ''}">${trend ? fmtPnl(trend.avg14d.pnl) : '-'}</div>
-                <div class="perf-label">14d P&L${trend ? ' (' + trend.avg14d.trades + ')' : ''}</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:${trend ? (trend.avg30d.pnl >= 0 ? '#b39ddb' : 'var(--red-bright)') : ''}">${trend ? fmtPnl(trend.avg30d.pnl) : '-'}</div>
-                <div class="perf-label">30d P&L${trend ? ' (' + trend.avg30d.trades + ')' : ''}</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:${trend ? (trend.allTime.avgPerTrade >= 0 ? '#ffb74d' : 'var(--red-bright)') : ''}">${trend ? fmtAvg(trend.allTime.avgPerTrade) : '-'}</div>
-                <div class="perf-label">Avg $/Trade</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:#64b5f6">${buySide.winRate || '-'}</div>
-                <div class="perf-label">Buy WR (${buySide.total || 0})</div>
-                <div style="font-size:0.55rem;color:#64b5f6;margin-top:2px">${fmtPnl(buySide.pnl || 0)}</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:#ce93d8">${sellSide.winRate || '-'}</div>
-                <div class="perf-label">Short WR (${sellSide.total || 0})</div>
-                <div style="font-size:0.55rem;color:#ce93d8;margin-top:2px">${fmtPnl(sellSide.pnl || 0)}</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:#4dd0e1">${ini.winRate || '-'}</div>
-                <div class="perf-label">Initial WR (${ini.total || 0})</div>
-                <div style="font-size:0.55rem;color:#4dd0e1;margin-top:2px">${fmtPnl(ini.pnl || 0)}</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:#ffab91">${dca.winRate || '-'}</div>
-                <div class="perf-label">DCA WR (${dca.total || 0})</div>
-                <div style="font-size:0.55rem;color:#ffab91;margin-top:2px">${fmtPnl(dca.pnl || 0)}</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:var(--green-bright)">${fmtAvg(eff.avgWinAmount || 0)}</div>
-                <div class="perf-label">Avg Win</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:var(--red-bright)">${fmtAvg(eff.avgLossAmount || 0)}</div>
-                <div class="perf-label">Avg Loss</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:#f9c846">${eff.winLossRatio || '-'}x</div>
-                <div class="perf-label">Win/Loss Ratio</div>
-            </div>
-        `;
-    }
-
     function renderContextBanner(stats) {
         const el = document.getElementById('contextBanner');
         if (!el) return;
@@ -4763,704 +4572,576 @@ const BACKTEST = {
         `;
     }
 
-    // ====== KELLY EDGE OPTIMIZER ======
-    function renderKelly(stats) {
-        const box = document.getElementById('kellyBox');
-        if (!box) return;
-
+    // ====== KELLY + MONTE CARLO: SHARED MATH ======
+    // Both panels use the same wins / losses / gross numbers as the pokeball budget,
+    // so the K chip, the AVAILABLE header and these panels always agree.
+    function kellyMath(stats) {
         const wins = parseInt(stats.wins) || 0;
         const losses = parseInt(stats.losses) || 0;
         const total = wins + losses;
-        if (total < 5) {
-            box.innerHTML = '<div style="text-align:center;color:var(--text-dim);font-size:0.7rem;padding:0.5rem">Need at least 5 completed trades for Kelly calculation</div>';
+        const gw = parseFloat(stats.grossWin) || 0;
+        const gl = Math.abs(parseFloat(stats.grossLoss) || 0);
+        const wr = total > 0 ? wins / total : 0;
+        const avgWin = wins > 0 ? gw / wins : 0;
+        const avgLoss = losses > 0 ? gl / losses : 0;
+        const b = avgLoss > 0 ? avgWin / avgLoss : 0;
+        return {
+            wins, losses, total, gw, gl, wr, avgWin, avgLoss, b,
+            f: b > 0 ? (b * wr - (1 - wr)) / b : 0,      // share of bankroll to put at risk
+            ev: avgWin * wr - avgLoss * (1 - wr),         // $ per trade
+            pf: gl > 0 ? gw / gl : Infinity,
+            breakeven: avgWin + avgLoss > 0 ? avgLoss / (avgWin + avgLoss) : 0,
+        };
+    }
+
+    // Expected log growth per trade with a share x of the bankroll at risk
+    function kellyGrowth(x, wr, b) {
+        return x >= 1 ? -Infinity : wr * Math.log(1 + x * b) + (1 - wr) * Math.log(1 - x);
+    }
+
+    // The pokeball chips split the Kelly budget over this many slots (5 main + scouts)
+    function kellySlotCount(activePnl) {
+        const scout = getScoutSize(activePnl);
+        return 5 + (scout > 0 ? Math.min(85, Math.floor(activePnl * 0.15 / scout)) : 0);
+    }
+
+    function activeBankroll(stats) {
+        const pnl = parseFloat(stats.netPnl) || 0;
+        return dcaMode ? Math.round((pnl + dcaTotal) * 100) / 100 : pnl;
+    }
+
+    // Real per-trade P&L in close order, rebuilt from the equity curve
+    function tradePnls(stats) {
+        const cum = stats.trend && stats.trend.cumulative;
+        if (!Array.isArray(cum) || cum.length < 2) return null;
+        const out = [];
+        let prev = 0;
+        for (const pt of cum) {
+            const v = Number(pt.pnl);
+            if (!isFinite(v)) return null;
+            out.push(Math.round((v - prev) * 100) / 100);
+            prev = v;
+        }
+        return out;
+    }
+
+    // Seeded random (mulberry32), so the numbers don't jump around on every refresh
+    function seededRandom(seed) {
+        let a = seed >>> 0;
+        return () => {
+            a = (a + 0x6D2B79F5) >>> 0;
+            let t = a;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+    function hashStr(s) {
+        let h = 2166136261;
+        for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+        return h >>> 0;
+    }
+    const pctOf = (sorted, p) => sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] : 0;
+    const shareBelow = (sorted, v) => { let i = 0; while (i < sorted.length && sorted[i] < v) i++; return sorted.length ? i / sorted.length : 0; };
+    const fmtUsd = (v, dp = 2) => (v < 0 ? '−$' : '$') + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+    const fmtSigned = (v, dp = 2) => (v > 0 ? '+' : '') + fmtUsd(v, dp);
+    const fmtPct = (x, dp = 1) => (x * 100).toFixed(dp) + '%';
+
+    // Walk one run of trades: final P&L, deepest drawdown, time under water, losing streak
+    function pathStats(seq, curve) {
+        let eq = 0, peak = 0, maxDD = 0, uw = 0, maxUW = 0, streak = 0, maxStreak = 0;
+        for (let i = 0; i < seq.length; i++) {
+            const x = seq[i];
+            eq += x;
+            if (curve) curve[i + 1] = eq;
+            if (eq > peak) peak = eq;
+            const dd = peak - eq;
+            if (dd > maxDD) maxDD = dd;
+            if (dd > 1e-9) { if (++uw > maxUW) maxUW = uw; } else uw = 0;
+            if (x < 0) { if (++streak > maxStreak) maxStreak = streak; } else streak = 0;
+        }
+        return { final: eq, maxDD, maxUW, maxStreak };
+    }
+
+    // Alternate histories built from your real trades (block bootstrap). Trades are
+    // drawn in runs of `block` in a row, not one at a time: wins and losses come in
+    // streaks (a market dump stops several trades out together), and drawing them
+    // one by one breaks the streaks up and makes drawdowns look far too small.
+    let riskSimCache = { key: '', sim: null };
+    function riskSim(stats) {
+        const k = kellyMath(stats);
+        let trades = tradePnls(stats);
+        const real = !!(trades && trades.length >= 20);
+        if (!real) {
+            // No per-trade history from the API: fall back to average win / average loss
+            trades = [];
+            for (let i = 0; i < k.wins; i++) trades.push(k.avgWin);
+            for (let i = 0; i < k.losses; i++) trades.push(-k.avgLoss);
+        }
+        const n = trades.length;
+        if (n < 20) return null;
+        const key = [n, k.wins, k.losses, stats.grossWin, stats.grossLoss, trades[n - 1], real].join('|');
+        if (riskSimCache.key === key) return riskSimCache.sim;
+
+        const rand = seededRandom(hashStr(key));
+        const block = real ? Math.max(3, Math.min(20, Math.round(Math.sqrt(n) * 0.8))) : 1;
+        const draw = (out, len) => {
+            let i = 0;
+            while (i < len) {
+                let s = Math.floor(rand() * n);
+                for (let j = 0; j < block && i < len; j++, i++) {
+                    out[i] = trades[s];
+                    if (++s === n) s = 0;
+                }
+            }
+            return out;
+        };
+
+        // 1) Histories as long as yours: drawdowns, streaks, edge, Kelly range, chart bands
+        const SIMS = 2000;
+        const paths = new Float32Array(SIMS * (n + 1));
+        const seq = new Float64Array(n);
+        const curve = new Float64Array(n + 1);
+        const dds = [], uws = [], streaks = [], finals = [], kellys = [];
+        for (let s = 0; s < SIMS; s++) {
+            draw(seq, n);
+            const r = pathStats(seq, curve);
+            paths.set(curve, s * (n + 1));
+            dds.push(r.maxDD); uws.push(r.maxUW); streaks.push(r.maxStreak); finals.push(r.final);
+            let w = 0, l = 0, sw = 0, sl = 0;
+            for (let i = 0; i < n; i++) {
+                const x = seq[i];
+                if (x > 0) { w++; sw += x; } else if (x < 0) { l++; sl -= x; }
+            }
+            if (w && l) {
+                const p = w / (w + l), bb = (sw / w) / (sl / l);
+                kellys.push((bb * p - (1 - p)) / bb);
+            }
+        }
+        [dds, uws, streaks, finals, kellys].forEach(a => a.sort((x, y) => x - y));
+
+        const STEPS = Math.min(n, 160);
+        const bandIdx = [];
+        const bands = { p5: [], p25: [], p50: [], p75: [], p95: [] };
+        const col = new Float64Array(SIMS);
+        for (let j = 0; j <= STEPS; j++) {
+            const idx = Math.round(j * n / STEPS);
+            for (let s = 0; s < SIMS; s++) col[s] = paths[s * (n + 1) + idx];
+            col.sort();
+            bandIdx.push(idx);
+            bands.p5.push(pctOf(col, 0.05));
+            bands.p25.push(pctOf(col, 0.25));
+            bands.p50.push(pctOf(col, 0.5));
+            bands.p75.push(pctOf(col, 0.75));
+            bands.p95.push(pctOf(col, 0.95));
+        }
+        const samples = [];
+        for (let s = 0; s < 14; s++) samples.push(paths.slice(s * (n + 1), (s + 1) * (n + 1)));
+
+        // 2) Your real order of trades
+        const actualCurve = new Float64Array(n + 1);
+        const actual = real ? pathStats(trades, actualCurve) : null;
+        if (actual) {
+            actual.ddRank = shareBelow(dds, actual.maxDD);
+            actual.uwRank = shareBelow(uws, actual.maxUW);
+        }
+
+        // 3) The next 50 / 100 / 250 / 500 trades
+        const horizons = [50, 100, 250, 500].map(h => {
+            const fin = new Float64Array(SIMS);
+            const buf = new Float64Array(h);
+            for (let s = 0; s < SIMS; s++) {
+                draw(buf, h);
+                let sum = 0;
+                for (let i = 0; i < h; i++) sum += buf[i];
+                fin[s] = sum;
+            }
+            fin.sort();
+            return { h, p5: pctOf(fin, 0.05), p50: pctOf(fin, 0.5), p95: pctOf(fin, 0.95), red: shareBelow(fin, 0) };
+        });
+
+        // 4) How streaky are the trades, and what one-at-a-time shuffling would have said
+        let rho = 0, iidDD95 = null;
+        if (real) {
+            const m = trades.reduce((a, c) => a + c, 0) / n;
+            let num = 0, den = 0;
+            for (let i = 0; i < n; i++) {
+                const d = trades[i] - m;
+                den += d * d;
+                if (i) num += d * (trades[i - 1] - m);
+            }
+            rho = den > 0 ? num / den : 0;
+            const iid = [];
+            for (let s = 0; s < 600; s++) {
+                for (let i = 0; i < n; i++) seq[i] = trades[Math.floor(rand() * n)];
+                iid.push(pathStats(seq).maxDD);
+            }
+            iid.sort((a, b) => a - b);
+            iidDD95 = pctOf(iid, 0.95);
+        }
+
+        // Kelly range: spread of Kelly across the histories, centred on the live Kelly
+        const kMed = pctOf(kellys, 0.5);
+        const sim = {
+            real, n, block, rho, iidDD95, sims: SIMS,
+            edgeConf: finals.filter(v => v > 0).length / SIMS,
+            dd: { p50: pctOf(dds, 0.5), p95: pctOf(dds, 0.95) },
+            uw: { p50: pctOf(uws, 0.5), p95: pctOf(uws, 0.95) },
+            streak: { p50: pctOf(streaks, 0.5), p95: pctOf(streaks, 0.95) },
+            actual, actualCurve: real ? actualCurve : null,
+            horizons, bandIdx, bands, samples,
+            kellyLo: kellys.length ? k.f + pctOf(kellys, 0.05) - kMed : k.f,
+            kellyHi: kellys.length ? k.f + pctOf(kellys, 0.95) - kMed : k.f,
+        };
+        riskSimCache = { key, sim };
+        return sim;
+    }
+
+    // Charts drawn while their panel is collapsed have no size; draw them when it opens
+    function toggleRiskPanel(id, header) {
+        const c = document.getElementById(id);
+        if (!c) return;
+        const open = c.style.display === 'none';
+        c.style.display = open ? 'block' : 'none';
+        header.querySelector('.toggle-arrow').textContent = open ? '▼' : '▶';
+        if (open) { drawKellyChart(); drawMcChart(); }
+    }
+    let riskResizeT = null;
+    window.addEventListener('resize', () => {
+        clearTimeout(riskResizeT);
+        riskResizeT = setTimeout(() => { drawKellyChart(); drawMcChart(); }, 150);
+    });
+
+    function setupCanvas(canvas) {
+        const wrap = canvas.parentElement;
+        const W = wrap.clientWidth, H = wrap.clientHeight;
+        if (!W || !H) return null;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.round(W * dpr);
+        canvas.height = Math.round(H * dpr);
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+        return { ctx, W, H };
+    }
+
+    // Hover / touch readout for a chart. describe(x, width) returns the tooltip HTML.
+    function attachChartHover(wrapId, tipId, describe) {
+        const wrap = document.getElementById(wrapId);
+        const tip = document.getElementById(tipId);
+        if (!wrap || !tip) return;
+        const cross = document.createElement('div');
+        cross.className = 'rk-cross';
+        wrap.appendChild(cross);
+        let hideT = null;
+        const hide = () => { tip.style.display = 'none'; cross.style.display = 'none'; };
+        const show = clientX => {
+            clearTimeout(hideT);
+            const r = wrap.getBoundingClientRect();
+            const x = Math.max(0, Math.min(r.width, clientX - r.left));
+            const html = describe(x, r.width);
+            if (!html) return hide();
+            tip.innerHTML = html;
+            tip.style.display = 'block';
+            cross.style.display = 'block';
+            cross.style.left = x + 'px';
+            const tw = tip.offsetWidth;
+            tip.style.left = (x + tw + 12 > r.width ? Math.max(0, x - tw - 8) : x + 8) + 'px';
+        };
+        wrap.addEventListener('mousemove', e => show(e.clientX));
+        wrap.addEventListener('mouseleave', hide);
+        wrap.addEventListener('touchstart', e => { if (e.touches[0]) show(e.touches[0].clientX); }, { passive: true });
+        wrap.addEventListener('touchmove', e => { if (e.touches[0]) show(e.touches[0].clientX); }, { passive: true });
+        wrap.addEventListener('touchend', () => { hideT = setTimeout(hide, 1800); });
+    }
+
+    // ====== KELLY EDGE OPTIMIZER ======
+    let kellyChart = null;
+    function renderKelly(stats) {
+        const box = document.getElementById('kellyBox');
+        if (!box) return;
+        const k = kellyMath(stats);
+        if (k.total < 5) {
+            kellyChart = null;
+            box.innerHTML = '<div class="rk-empty">Need at least 5 finished trades for Kelly</div>';
             return;
         }
 
-        const gw = parseFloat(stats.grossWin) || 0;
-        const gl = Math.abs(parseFloat(stats.grossLoss) || 0);
-        const pnl = parseFloat(stats.netPnl) || 0;
-        const activePnl = dcaMode ? pnl + dcaTotal : pnl;
+        const bankroll = activeBankroll(stats);
+        const half = Math.max(0, k.f / 2);
+        const budget = Math.floor(Math.max(0, bankroll) * half * 100) / 100;   // same as the pokeball Kelly budget
+        const slots = kellySlotCount(bankroll);
+        const perTrade = slots > 0 ? budget / slots : 0;
+        const deployed = parseFloat(stats.totalDeployed) || 0;
+        const youX = bankroll > 0 ? deployed / bankroll : null;
+        const sim = riskSim(stats);
+        const lo = sim ? sim.kellyLo : k.f;
+        const hi = sim ? sim.kellyHi : k.f;
+        const slope = k.b > 0 ? (1 + k.b) / k.b : 0;   // Kelly points per 1 pt of win rate
 
-        const wr = wins / total;
-        const avgWin = wins > 0 ? gw / wins : 0;
-        const avgLoss = losses > 0 ? gl / losses : 0;
-        const rr = avgLoss > 0 ? avgWin / avgLoss : 0;
-        const ev = avgWin * wr - avgLoss * (1 - wr);
-        const profitFactor = gl > 0 ? gw / gl : Infinity;
+        // Verdict: what you actually have out vs the Kelly numbers
+        let chip, verdict;
+        if (k.f <= 0) {
+            chip = ['bad', 'NO EDGE'];
+            verdict = 'Your average win times your win rate doesn\'t cover the losses. Kelly says bet nothing until this turns.';
+        } else if (bankroll <= 0) {
+            chip = ['bad', 'NO BANKROLL'];
+            verdict = 'Kelly sizes off a positive bankroll. Build P&L first.';
+        } else if (youX <= Math.max(0, lo)) {
+            chip = ['good', 'SAFE'];
+            verdict = `You have <b>${fmtUsd(deployed)}</b> out, <b>${fmtPct(youX, 2)}</b> of bankroll: under even the cautious end of your Kelly range.`;
+        } else if (youX <= half) {
+            chip = ['ok', 'IN RANGE'];
+            verdict = `You have <b>${fmtUsd(deployed)}</b> out, <b>${fmtPct(youX)}</b> of bankroll: inside half-Kelly.`;
+        } else if (youX <= k.f) {
+            chip = ['warn', 'HOT'];
+            verdict = `You have <b>${fmtUsd(deployed)}</b> out, <b>${fmtPct(youX)}</b> of bankroll: past half-Kelly. Much bigger swings for only a little more growth.`;
+        } else {
+            chip = ['bad', 'OVER KELLY'];
+            verdict = `You have <b>${fmtUsd(deployed)}</b> out, <b>${fmtPct(youX)}</b> of bankroll: past full Kelly, where more size means <b>less</b> growth. Cut back.`;
+        }
 
-        // Kelly
-        const b = rr;
-        const kellyF = b > 0 ? (b * wr - (1 - wr)) / b : 0;
-        const halfKelly = kellyF / 2;
-
-        // Pokemon curve sizes at current P&L
-        const pokeSizes = getCryptoSizes(Math.max(0, activePnl));
-        const pokeTotal = pokeSizes.reduce((a, c) => a + c, 0);
-
-        // Half-Kelly $ amount
-        const halfKellyDollar = Math.max(0, activePnl * halfKelly);
-        // What Pokemon is as % of Kelly
-        const pokeVsKelly = kellyF > 0 ? (pokeTotal / (activePnl * kellyF)) * 100 : 0;
-        const pokeVsHalf = halfKelly > 0 ? (pokeTotal / halfKellyDollar) * 100 : 0;
-
-        // Edge rate per $1
-        const edgeRate = ev;
-
-        // Geometric mean per trade (approximate)
-        // g = (1 + avgWin)^wr × (1 - avgLoss)^(1-wr) for $1 bets
-        // But with fractional wins/losses we use: g = wr * ln(1 + avgWin) + (1-wr) * ln(1 - min(avgLoss, 0.99))
-        const lnG = wr * Math.log(1 + avgWin) + (1 - wr) * Math.log(1 - Math.min(avgLoss, 0.99));
-        const geoMean = Math.exp(lnG);
-        const tradesToDouble = lnG > 0 ? Math.ceil(Math.log(2) / lnG) : Infinity;
-
-        // Find sweet spot: where does Pokemon total = half-Kelly $?
-        // Scan from $50 to $50,000
-        let sweetSpot = null;
-        for (let p = 50; p <= 50000; p += 25) {
-            const ps = getCryptoSizes(p);
-            const pt = ps.reduce((a, c) => a + c, 0);
-            const hk = p * halfKelly;
-            if (pt <= hk && !sweetSpot) {
-                sweetSpot = p;
+        let rangeNote = '';
+        if (sim && k.f > 0) {
+            const lead = `Across ${sim.sims.toLocaleString()} reshuffles of your own trades, Kelly lands between <b>${fmtPct(Math.max(0, lo))}</b> and <b>${fmtPct(hi)}</b>.`;
+            const chips = [['K', '½', 1 / 2], ['🔥', '¼', 1 / 4], ['⚡', '⅛', 1 / 8], ['🌱', '1/16', 1 / 16],
+                ['💩', '1/32', 1 / 32], ['🪨', '1/64', 1 / 64], ['👻', '1/128', 1 / 128]];
+            const safeChip = lo > 0.005 ? chips.find(c => k.f * c[2] <= lo) : null;
+            if (!safeChip) {
+                rangeNote = `${lead} The low end means the edge could still be close to zero, so treat the K pokeball as a ceiling, not a target.`;
+            } else if (safeChip[0] === 'K') {
+                rangeNote = `${lead} Half-Kelly (${fmtPct(half)}) stays safe even at the low end.`;
+            } else {
+                rangeNote = `${lead} Half-Kelly (${fmtPct(half)}) is above the low end. The ${safeChip[0]} chip (${safeChip[1]} Kelly) and smaller stay under it even if your edge turns out to be at the low end.`;
             }
         }
 
-        // Verdict
-        let verdictText, verdictClass;
-        if (activePnl <= 0) {
-            verdictText = 'BUILD P&L FIRST — Kelly needs positive bankroll';
-            verdictClass = 'hot';
-        } else if (pokeVsHalf > 150) {
-            verdictText = 'OVER KELLY — early grind levels, this is fine at tiny $';
-            verdictClass = 'hot';
-        } else if (pokeVsHalf >= 70 && pokeVsHalf <= 130) {
-            verdictText = 'OPTIMAL ZONE — Pokemon curve matches Kelly';
-            verdictClass = 'optimal';
-        } else {
-            verdictText = 'CONSERVATIVE — room to push harder if WR holds';
-            verdictClass = 'safe';
-        }
+        // Range bar: 0 .. a bit past the widest number shown
+        const rMax = Math.max(hi, k.f, half, 0.01) * 1.12;
+        const rPos = x => Math.max(0, Math.min(100, x / rMax * 100));
+        const youOnBar = youX != null && youX > 0;
+        const rangeBar = k.f > 0 ? `
+            <div class="rk-range">
+                <div class="rk-range-track"></div>
+                <div class="rk-range-band" style="left:${rPos(Math.max(0, lo))}%;width:${Math.max(1, rPos(hi) - rPos(Math.max(0, lo)))}%"></div>
+                <div class="rk-range-mark" title="Half-Kelly" style="left:${rPos(half)}%;background:#ce93d8;box-shadow:0 0 8px #ce93d8"></div>
+                <div class="rk-range-mark" title="Full Kelly" style="left:${rPos(k.f)}%;background:#64b5f6;box-shadow:0 0 8px #64b5f6"></div>
+                ${youOnBar ? `<div class="rk-range-mark" title="You" style="left:${rPos(youX)}%;background:#f9c846;box-shadow:0 0 8px #f9c846"></div>` : ''}
+            </div>
+            <div class="rk-range-lbl"><span>0%</span><span>${fmtPct(rMax, 0)}</span></div>` : '';
 
-        // Reliability warning
-        let reliabilityNote = '';
-        if (total < 50) {
-            reliabilityNote = `<div style="font-size:0.55rem;color:#ffa726;text-align:center;margin-top:0.4rem">&#9888; ${total} trades — Kelly needs 50+ for reliability (Taleb: small samples lie)</div>`;
-        } else if (total < 100) {
-            reliabilityNote = `<div style="font-size:0.55rem;color:var(--accent);text-align:center;margin-top:0.4rem">${total} trades — getting reliable. 100+ = strong confidence.</div>`;
-        } else {
-            reliabilityNote = `<div style="font-size:0.55rem;color:var(--green-bright);text-align:center;margin-top:0.4rem">${total} trades — statistically reliable edge</div>`;
+        // Pokemon curve vs half-Kelly (only the one line that still matters)
+        const pokeSizes = getCryptoSizes(Math.max(0, bankroll));
+        const pokeTotal = pokeSizes.reduce((a, c) => a + c, 0);
+        const pokeVsHalf = budget > 0 ? pokeTotal / budget * 100 : 0;
+        let sweetSpot = null;
+        if (half > 0) {
+            for (let p = 50; p <= 50000; p += 25) {
+                if (getCryptoSizes(p).reduce((a, c) => a + c, 0) <= p * half) { sweetSpot = p; break; }
+            }
         }
+        const pokeLine = budget > 0
+            ? `Pokemon tiers ($${pokeSizes.join(' / $')}) add up to <b>${fmtUsd(pokeTotal, 0)}</b>, <b>${pokeVsHalf.toFixed(0)}%</b> of the half-Kelly budget${pokeVsHalf > 130 ? ': over Kelly, fine only at tiny sizes' : pokeVsHalf >= 70 ? ': right on Kelly' : ': more conservative than Kelly'}.${sweetSpot && bankroll < sweetSpot ? ` Pokemon drops under half-Kelly from <b>${fmtUsd(sweetSpot, 0)}</b> P&L.` : ''}`
+            : '';
+
+        const sampleNote = k.total < 50 ? ' · <span style="color:#ffa726">small sample, Kelly can swing a lot</span>' : '';
+        const since = stats.statsStartDate
+            ? ` since <b>${esc(stats.statsStartDate)}</b><span class="rk-link" onclick="setStatsStart('clear')">reset</span>`
+            : '';
 
         box.innerHTML = `
-            <div class="kelly-grid">
-                <div class="kelly-stat">
-                    <div class="kval" style="color:var(--green-bright)">${(wr * 100).toFixed(1)}%</div>
-                    <div class="klbl">Win Rate</div>
+            <div class="rk-hero">
+                <div>
+                    <div class="rk-kicker">Half-Kelly</div>
+                    <div class="rk-big">${fmtPct(half)}</div>
+                    <div class="rk-kicker" style="letter-spacing:0.5px">of bankroll</div>
                 </div>
-                <div class="kelly-stat">
-                    <div class="kval" style="color:${rr >= 1 ? 'var(--green-bright)' : '#ffa726'}">${rr.toFixed(2)}x</div>
-                    <div class="klbl">Reward/Risk</div>
+                <div class="rk-hero-mid">
+                    <div><b>${fmtUsd(budget)}</b> budget on a <b>${fmtUsd(bankroll, 0)}</b> bankroll${dcaMode ? ' <span class="rk-dim">(incl. DCA)</span>' : ''}</div>
+                    <div>≈ <b>${fmtUsd(perTrade)}</b> per trade over ${slots} slots <span class="rk-dim">= the K pokeball</span></div>
+                    <div class="rk-dim">Full Kelly ${fmtPct(k.f)}${k.f > 0 ? ` · quarter ${fmtPct(k.f / 4)}` : ' (no edge)'}</div>
                 </div>
-                <div class="kelly-stat">
-                    <div class="kval" style="color:var(--accent-glow)">${(kellyF * 100).toFixed(1)}%</div>
-                    <div class="klbl">Kelly f*</div>
-                </div>
-                <div class="kelly-stat">
-                    <div class="kval" style="color:var(--green-bright)">${(halfKelly * 100).toFixed(1)}%</div>
-                    <div class="klbl">Half-Kelly</div>
-                </div>
-                <div class="kelly-stat">
-                    <div class="kval" style="color:var(--text-bright)">${profitFactor === Infinity ? '∞' : profitFactor.toFixed(2)}x</div>
-                    <div class="klbl">Profit Factor</div>
-                </div>
-                <div class="kelly-stat">
-                    <div class="kval" style="color:${ev > 0 ? 'var(--green-bright)' : 'var(--red-bright)'}">$${ev.toFixed(3)}</div>
-                    <div class="klbl">EV / Trade</div>
-                </div>
-                <div class="kelly-stat">
-                    <div class="kval" style="color:var(--accent-glow)">${(edgeRate * 100).toFixed(1)}%</div>
-                    <div class="klbl">Edge / $1</div>
-                </div>
-                <div class="kelly-stat">
-                    <div class="kval" style="color:#f9c846">${tradesToDouble < 10000 ? tradesToDouble : '∞'}</div>
-                    <div class="klbl">Trades to 2x</div>
-                </div>
+                <span class="rk-chip ${chip[0]}">${chip[1]}</span>
             </div>
+            <div class="rk-verdict">${verdict}</div>
+            <div class="rk-balls"><span>Pokeballs in Kelly terms:</span><span><b>K</b> ½</span><span>\u{1F525} ¼</span><span>⚡ ⅛</span><span>\u{1F331} 1/16</span><span>\u{1F4A9} 1/32</span><span>\u{1FAA8} 1/64</span><span>\u{1F47B} 1/128</span></div>
 
-            <div style="font-size:0.6rem;color:var(--accent-glow);font-weight:700;margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:1px">Pokemon vs Kelly</div>
-
-            <div class="kelly-compare">
-                <div class="kelly-compare-label">Pokemon</div>
-                <div class="kelly-bar-track">
-                    <div class="kelly-bar-fill" style="width:${Math.min(100, activePnl > 0 ? (pokeTotal / Math.max(1, activePnl)) * 100 / 0.5 : 0)}%;background:var(--accent)"></div>
-                </div>
-                <div class="kelly-compare-val" style="color:var(--accent)">$${pokeTotal}</div>
-            </div>
-            <div class="kelly-compare">
-                <div class="kelly-compare-label">Half-Kelly</div>
-                <div class="kelly-bar-track">
-                    <div class="kelly-bar-fill" style="width:${Math.min(100, halfKelly * 100 / 0.5)}%;background:var(--green-bright)"></div>
-                </div>
-                <div class="kelly-compare-val" style="color:var(--green-bright)">$${halfKellyDollar.toFixed(0)}</div>
-            </div>
-            <div class="kelly-compare">
-                <div class="kelly-compare-label">Full Kelly</div>
-                <div class="kelly-bar-track">
-                    <div class="kelly-bar-fill" style="width:${Math.min(100, kellyF * 100 / 0.5)}%;background:var(--red-bright);opacity:0.6"></div>
-                </div>
-                <div class="kelly-compare-val" style="color:var(--red-bright)">$${(activePnl * kellyF).toFixed(0)}</div>
-            </div>
-
-            <div style="text-align:center;font-size:0.65rem;color:var(--text-dim);margin-top:0.4rem">
-                You're at <span style="color:var(--accent-glow);font-weight:700">${pokeVsHalf.toFixed(0)}%</span> of Half-Kelly
-                ${pokeVsHalf > 130 ? ' (over — fine at micro $)' : pokeVsHalf >= 70 ? ' (optimal zone)' : ' (conservative)'}
-            </div>
-
-            <div class="kelly-verdict ${verdictClass}">${verdictText}</div>
-            ${stats.statsStartDate ? `<div style="text-align:center;font-size:0.55rem;color:var(--accent);margin-top:0.3rem">Stats from: <span style="font-weight:700">${stats.statsStartDate}</span> <span onclick="setStatsStart('clear')" style="cursor:pointer;color:var(--text-dim);text-decoration:underline;margin-left:4px">reset</span></div>` : ''}
-            ${reliabilityNote}
-
-            ${sweetSpot ? `<div class="kelly-milestone">
-                <span>Half-Kelly sweet spot:</span>
-                <span class="km-val">$${sweetSpot.toLocaleString()} P&L</span>
-                <span>— Pokemon curve matches Kelly above this. DCA here to skip the grind.</span>
+            ${k.f > 0 ? `
+            <div class="rk-h">Growth vs bet size <span class="rk-dim">— tap or hover the curve</span></div>
+            <div class="rk-canvas" id="kellyWrap"><canvas id="kellyCanvas"></canvas><div class="rk-tip" id="kellyTip"></div></div>
+            <div class="rk-legend">
+                <span><i style="background:#ce93d8"></i>½ Kelly</span>
+                <span><i style="background:#64b5f6"></i>Full Kelly = fastest growth</span>
+                <span><i style="background:rgba(206,147,216,0.3)"></i>where Kelly could really be</span>
+                <span><i style="background:#f9c846"></i>you now</span>
             </div>` : ''}
 
-            <div class="kelly-milestone">
-                <span>Optimal next trade:</span>
-                <span class="km-val">$${Math.max(1, halfKellyDollar / 5).toFixed(0)} each</span>
-                <span style="color:var(--text-dim)">vs Pokemon $${pokeSizes[0]}/$${pokeSizes[2]}/$${pokeSizes[4]}</span>
+            <div class="rk-tiles">
+                <div class="rk-tile">
+                    <div class="v" style="color:${k.wr >= k.breakeven ? 'var(--green-bright)' : 'var(--red-bright)'}">${fmtPct(k.wr)}</div>
+                    <div class="l">Win rate</div>
+                    <div class="s">need ${fmtPct(k.breakeven)}</div>
+                </div>
+                <div class="rk-tile">
+                    <div class="v" style="color:${k.b >= 1 ? 'var(--green-bright)' : '#ffa726'}">${k.b.toFixed(2)}x</div>
+                    <div class="l">Avg win ÷ loss</div>
+                    <div class="s">${fmtUsd(k.avgWin, 3)} / ${fmtUsd(k.avgLoss, 3)}</div>
+                </div>
+                <div class="rk-tile">
+                    <div class="v" style="color:${k.ev > 0 ? 'var(--accent-glow)' : 'var(--red-bright)'}">${k.avgLoss > 0 ? (k.ev / k.avgLoss * 100 >= 0 ? '+' : '') + (k.ev / k.avgLoss * 100).toFixed(1) + '¢' : '-'}</div>
+                    <div class="l">Edge per $1 risked</div>
+                    <div class="s">${fmtSigned(k.ev, 3)} / trade</div>
+                </div>
+                <div class="rk-tile">
+                    <div class="v">${k.pf === Infinity ? '∞' : k.pf.toFixed(2)}</div>
+                    <div class="l">Profit factor</div>
+                    <div class="s">${fmtUsd(k.gw, 0)} won / ${fmtUsd(k.gl, 0)} lost</div>
+                </div>
             </div>
-        `;
-    }
 
-    function renderDeepAnalysis(stats) {
-        const fmtPnl = (v) => v >= 0 ? '+$' + v.toFixed(2) : '-$' + Math.abs(v).toFixed(2);
-        function card(label, data, color) {
-            if (!data || data.total === 0) return `<div class="perf-item"><div class="perf-val" style="color:${color}">-</div><div class="perf-label">${label} (0)</div></div>`;
-            return `<div class="perf-item"><div class="perf-val" style="color:${color}">${data.winRate}</div><div class="perf-label">${label} (${data.total})</div><div style="font-size:0.55rem;color:${color};margin-top:2px">${fmtPnl(data.pnl)}</div></div>`;
-        }
+            ${k.f > 0 ? `
+            <div class="rk-card">
+                <div class="rk-h">How sure is Kelly?</div>
+                ${rangeBar}
+                ${rangeNote ? `<div class="rk-p">${rangeNote}</div>` : ''}
+                <div class="rk-p">Win rate is the lever: each 1 pt of win rate moves Kelly about <b>${slope.toFixed(1)} pts</b>. Break-even is <b>${fmtPct(k.breakeven)}</b>, and you're <b>${((k.wr - k.breakeven) * 100).toFixed(1)} pts</b> above it.</div>
+            </div>` : ''}
 
-        // Score breakdown
-        const sg = stats.scoreGranularity || {};
-        document.getElementById('scoreGrid').innerHTML = ['0-2','3-4','5-6','7-8','9-10'].map(function(k) {
-            const colors = {'0-2':'#ef5350','3-4':'#ffab91','5-6':'#4dd0e1','7-8':'#64b5f6','9-10':'#ce93d8'};
-            const d = sg[k];
-            if (!d) return card('Score '+k, {total:0}, colors[k]);
-            const avgLabel = d.avgPnl !== undefined ? ' · $'+d.avgPnl.toFixed(3)+'/t' : '';
-            return `<div class="perf-item"><div class="perf-val" style="color:${colors[k]}">${d.winRate}</div><div class="perf-label">Score ${k} (${d.total})</div><div style="font-size:0.55rem;color:${colors[k]};margin-top:2px">${fmtPnl(d.pnl)}${avgLabel}</div></div>`;
-        }).join('');
+            ${pokeLine ? `<div class="rk-card"><div class="rk-h">Pokemon vs Kelly</div><div class="rk-p">${pokeLine}</div></div>` : ''}
 
-        // Factor analysis — shows which scoring criteria actually matter
-        const fa = stats.factorAnalysis || {};
-        const factorEl = document.getElementById('factorGrid');
-        if (factorEl) {
-            let html = '';
-            const fc = (label, data, color) => {
-                if (!data || data.total === 0) return `<div class="perf-item"><div class="perf-val" style="color:#666">-</div><div class="perf-label">${label} (0)</div></div>`;
-                const wr = parseInt(data.winRate);
-                const col = wr >= 90 ? '#4caf50' : wr >= 80 ? '#8bc34a' : wr >= 70 ? '#f9c846' : '#ef5350';
-                return `<div class="perf-item"><div class="perf-val" style="color:${col}">${data.winRate}</div><div class="perf-label">${label} (${data.total})</div><div style="font-size:0.5rem;color:${col};margin-top:2px">${fmtPnl(data.pnl)}</div></div>`;
-            };
-            // Touches
-            if (fa.touches) html += fc('4+ Touches', fa.touches['4+']) + fc('3 Touches', fa.touches['3']) + fc('≤2 Touches', fa.touches['≤2']);
-            // R:R
-            if (fa.riskReward) html += fc('R:R ≥3', fa.riskReward['3+']) + fc('R:R 2-3', fa.riskReward['2-3']) + fc('R:R <2', fa.riskReward['<2']);
-            // Divergence
-            if (fa.divergence) html += fc('Divergence ✓', fa.divergence.yes) + fc('No Divergence', fa.divergence.no);
-            // DMI
-            if (fa.dmi) html += fc('DMI Safe', fa.dmi.safe) + fc('DMI Caution', fa.dmi.caution);
-            // Cross
-            if (fa.crossRecency) html += fc('Cross 0-2', fa.crossRecency['0-2']) + fc('Cross 3-5', fa.crossRecency['3-5']);
-            // Volume
-            if (fa.volume) html += fc('Vol Above', fa.volume.above) + fc('Vol Below', fa.volume.below);
-            factorEl.innerHTML = html;
-        }
-
-        // RSI analysis
-        const rsi = stats.rsiAnalysis || {};
-        document.getElementById('rsiGrid').innerHTML =
-            card('RSI < 25', rsi.deepOversold, '#4caf50') +
-            card('RSI 25-35', rsi.moderate, '#8bc34a') +
-            card('RSI 35-40', rsi.shallow, '#ffeb3b') +
-            card('RSI 40-50', rsi.sweetSpot, '#00e676') +
-            card('RSI > 50', rsi.overbought, '#ff9800');
-
-        // MACD analysis
-        const macd = stats.macdAnalysis || {};
-        document.getElementById('macdGrid').innerHTML =
-            card('Bullish', macd.bullish, '#4caf50') +
-            card('Bearish', macd.bearish, '#ef5350') +
-            card('No MACD', macd.none, '#9e9e9e');
-
-        // Session analysis (with $/trade)
-        const sess = stats.sessionAnalysis || {};
-        const sessPpt = stats.sessionPpt || {};
-        function sessCard(label, data, ppt, color) {
-            if (!data || !data.total) return `<div class="perf-item"><div class="perf-val" style="color:${color}">-</div><div class="perf-label">${label} (0)</div></div>`;
-            const pptStr = ppt >= 0 ? '+$' + ppt.toFixed(3) : '-$' + Math.abs(ppt).toFixed(3);
-            return `<div class="perf-item"><div class="perf-val" style="color:${color}">${data.winRate}</div><div class="perf-label">${label} (${data.total})</div><div style="font-size:0.55rem;color:${color};margin-top:2px">${fmtPnl(data.pnl)} · ${pptStr}/t</div></div>`;
-        }
-        document.getElementById('sessionGrid').innerHTML =
-            sessCard('Asian 0-8 UTC', sess.asian, sessPpt.asian || 0, '#ff7043') +
-            sessCard('Europe 8-14', sess.europe, sessPpt.europe || 0, '#42a5f5') +
-            sessCard('US 14-21', sess.us, sessPpt.us || 0, '#66bb6a') +
-            sessCard('Night 21-0', sess.night, sessPpt.night || 0, '#ab47bc');
-
-        // Day of week — with $/trade and suggestions
-        const dow = stats.dayOfWeekAnalysis || {};
-        const beWR = stats.breakevenWR
-            ? stats.breakevenWR.breakevenWR || 0 : 0;
-        document.getElementById('dayGrid').innerHTML =
-            ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
-            .map(function(d) {
-                const colors = {Mon:'#42a5f5',Tue:'#66bb6a',
-                    Wed:'#ffca28',Thu:'#ff7043',Fri:'#ab47bc',
-                    Sat:'#78909c',Sun:'#ef5350'};
-                const dd = dow[d];
-                if (!dd || dd.total === 0)
-                    return card(d, dd, colors[d]);
-                const ppt = dd.pnl / dd.total;
-                const pptStr = ppt >= 0
-                    ? '+$' + ppt.toFixed(3)
-                    : '-$' + Math.abs(ppt).toFixed(3);
-                const wr = parseInt(dd.winRate);
-                let tip = '';
-                if (wr < beWR)
-                    tip = 'Below breakeven \u2014 skip or A+ only';
-                else if (wr < 83)
-                    tip = 'Weak \u2014 be selective';
-                else if (wr >= 90)
-                    tip = 'Strong \u2014 lean in';
-                else if (dd.losses >= 8
-                    && dd.total >= 20)
-                    tip = 'High volume \u2014 cap trades';
-                const tipColor = wr < beWR ? '#ef5350'
-                    : wr >= 90 ? '#4caf50' : '#f9c846';
-                const tipHtml = tip
-                    ? `<div style="font-size:0.45rem;`
-                    + `color:${tipColor};`
-                    + `margin-top:1px">${tip}</div>` : '';
-                return `<div class="perf-item">`
-                    + `<div class="perf-val"`
-                    + ` style="color:${colors[d]}">`
-                    + `${dd.winRate}</div>`
-                    + `<div class="perf-label">`
-                    + `${d} (${dd.total})</div>`
-                    + `<div style="font-size:0.55rem;`
-                    + `color:${colors[d]};margin-top:2px">`
-                    + `${fmtPnl(dd.pnl)}`
-                    + ` \u00B7 ${pptStr}/t</div>`
-                    + tipHtml + `</div>`;
-            }).join('');
-
-        // Edge & Concentration
-        const be = stats.breakevenWR || {};
-        const cc = stats.coinConcentration || {};
-        const marginColor = be.margin > 10 ? 'var(--green-bright)' : be.margin > 5 ? '#f9c846' : 'var(--red-bright)';
-        document.getElementById('edgeGrid').innerHTML = `
-            <div class="perf-item">
-                <div class="perf-val" style="color:var(--red-bright)">${be.breakevenWR || 0}%</div>
-                <div class="perf-label">Breakeven WR</div>
-                <div style="font-size:0.55rem;color:var(--text-dim);margin-top:2px">min to not lose $</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:var(--green-bright)">${be.currentWR || 0}%</div>
-                <div class="perf-label">Current WR</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:${marginColor}">+${be.margin || 0}pp</div>
-                <div class="perf-label">Safety Margin</div>
-                <div style="font-size:0.55rem;color:${marginColor};margin-top:2px">${be.margin > 10 ? 'comfortable' : be.margin > 5 ? 'thin' : 'danger zone'}</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:#80cbc4">${cc.uniqueCoins || 0}</div>
-                <div class="perf-label">Unique Coins</div>
-                <div style="font-size:0.55rem;color:#80cbc4;margin-top:2px">${cc.avgPerCoin || 0} trades/coin</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:#ffab91">${cc.oneTrade || 0}</div>
-                <div class="perf-label">1-Trade Coins</div>
-            </div>
-            <div class="perf-item">
-                <div class="perf-val" style="color:#64b5f6">${cc.threePlus || 0}</div>
-                <div class="perf-label">3+ Trade Coins</div>
+            <div class="rk-foot">
+                ${k.total} trades${since}${sampleNote}<br>
+                Kelly assumes one bet at a time. Your trades move together, so the budget is spread over all ${slots} slots as if the whole book were one bet.
             </div>
         `;
 
-        // Strategy Insights
-        renderInsights(stats);
-        renderActionPlan(stats);
+        kellyChart = k.f > 0 ? { wr: k.wr, b: k.b, f: k.f, lo, hi, youX, bankroll } : null;
+        drawKellyChart();
+        if (kellyChart) attachChartHover('kellyWrap', 'kellyTip', describeKelly);
     }
 
-    function renderInsights(stats) {
-        const el = document.getElementById('insightsGrid');
-        if (!el) return;
-        const insights = [];
-        const row = (cls, icon, html) =>
-            `<div class="insight-row ${cls}">` +
-            `<span class="insight-icon">${icon}</span>` +
-            `<span class="insight-text">${html}</span></div>`;
+    function drawKellyChart() {
+        const c = kellyChart;
+        const canvas = document.getElementById('kellyCanvas');
+        if (!c || !canvas) return;
+        const cv = setupCanvas(canvas);
+        if (!cv) return;
+        const { ctx, W, H } = cv;
+        // Where growth falls back to zero (about 2x Kelly, not exactly: your payoffs are lopsided)
+        let zLo = c.f, zHi = 0.999;
+        for (let i = 0; i < 50; i++) { const m = (zLo + zHi) / 2; if (kellyGrowth(m, c.wr, c.b) > 0) zLo = m; else zHi = m; }
+        const zeroX = zLo;
+        const xMax = Math.min(0.95, Math.max(zeroX * 1.12, c.hi * 1.05, 0.02));
+        const gMax = kellyGrowth(c.f, c.wr, c.b);
+        const yMin = -0.6, yMax = 1.2;                   // growth as a share of the best possible
+        const L = 10, R = 12, T = 22, B = 20;
+        const X = x => L + (x / xMax) * (W - L - R);
+        const Y = g => T + (yMax - g) / (yMax - yMin) * (H - T - B);
+        const rel = x => Math.max(yMin, kellyGrowth(x, c.wr, c.b) / gMax);
+        c.geo = { L, R, xMax, W };
+        ctx.font = '600 10px "Space Mono", monospace';
 
-        // --- Win/Loss size ratio ---
-        const eff = stats.slTpEfficiency || {};
-        const avgW = eff.avgWinAmount || 0;
-        const avgL = eff.avgLossAmount || 0;
-        const ratio = eff.winLossRatio || 0;
-        if (avgL > 0 && ratio < 1) {
-            const multip = (avgL / avgW).toFixed(1);
-            const breakeven = (avgL / (avgW + avgL) * 100).toFixed(0);
-            insights.push(row('bad', '\u26A0',
-                `<strong>Loss size problem:</strong> avg loss ` +
-                `<span class="num-bad">$${avgL.toFixed(3)}</span>` +
-                ` is <span class="num-bad">${multip}x</span>` +
-                ` your avg win ` +
-                `<span class="num-good">$${avgW.toFixed(3)}</span>.` +
-                ` Need <span class="num-warn">${breakeven}%</span>` +
-                ` WR just to break even.`));
-        } else if (ratio >= 1) {
-            insights.push(row('good', '\u2714',
-                `<strong>Great risk/reward:</strong> avg win` +
-                ` exceeds avg loss (${ratio}x).`));
+        // Where Kelly could really be
+        const loX = X(Math.max(0, c.lo)), hiX = X(Math.min(xMax, c.hi));
+        if (hiX > loX) {
+            ctx.fillStyle = 'rgba(206,147,216,0.10)';
+            ctx.fillRect(loX, T - 6, hiX - loX, H - T - B + 6);
         }
 
-        // --- Best/worst day ---
-        const dow = stats.dayOfWeekAnalysis || {};
-        const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-        let bestDay = null, worstDay = null;
-        days.forEach(d => {
-            const dd = dow[d];
-            if (!dd || dd.total < 5) return;
-            const wr = parseInt(dd.winRate);
-            if (!bestDay || wr > parseInt(dow[bestDay].winRate))
-                bestDay = d;
-            if (!worstDay || wr < parseInt(dow[worstDay].winRate))
-                worstDay = d;
-        });
-        if (bestDay && dow[bestDay]) {
-            const bd = dow[bestDay];
-            insights.push(row('good', '\uD83D\uDCC5',
-                `<strong>Best day:</strong> <strong>${bestDay}</strong>` +
-                ` \u2014 <span class="num-good">${bd.winRate}</span>` +
-                ` WR (${bd.wins}W/${bd.losses}L),` +
-                ` P&L <span class="${bd.pnl >= 0 ? 'num-good' : 'num-bad'}">` +
-                `${bd.pnl >= 0 ? '+' : ''}$${bd.pnl.toFixed(2)}</span>`));
-        }
-        if (worstDay && dow[worstDay] &&
-            parseInt(dow[worstDay].winRate) < 85) {
-            const wd = dow[worstDay];
-            insights.push(row('bad', '\uD83D\uDCC5',
-                `<strong>Worst day:</strong> ` +
-                `<strong>${worstDay}</strong>` +
-                ` \u2014 <span class="num-bad">${wd.winRate}</span>` +
-                ` WR (${wd.wins}W/${wd.losses}L),` +
-                ` P&L <span class="${wd.pnl >= 0 ? 'num-good' : 'num-bad'}">` +
-                `${wd.pnl >= 0 ? '+' : ''}$${wd.pnl.toFixed(2)}</span>.` +
-                ` Consider being more selective.`));
-        }
+        // Zero-growth line
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(L, Y(0)); ctx.lineTo(W - R, Y(0)); ctx.stroke();
+        ctx.setLineDash([]);
 
-        // --- Best/worst session ---
-        const sess = stats.sessionAnalysis || {};
-        const sessNames = {
-            asian: 'Asian (0-8 UTC)',
-            europe: 'Europe (8-14)',
-            us: 'US (14-21)',
-            night: 'Night (21-0)'
+        // Growth curve: teal where you grow, red where size starts shrinking the bankroll
+        const N = 240, pts = [];
+        for (let i = 0; i <= N; i++) { const x = xMax * i / N; pts.push([X(x), Y(rel(x)), rel(x)]); }
+        const fillArea = (clampFn, style) => {
+            ctx.beginPath();
+            ctx.moveTo(pts[0][0], Y(0));
+            for (const p of pts) ctx.lineTo(p[0], clampFn(p[1]));
+            ctx.lineTo(pts[N][0], Y(0));
+            ctx.closePath();
+            ctx.fillStyle = style;
+            ctx.fill();
         };
-        let bestSess = null, worstSess = null;
-        let bestPpt = -Infinity, worstPpt = Infinity;
-        Object.keys(sessNames).forEach(s => {
-            const sd = sess[s];
-            if (!sd || sd.total < 5) return;
-            const ppt = sd.pnl / sd.total;
-            if (ppt > bestPpt) { bestPpt = ppt; bestSess = s; }
-            if (ppt < worstPpt) { worstPpt = ppt; worstSess = s; }
-        });
-        if (bestSess && sess[bestSess]) {
-            const bs = sess[bestSess];
-            insights.push(row('good', '\u23F0',
-                `<strong>Best session:</strong> ` +
-                `<strong>${sessNames[bestSess]}</strong>` +
-                ` \u2014 <span class="num-good">${bs.winRate}</span>` +
-                ` WR, <span class="num-good">+$${bs.pnl.toFixed(2)}</span>` +
-                ` on ${bs.total} trades` +
-                ` ($${(bs.pnl/bs.total).toFixed(3)}/trade)`));
-        }
-        if (worstSess && sess[worstSess] && worstSess !== bestSess) {
-            const ws = sess[worstSess];
-            const wppt = (ws.pnl / ws.total).toFixed(3);
-            insights.push(row(
-                parseFloat(wppt) < 0 ? 'bad' : 'warn', '\u23F0',
-                `<strong>Weakest session:</strong> ` +
-                `<strong>${sessNames[worstSess]}</strong>` +
-                ` \u2014 <span class="${parseFloat(wppt) < 0 ? 'num-bad' : 'num-warn'}">${ws.winRate}</span>` +
-                ` WR, $${wppt}/trade on ${ws.total} trades`));
+        const up = ctx.createLinearGradient(0, Y(1), 0, Y(0));
+        up.addColorStop(0, 'rgba(77,208,196,0.35)');
+        up.addColorStop(1, 'rgba(77,208,196,0.03)');
+        fillArea(y => Math.min(y, Y(0)), up);
+        fillArea(y => Math.max(y, Y(0)), 'rgba(255,107,107,0.16)');
+        ctx.lineWidth = 2.2;
+        ctx.lineJoin = 'round';
+        for (let i = 1; i <= N; i++) {
+            ctx.beginPath();
+            ctx.strokeStyle = pts[i][2] >= 0 ? '#4dd0c4' : '#ff6b6b';
+            ctx.moveTo(pts[i - 1][0], pts[i - 1][1]);
+            ctx.lineTo(pts[i][0], pts[i][1]);
+            ctx.stroke();
         }
 
-        // --- RSI danger zone ---
-        const rsi = stats.rsiAnalysis || {};
-        if (rsi.overbought && rsi.overbought.total >= 3) {
-            const ob = rsi.overbought;
-            const wr = parseInt(ob.winRate);
-            if (wr < 80) {
-                insights.push(row('bad', '\uD83D\uDCC9',
-                    `<strong>RSI > 50 danger zone:</strong>` +
-                    ` <span class="num-bad">${ob.winRate}</span>` +
-                    ` WR, P&L <span class="num-bad">` +
-                    `${ob.pnl >= 0 ? '+' : ''}$${ob.pnl.toFixed(2)}</span>` +
-                    ` on ${ob.total} trades.` +
-                    ` Avoid entering when RSI is elevated.`));
-            }
+        const clampX = (px, w) => Math.max(L + w / 2, Math.min(W - R - w / 2, px));
+        const label = (txt, px, py, color) => {
+            const w = ctx.measureText(txt).width;
+            ctx.fillStyle = color;
+            ctx.textAlign = 'center';
+            ctx.fillText(txt, clampX(px, w), py);
+        };
+        const dot = (x, color, txt, r) => {
+            if (x <= 0 || x > xMax) return;
+            const px = X(x), py = Y(rel(x));
+            ctx.beginPath();
+            ctx.arc(px, py, r, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 10;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            label(txt, px, py - r - 5, color);
+        };
+        if (zeroX < xMax) {
+            const txt = (zeroX / c.f).toFixed(1) + '× Kelly = 0';
+            ctx.fillStyle = 'rgba(255,107,107,0.9)';
+            ctx.textAlign = 'right';
+            ctx.fillText(txt, X(zeroX) - 4, Y(0) + 13);
+        }
+        dot(c.f / 4, '#90a4ae', '¼', 3.5);
+        dot(c.f / 2, '#ce93d8', '½ K', 5);
+        dot(c.f, '#64b5f6', 'Full K', 5);
+
+        // You now
+        if (c.youX != null && c.youX >= 0) {
+            const over = c.youX > xMax;
+            const px = X(Math.min(c.youX, xMax));
+            ctx.strokeStyle = 'rgba(249,200,70,0.95)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath(); ctx.moveTo(px, T - 4); ctx.lineTo(px, H - B); ctx.stroke();
+            ctx.setLineDash([]);
+            label(over ? 'You ▸' : 'You', px, T - 8, '#f9c846');
         }
 
-        // --- Shorts profitability ---
-        const sides = stats.sideBreakdown || {};
-        if (sides.sell && sides.sell.total >= 10) {
-            const s = sides.sell;
-            if (s.pnl < 0) {
-                insights.push(row('warn', '\u2935',
-                    `<strong>Shorts are net negative:</strong>` +
-                    ` <span class="num-bad">`+
-                    `-$${Math.abs(s.pnl).toFixed(2)}</span>` +
-                    ` on ${s.total} trades (${s.winRate} WR).` +
-                    ` All profit comes from buy side.`));
-            } else {
-                insights.push(row('good', '\u2935',
-                    `<strong>Shorts profitable:</strong>` +
-                    ` <span class="num-good">` +
-                    `+$${s.pnl.toFixed(2)}</span>` +
-                    ` on ${s.total} trades (${s.winRate} WR).`));
-            }
-        }
-
-        // --- Trend direction ---
-        const trend = stats.trend || {};
-        if (trend.direction) {
-            const pnl7 = trend.avg7d ? trend.avg7d.pnl : 0;
-            if (trend.direction === 'declining' && pnl7 < 0) {
-                insights.push(row('warn', '\uD83D\uDCC9',
-                    `<strong>Trend declining:</strong>` +
-                    ` last 7d P&L <span class="num-bad">` +
-                    `${pnl7 >= 0 ? '+' : ''}$${pnl7.toFixed(2)}</span>.` +
-                    ` Consider reducing position sizes.`));
-            } else if (trend.direction === 'improving') {
-                const pnl14 = trend.avg14d ? trend.avg14d.pnl : 0;
-                insights.push(row('good', '\uD83D\uDCC8',
-                    `<strong>Trend improving:</strong>` +
-                    ` 14d P&L <span class="num-good">` +
-                    `+$${pnl14.toFixed(2)}</span>.` +
-                    ` Strategy performing well.`));
-            }
-        }
-
-        // --- Streak info ---
-        const streak = stats.currentStreak || '0';
-        const streakNum = parseInt(streak);
-        if (streak.includes('W') && streakNum >= 10) {
-            insights.push(row('good', '\uD83D\uDD25',
-                `<strong>On fire:</strong>` +
-                ` <span class="num-good">${streakNum} wins</span>` +
-                ` in a row! Best ever:` +
-                ` ${stats.bestWinStreak || '?'}.`));
-        } else if (streak.includes('L') && streakNum >= 2) {
-            insights.push(row('bad', '\u2744',
-                `<strong>Cold streak:</strong>` +
-                ` <span class="num-bad">${streakNum} losses</span>` +
-                ` in a row. Consider pausing.`));
-        }
-
-        // --- Friday overtrading check ---
-        const friData = dow['Fri'];
-        if (friData && friData.total >= 20 && friData.losses >= 8) {
-            const pct = (friData.losses / friData.total * 100)
-                .toFixed(0);
-            insights.push(row('warn', '\uD83D\uDEA8',
-                `<strong>Friday overtrading:</strong>` +
-                ` ${friData.total} trades with` +
-                ` <span class="num-bad">${friData.losses}</span>` +
-                ` losses (${pct}% loss rate).` +
-                ` Consider a daily cap.`));
-        }
-
-        if (insights.length === 0) {
-            insights.push(row('info', '\u2139',
-                'Not enough data yet for insights.' +
-                ' Keep trading!'));
-        }
-
-        el.innerHTML = insights.join('');
+        // Bet-size axis
+        const step = xMax <= 0.12 ? 0.02 : xMax <= 0.3 ? 0.05 : xMax <= 0.6 ? 0.1 : 0.2;
+        ctx.font = '10px "Space Mono", monospace';
+        for (let x = 0; x <= xMax + 1e-9; x += step) label(Math.round(x * 100) + '%', X(x), H - 5, 'rgba(106,138,170,0.9)');
     }
 
-    function renderActionPlan(stats) {
-        const el = document.getElementById('actionPlanGrid');
-        if (!el) return;
-        const rules = [];
-        const rule = (cls, icon, html) =>
-            `<div class="insight-row ${cls}">` +
-            `<span class="insight-icon">${icon}</span>` +
-            `<span class="insight-text">${html}</span></div>`;
-
-        // 1. Loss/win ratio — the structural issue
-        const eff = stats.slTpEfficiency || {};
-        const avgW = eff.avgWinAmount || 0;
-        const avgL = eff.avgLossAmount || 0;
-        const wlRatio = eff.winLossRatio || 0;
-        if (avgL > 0 && wlRatio < 1) {
-            const multip = (avgL / avgW).toFixed(1);
-            const be = stats.breakevenWR || {};
-            const margin = be.margin || 0;
-            const severity = margin <= 3 ? 'bad'
-                : margin <= 5 ? 'warn' : 'info';
-            const lbl = margin <= 3 ? 'CRITICAL'
-                : margin <= 5 ? 'THIN' : 'WATCH';
-            rules.push(rule(severity, '\u26A0',
-                `<strong>Fix ${multip}x loss/win ratio`
-                + ` (${lbl}).</strong>`
-                + ` Only <span class="num-${severity === 'bad' ? 'bad' : 'warn'}">`
-                + `+${margin}pp</span> safety margin.`
-                + ` Half-TP captures tiny wins while`
-                + ` losses hit full SL.`
-                + ` Let high-conviction setups run`
-                + ` to full TP without half-exit.`));
-        }
-
-        // 2. Shorts rule — if shorts are net negative
-        const sides = stats.sideBreakdown || {};
-        if (sides.sell && sides.sell.total >= 10
-            && sides.sell.pnl < 0) {
-            rules.push(rule('warn', '\u274C',
-                `<strong>Stop taking shorts.</strong>`
-                + ` ${sides.sell.total} shorts at`
-                + ` ${sides.sell.winRate} WR but still`
-                + ` <span class="num-bad">`
-                + `-$${Math.abs(sides.sell.pnl).toFixed(2)}`
-                + `</span>.`
-                + ` All profit comes from longs.`));
-        }
-
-        // 3. RSI > 50 rule
-        const rsi = stats.rsiAnalysis || {};
-        if (rsi.overbought && rsi.overbought.total >= 3) {
-            const ob = rsi.overbought;
-            const wr = parseInt(ob.winRate);
-            if (wr < 80 || ob.pnl < 0) {
-                rules.push(rule('warn', '\u26D4',
-                    `<strong>Skip RSI > 50 entries.</strong>`
-                    + ` <span class="num-bad">`
-                    + `${ob.winRate}</span>`
-                    + ` WR, <span class="num-bad">`
-                    + `$${ob.pnl.toFixed(2)}</span> P&L.`
-                    + ` Wait for RSI pullback below 50.`));
-            }
-        }
-
-        // 4. Worst day rule — avoid or reduce
-        const dow = stats.dayOfWeekAnalysis || {};
-        const days = ['Mon','Tue','Wed','Thu','Fri',
-            'Sat','Sun'];
-        let worstDay = null;
-        days.forEach(d => {
-            const dd = dow[d];
-            if (!dd || dd.total < 5) return;
-            const wr = parseInt(dd.winRate);
-            if (!worstDay
-                || wr < parseInt(dow[worstDay].winRate))
-                worstDay = d;
-        });
-        if (worstDay && dow[worstDay] &&
-            parseInt(dow[worstDay].winRate) < 85) {
-            const wd = dow[worstDay];
-            const belowBE = stats.breakevenWR
-                && parseInt(wd.winRate)
-                < (stats.breakevenWR.breakevenWR || 0);
-            rules.push(rule(belowBE ? 'bad' : 'warn',
-                '\uD83D\uDCC5',
-                `<strong>${belowBE ? 'Avoid' : 'Be selective on'}`
-                + ` ${worstDay}s.</strong>`
-                + ` <span class="num-bad">${wd.winRate}</span>`
-                + ` WR, <span class="num-bad">`
-                + `$${wd.pnl.toFixed(2)}</span> P&L.`
-                + (belowBE
-                    ? ` Below breakeven threshold \u2014`
-                    + ` skip or A+ only.`
-                    : ` Only take A+ setups.`)));
-        }
-
-        // 5. Friday overtrading cap
-        const friData = dow['Fri'];
-        if (friData && friData.total >= 20
-            && friData.losses >= 8) {
-            rules.push(rule('warn', '\uD83D\uDEA8',
-                `<strong>Cap Friday trades.</strong>`
-                + ` ${friData.total} Friday trades with`
-                + ` <span class="num-bad">`
-                + `${friData.losses}</span>`
-                + ` losses. Limit to best setups only.`));
-        }
-
-        // 6. Weakest session — avoid if negative $/trade
-        const sess = stats.sessionAnalysis || {};
-        const sessNames = {
-            asian: 'Asian (0-8 UTC)',
-            europe: 'Europe (8-14)',
-            us: 'US (14-21)',
-            night: 'Night (21-0)'
-        };
-        let worstSess = null, worstPpt = Infinity;
-        let bestSess = null, bestPpt = -Infinity;
-        Object.keys(sessNames).forEach(s => {
-            const sd = sess[s];
-            if (!sd || sd.total < 5) return;
-            const ppt = sd.pnl / sd.total;
-            if (ppt < worstPpt) {
-                worstPpt = ppt; worstSess = s;
-            }
-            if (ppt > bestPpt) {
-                bestPpt = ppt; bestSess = s;
-            }
-        });
-        if (worstSess && sess[worstSess]
-            && worstPpt < 0
-            && worstSess !== bestSess) {
-            const ws = sess[worstSess];
-            rules.push(rule('warn', '\u23F0',
-                `<strong>Reduce `
-                + `${sessNames[worstSess]} trades.</strong>`
-                + ` <span class="num-bad">`
-                + `$${(ws.pnl/ws.total).toFixed(3)}</span>`
-                + `/trade on ${ws.total} trades.`
-                + ` High volume, negative edge.`));
-        }
-
-        // 7. Rhythm Filter reminder (always show)
-        rules.push(rule('info', '\uD83C\uDF0A',
-            `<strong>Check Rhythm Filter.</strong>`
-            + ` INHALE (score > 5) \u2192 take buys.`
-            + ` EXHALE (score < -5) \u2192 sells only.`
-            + ` BETWEEN \u2192 skip.`
-            + ` Sweet spot for buys: score 2-4.`));
-
-        // 8. Best session to focus on
-        if (bestSess && sess[bestSess] && bestPpt > 0) {
-            const bs = sess[bestSess];
-            rules.push(rule('good', '\u2705',
-                `<strong>Focus on `
-                + `${sessNames[bestSess]}.</strong>`
-                + ` <span class="num-good">`
-                + `${bs.winRate}</span>`
-                + ` WR, <span class="num-good">`
-                + `$${(bs.pnl/bs.total).toFixed(3)}`
-                + `</span>/trade.`
-                + ` Your most profitable window.`));
-        }
-
-        if (rules.length === 0) {
-            rules.push(rule('good', '\u2714',
-                'All clear \u2014 no red flags.' +
-                ' Keep executing the system.'));
-        }
-
-        el.innerHTML = rules.join('');
+    function describeKelly(px, width) {
+        const c = kellyChart;
+        if (!c || !c.geo) return '';
+        const x = (px - c.geo.L) / (width - c.geo.L - c.geo.R) * c.geo.xMax;
+        if (x < 0 || x > c.geo.xMax) return '';
+        const g = kellyGrowth(x, c.wr, c.b) / kellyGrowth(c.f, c.wr, c.b);
+        const kMult = x / c.f;
+        const growth = g >= 0
+            ? `<span style="color:var(--green-bright)">${(g * 100).toFixed(0)}%</span> of max growth`
+            : `<span style="color:var(--red-bright)">shrinks</span> the bankroll`;
+        return `<div style="color:#ce93d8;font-weight:700">Risk ${fmtPct(x)} of bankroll</div>`
+            + `<div>${kMult < 0.995 || kMult > 1.005 ? kMult.toFixed(2) + '× Kelly' : 'Full Kelly'} → ${growth}</div>`
+            + (c.bankroll > 0 ? `<div class="rk-dim">budget ${fmtUsd(c.bankroll * x, 0)}</div>` : '');
     }
 
     // ====== TICKER GRID ======
@@ -6381,565 +6062,217 @@ const BACKTEST = {
     document.getElementById('zenCapybara').addEventListener('click', showZenWisdom);
 
     // ====== MONTE CARLO STRESS TEST ======
+    let mcChart = null;
     function renderMonteCarlo(stats) {
         const box = document.getElementById('mcBox');
         if (!box) return;
-
-        const wins = parseInt(stats.wins) || 0;
-        const losses = parseInt(stats.losses) || 0;
-        const total = wins + losses;
-        if (total < 20) {
-            box.innerHTML = '<div style="text-align:center;color:var(--text-dim);font-size:0.7rem;padding:0.5rem">Need 20+ completed trades for Monte Carlo</div>';
+        const k = kellyMath(stats);
+        const sim = k.total >= 20 ? riskSim(stats) : null;
+        if (!sim) {
+            mcChart = null;
+            box.innerHTML = '<div class="rk-empty">Need 20+ finished trades for Monte Carlo</div>';
             return;
         }
 
-        const gw = parseFloat(stats.grossWin) || 0;
-        const gl = Math.abs(parseFloat(stats.grossLoss) || 0);
-        const wr = wins / total;
-        const avgWin = wins > 0 ? gw / wins : 0;
-        const avgLoss = losses > 0 ? gl / losses : 0;
-        const totalPnl = gw - gl;
-        const ev = avgWin * wr - avgLoss * (1 - wr);
-        const pf = gl > 0 ? gw / gl : Infinity;
+        const conf = sim.edgeConf;
+        const tier = conf >= 0.975 ? ['good', 'EDGE IS REAL']
+            : conf >= 0.9 ? ['ok', 'EDGE LIKELY REAL']
+            : conf >= 0.75 ? ['warn', 'MAYBE AN EDGE']
+            : ['bad', 'EDGE NOT PROVEN'];
+        const confTxt = conf > 0.995 ? '>99%' : Math.round(conf * 100) + '%';
 
-        // Confidence tier based on sample size
-        const confLabel = total < 50 ? 'LOW'
-            : total < 100 ? 'PRELIMINARY'
-            : total < 250 ? 'REASONABLE' : 'GOOD';
-        const confColor = total < 50 ? 'var(--red-bright)'
-            : total < 100 ? '#ffab40'
-            : total < 250 ? '#64b5f6' : 'var(--green-bright)';
-
-        // --- Run MC simulation (5000 sims) ---
-        // Bernoulli model: each trade = avgWin or -avgLoss
-        // This simulates future trade sequences, NOT
-        // shuffling actual trades (would need individual PnLs)
-        const N = 5000;
-        const maxDDs = [];
-        const maxStreaks = [];
-        const underwaterDurs = [];
-        const sampleCurves = [];
-        let worstDD = 0, worstStreak = 0, worstUW = 0;
-
-        for (let sim = 0; sim < N; sim++) {
-            const seq = [];
-            for (let i = 0; i < total; i++) {
-                seq.push(Math.random() < wr
-                    ? avgWin : -avgLoss);
+        // Your real path against the alternate histories
+        let callout = '';
+        const a = sim.actual;
+        if (a) {
+            const r = a.ddRank;
+            const odds = r >= 0.999 ? 'rarer than 1-in-1000' : `about a 1-in-${Math.max(2, Math.round(1 / (1 - r)))}`;
+            if (r >= 0.9) {
+                callout = `<div class="mc-callout unlucky">Your real worst drawdown (<b>${fmtUsd(a.maxDD)}</b>) was deeper than <b>${Math.round(r * 100)}%</b> of the histories: ${odds} rough patch. It can happen again, so size for it.</div>`;
+            } else if (r <= 0.25) {
+                callout = `<div class="mc-callout lucky">Your real worst drawdown (<b>${fmtUsd(a.maxDD)}</b>) was shallower than <b>${Math.round((1 - r) * 100)}%</b> of the histories. You've been lucky so far; expect a deeper one at some point.</div>`;
+            } else {
+                callout = `<div class="mc-callout typical">Your real worst drawdown (<b>${fmtUsd(a.maxDD)}</b>) is normal for this system: deeper than ${Math.round(r * 100)}% of the histories, shallower than the rest.</div>`;
             }
-
-            let equity = 0, peak = 0, maxDD = 0;
-            let streak = 0, maxStr = 0;
-            let uw = 0, maxUW = 0;
-            const curve = sim < 30 ? [0] : null;
-
-            for (let i = 0; i < seq.length; i++) {
-                equity += seq[i];
-                if (curve) curve.push(equity);
-                if (equity > peak) peak = equity;
-                const dd = peak - equity;
-                if (dd > maxDD) maxDD = dd;
-                if (dd > 0) {
-                    uw++;
-                    if (uw > maxUW) maxUW = uw;
-                } else { uw = 0; }
-                if (seq[i] < 0) {
-                    streak++;
-                    if (streak > maxStr) maxStr = streak;
-                } else { streak = 0; }
-            }
-
-            maxDDs.push(maxDD);
-            maxStreaks.push(maxStr);
-            underwaterDurs.push(maxUW);
-            if (curve) sampleCurves.push(curve);
-            if (maxDD > worstDD) worstDD = maxDD;
-            if (maxStr > worstStreak) worstStreak = maxStr;
-            if (maxUW > worstUW) worstUW = maxUW;
         }
 
-        // Forward projections: 50, 100, 250, 500 trades
-        const projections = [50, 100, 250, 500];
-        const projFixed = {};
-        const PSIMS = 2000;
-        for (const horizon of projections) {
-            const terms = [];
-            for (let sim = 0; sim < PSIMS; sim++) {
-                let eq = 0;
-                for (let i = 0; i < horizon; i++) {
-                    eq += Math.random() < wr
-                        ? avgWin : -avgLoss;
-                }
-                terms.push(eq);
-            }
-            terms.sort((a, b) => a - b);
-            projFixed[horizon] = {
-                p5: terms[Math.floor(terms.length * 0.05)],
-                med: terms[Math.floor(terms.length * 0.5)],
-                p95: terms[Math.floor(terms.length * 0.95)],
-            };
-        }
+        const youCell = (v, bad, fmt) => a ? `<td style="color:${v > bad ? 'var(--red-bright)' : '#f9c846'}">${fmt(v)}</td>` : '<td class="rk-dim">-</td>';
+        const expectRows = `
+            <tr><th></th><th>Typical</th><th>Bad <span style="text-transform:none">(1 in 20)</span></th><th style="color:#f9c846">You (real)</th></tr>
+            <tr><td>Deepest drawdown</td><td>${fmtUsd(sim.dd.p50)}</td><td style="color:#ffab40">${fmtUsd(sim.dd.p95)}</td>${youCell(a && a.maxDD, sim.dd.p95, v => fmtUsd(v))}</tr>
+            <tr><td>Longest losing streak</td><td>${sim.streak.p50}</td><td style="color:#ffab40">${sim.streak.p95}</td>${youCell(a && a.maxStreak, sim.streak.p95, v => v)}</tr>
+            <tr><td>Trades under water</td><td>${sim.uw.p50}</td><td style="color:#ffab40">${sim.uw.p95}</td>${youCell(a && a.maxUW, sim.uw.p95, v => v)}</tr>`;
 
-        maxDDs.sort((a, b) => a - b);
-        maxStreaks.sort((a, b) => a - b);
-        underwaterDurs.sort((a, b) => a - b);
+        const fwdRows = sim.horizons.map(h => `
+            <tr>
+                <td>${h.h}</td>
+                <td style="color:${h.p5 >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'}">${fmtSigned(h.p5)}</td>
+                <td style="font-weight:700">${fmtSigned(h.p50)}</td>
+                <td style="color:#64b5f6">${fmtSigned(h.p95)}</td>
+                <td style="color:${h.red > 0.2 ? 'var(--red-bright)' : h.red > 0.05 ? '#ffab40' : 'var(--green-bright)'}">${h.red < 0.005 ? '<1%' : Math.round(h.red * 100) + '%'}</td>
+            </tr>`).join('');
 
-        const pct = (arr, p) => arr[Math.floor(
-            arr.length * p / 100)];
-        const medDD = pct(maxDDs, 50);
-        const p95DD = pct(maxDDs, 95);
-        const p99DD = pct(maxDDs, 99);
-        const medStreak = pct(maxStreaks, 50);
-        const p95Streak = pct(maxStreaks, 95);
-        const medUW = pct(underwaterDurs, 50);
+        const how = sim.real
+            ? `Built by reshuffling your ${sim.n} real trades in runs of ${sim.block} in a row.`
+              + (sim.rho > 0.1 && sim.iidDD95 != null
+                  ? ` Your results are streaky (back-to-back correlation ${sim.rho.toFixed(2)}): when crypto dumps, several trades stop out together. Shuffling one trade at a time would have put the bad-case drawdown at only ${fmtUsd(sim.iidDD95)}.`
+                  : '')
+            : 'No per-trade history came back from the sheet, so this uses your average win and average loss. That hides losing streaks, so real drawdowns can be deeper.';
 
-        // --- Win rate significance test ---
-        let edgeBeat = 0;
-        const EDGE_SIMS = 10000;
-        for (let i = 0; i < EDGE_SIMS; i++) {
-            let rWins = 0;
-            for (let j = 0; j < total; j++) {
-                if (Math.random() < 0.5) rWins++;
-            }
-            if (rWins / total >= wr) edgeBeat++;
-        }
-        const pValue = edgeBeat / EDGE_SIMS;
-        const edgeColor = pValue < 0.01
-            ? 'var(--green-bright)' : pValue < 0.05
-            ? '#ffab40' : 'var(--red-bright)';
-        const edgeBg = pValue < 0.01
-            ? 'rgba(102,187,106,0.15)' : pValue < 0.05
-            ? 'rgba(255,171,64,0.15)'
-            : 'rgba(255,107,107,0.15)';
-        const edgeLabel = pValue < 0.01
-            ? 'SIGNIFICANT' : pValue < 0.05
-            ? 'SUGGESTIVE' : 'NOT PROVEN';
-
-        // --- Drawdown probability (percentile-based) ---
-        const ddProbs = [
-            { label: '50th', p: 50, color: '#64b5f6' },
-            { label: '75th', p: 75, color: '#ffab40' },
-            { label: '90th', p: 90, color: '#ef9a9a' },
-            { label: '95th', p: 95, color: 'var(--red-bright)' },
-        ].map(d => ({
-            ...d,
-            val: pct(maxDDs, d.p)
-        }));
-        const maxDDVal = ddProbs[ddProbs.length - 1].val || 1;
-
-        // --- Render ---
         box.innerHTML = `
-            <div style="font-size:0.55rem;color:var(--text-dim);
-                margin-bottom:0.6rem;text-align:center">
-                ${N.toLocaleString()} sims &middot;
-                ${total} trades &middot;
-                ${(wr*100).toFixed(1)}% WR &middot;
-                PF ${pf === Infinity ? '∞' : pf.toFixed(2)}
-                &middot; Confidence:
-                <span style="color:${confColor};
-                    font-weight:700">${confLabel}</span>
-                (${total} trades)
-            </div>
-
-            <div style="font-size:0.6rem;color:#64b5f6;
-                font-weight:700;margin-bottom:0.4rem;
-                text-transform:uppercase;
-                letter-spacing:1px">
-                Win Rate Significance</div>
-            <div style="text-align:center;margin-bottom:0.6rem">
-                <span class="mc-edge-badge"
-                    style="background:${edgeBg};
-                    color:${edgeColor};
-                    border:1px solid ${edgeColor}">
-                    ${edgeLabel} &mdash;
-                    p=${pValue < 0.001
-                        ? '<0.001' : pValue.toFixed(3)}
-                </span>
-                <div style="font-size:0.5rem;
-                    color:var(--text-dim);margin-top:0.3rem">
-                    ${pValue < 0.01
-                        ? 'Your ' + (wr*100).toFixed(0) + '% win rate over ' + total + ' trades is statistically significant vs random (50/50).'
-                        : pValue < 0.05
-                        ? 'Suggestive but not conclusive. More trades needed.'
-                        : 'Cannot distinguish from random yet.'}
-                    ${pValue < 0.01 && pf >= 1.5
-                        ? ' Profit factor ' + pf.toFixed(2) + ' confirms profitability.'
-                        : pValue < 0.01 && pf < 1.5
-                        ? ' But profit factor ' + pf.toFixed(2) + ' is thin — win rate alone doesn\'t guarantee profitability.'
-                        : ''}
+            <div class="mc-hero ${tier[0]}">
+                <div class="rk-big">${confTxt}</div>
+                <div>
+                    <span class="rk-chip ${tier[0]}">${tier[1]}</span>
+                    <div class="rk-p">of ${sim.sims.toLocaleString()} alternate histories built from your ${sim.n} trades still finish in profit. Win rate <b>${fmtPct(k.wr)}</b> vs <b>${fmtPct(k.breakeven)}</b> needed to break even.</div>
                 </div>
             </div>
 
-            <div style="font-size:0.6rem;color:#64b5f6;
-                font-weight:700;margin-bottom:0.4rem;
-                text-transform:uppercase;
-                letter-spacing:1px">
-                Forward P&L Projection</div>
-            <div style="font-size:0.5rem;
-                color:var(--text-dim);
-                margin-bottom:0.4rem">
-                At current fixed sizing
-                ($${ev.toFixed(3)}/trade expectancy):</div>
-            <table style="width:100%;
-                border-collapse:collapse;
-                font-size:0.6rem;
-                margin-bottom:0.8rem">
-                <tr style="color:var(--text-dim);
-                    border-bottom:1px solid var(--border)">
-                    <th style="text-align:left;
-                        padding:0.25rem 0.4rem;
-                        font-weight:600">Trades</th>
-                    <th style="text-align:right;
-                        padding:0.25rem 0.4rem;
-                        font-weight:600;
-                        color:var(--red-bright)">
-                        Bad (5th)</th>
-                    <th style="text-align:right;
-                        padding:0.25rem 0.4rem;
-                        font-weight:600;
-                        color:var(--green-bright)">
-                        Expected</th>
-                    <th style="text-align:right;
-                        padding:0.25rem 0.4rem;
-                        font-weight:600;
-                        color:#64b5f6">
-                        Good (95th)</th>
-                </tr>
-                ${projections.map(h => {
-                    const r = projFixed[h];
-                    const fmt = v => (v >= 0 ? '+' : '')
-                        + '$' + v.toFixed(2);
-                    return '<tr style="border-bottom:'
-                        + '1px solid rgba(255,255,255,0.05)">'
-                        + '<td style="padding:0.25rem 0.4rem;'
-                        + 'font-weight:700;'
-                        + 'font-family:Space Mono,monospace">'
-                        + 'Next ' + h + '</td>'
-                        + '<td style="text-align:right;'
-                        + 'padding:0.25rem 0.4rem;'
-                        + 'color:' + (r.p5 >= 0
-                            ? 'var(--green-bright)'
-                            : 'var(--red-bright)')
-                        + ';font-family:Space Mono,monospace">'
-                        + fmt(r.p5) + '</td>'
-                        + '<td style="text-align:right;'
-                        + 'padding:0.25rem 0.4rem;'
-                        + 'color:var(--green-bright);'
-                        + 'font-weight:700;'
-                        + 'font-family:Space Mono,monospace">'
-                        + fmt(r.med) + '</td>'
-                        + '<td style="text-align:right;'
-                        + 'padding:0.25rem 0.4rem;'
-                        + 'color:#64b5f6;'
-                        + 'font-family:Space Mono,monospace">'
-                        + fmt(r.p95) + '</td>'
-                        + '</tr>';
-                }).join('')}
-            </table>
+            <div class="rk-h">You vs ${sim.sims.toLocaleString()} alternate histories <span class="rk-dim">— tap or hover</span></div>
+            <div class="rk-canvas mc" id="mcWrap"><canvas id="mcCanvas"></canvas><div class="rk-tip" id="mcTip"></div></div>
+            <div class="rk-legend">
+                <span><i style="background:rgba(100,181,246,0.22)"></i>90% of histories</span>
+                <span><i style="background:rgba(100,181,246,0.5)"></i>middle half</span>
+                <span><i class="line" style="background:#e8f0f8"></i>median</span>
+                ${sim.real ? '<span><i class="line" style="background:#f9c846"></i>you</span>' : ''}
+                <span><i class="line" style="background:repeating-linear-gradient(90deg,rgba(255,255,255,0.5) 0 3px,transparent 3px 6px)"></i>$0</span>
+            </div>
+            ${callout}
 
-            <div style="font-size:0.6rem;color:#64b5f6;
-                font-weight:700;margin-bottom:0.4rem;
-                text-transform:uppercase;
-                letter-spacing:1px">
-                Projected Drawdowns</div>
-            <div class="mc-grid">
-                <div class="mc-stat">
-                    <div class="mval"
-                        style="color:#64b5f6">
-                        $${medDD.toFixed(2)}</div>
-                    <div class="mlbl">Expected DD</div>
-                    <div style="font-size:0.45rem;
-                        color:var(--green-bright);
-                        margin-top:2px">
-                        ✓ Normal</div>
-                </div>
-                <div class="mc-stat">
-                    <div class="mval"
-                        style="color:#ffab40">
-                        $${p95DD.toFixed(2)}</div>
-                    <div class="mlbl">1-in-20 DD</div>
-                    <div style="font-size:0.45rem;
-                        color:#ffab40;
-                        margin-top:2px">
-                        ⚠ Watch closely</div>
-                </div>
-                <div class="mc-stat">
-                    <div class="mval"
-                        style="color:var(--red-bright)">
-                        $${p99DD.toFixed(2)}</div>
-                    <div class="mlbl">1-in-100 DD</div>
-                    <div style="font-size:0.45rem;
-                        color:var(--red-bright);
-                        margin-top:2px">
-                        ✗ Investigate</div>
-                </div>
+            <div class="rk-card">
+                <div class="rk-h">What a run of ${sim.n} trades can look like</div>
+                <table class="rk-table">${expectRows}</table>
             </div>
 
-            <div class="mc-grid">
-                <div class="mc-stat">
-                    <div class="mval"
-                        style="color:var(--text-bright)">
-                        ${medStreak}</div>
-                    <div class="mlbl">Typical Streak</div>
-                    <div style="font-size:0.45rem;
-                        color:var(--green-bright);
-                        margin-top:2px">
-                        ✓ Don't panic</div>
-                </div>
-                <div class="mc-stat">
-                    <div class="mval"
-                        style="color:#ffab40">
-                        ${p95Streak}</div>
-                    <div class="mlbl">
-                        Worst Streak (95th)</div>
-                    <div style="font-size:0.45rem;
-                        color:#ffab40;
-                        margin-top:2px">
-                        ⚠ Still normal</div>
-                </div>
-                <div class="mc-stat">
-                    <div class="mval"
-                        style="color:var(--text-bright)">
-                        ${medUW}</div>
-                    <div class="mlbl">
-                        Underwater (trades)</div>
-                    <div style="font-size:0.45rem;
-                        color:var(--text-dim);
-                        margin-top:2px">
-                        Time below peak</div>
-                </div>
+            <div class="rk-card">
+                <div class="rk-h">The next trades <span class="rk-dim">— P&L at the sizes you've traded</span></div>
+                <table class="rk-table">
+                    <tr><th>Next</th><th>Bad</th><th>Typical</th><th>Good</th><th>Chance red</th></tr>
+                    ${fwdRows}
+                </table>
+                <div class="rk-foot" style="text-align:left">Bad and good are the 1-in-20 ends. Your average win is ${fmtUsd(k.avgWin, 3)} and average loss ${fmtUsd(k.avgLoss, 3)}; bigger sizes scale every number here up.</div>
             </div>
 
-            <div style="font-size:0.6rem;color:#64b5f6;
-                font-weight:700;margin-bottom:0.4rem;
-                text-transform:uppercase;
-                letter-spacing:1px">
-                Drawdown Percentiles</div>
-            ${ddProbs.map(d => `
-                <div class="mc-bar-row">
-                    <div class="mc-bar-label">
-                        ${d.label}</div>
-                    <div class="mc-bar-track">
-                        <div class="mc-bar-fill"
-                            style="width:${Math.max(
-                                3, d.val / maxDDVal * 100
-                            )}%;background:${d.color}">
-                        </div>
-                    </div>
-                    <div class="mc-bar-val">
-                        $${d.val.toFixed(2)}</div>
-                </div>
-            `).join('')}
-
-            <div style="font-size:0.6rem;color:#64b5f6;
-                font-weight:700;margin:0.6rem 0 0.4rem;
-                text-transform:uppercase;
-                letter-spacing:1px">
-                Worst Simulation (of ${N.toLocaleString()})
-            </div>
-            <div style="font-size:0.6rem;
-                color:var(--text-dim);
-                text-align:center;margin-bottom:0.5rem">
-                DD: <span style="color:var(--red-bright);
-                    font-weight:700">
-                    $${worstDD.toFixed(2)}</span>
-                &nbsp;&middot;&nbsp;
-                Streak: <span style="color:var(--red-bright);
-                    font-weight:700">
-                    ${worstStreak}</span>
-                &nbsp;&middot;&nbsp;
-                Underwater: <span
-                    style="color:var(--red-bright);
-                    font-weight:700">
-                    ${worstUW} trades</span>
-            </div>
-
-            <div style="font-size:0.6rem;color:#64b5f6;
-                font-weight:700;margin:0.4rem 0;
-                text-transform:uppercase;
-                letter-spacing:1px">
-                Simulated Equity Paths
-                <span style="font-size:0.45rem;
-                    color:var(--text-dim);
-                    font-weight:400;
-                    text-transform:none;
-                    letter-spacing:0">
-                    — tap to explore</span></div>
-            <div class="mc-canvas-wrap" id="mcCanvasWrap">
-                <canvas id="mcCanvas"></canvas>
-                <div class="mc-crosshair" id="mcCrosshair">
-                </div>
-                <div class="mc-tooltip" id="mcTooltip">
-                </div>
-            </div>
-
-            <div style="font-size:0.5rem;
-                color:var(--text-dim);
-                text-align:center;margin-top:0.3rem">
-                Simulated future sequences based on your
-                ${(wr*100).toFixed(0)}% WR and
-                $${avgWin.toFixed(3)}/$${avgLoss.toFixed(3)}
-                avg win/loss.
-                Terminal PnL varies because each sim draws
-                wins/losses independently.
-            </div>
+            <div class="rk-foot">${how}</div>
         `;
 
-        // --- Draw equity curves on canvas ---
+        mcChart = sim;
+        drawMcChart();
+        attachChartHover('mcWrap', 'mcTip', describeMc);
+    }
+
+    function drawMcChart() {
+        const c = mcChart;
         const canvas = document.getElementById('mcCanvas');
-        if (canvas && sampleCurves.length > 0) {
-            const dpr = window.devicePixelRatio || 1;
-            const rect = canvas.parentElement
-                .getBoundingClientRect();
-            canvas.width = rect.width * dpr;
-            canvas.height = rect.height * dpr;
-            const ctx = canvas.getContext('2d');
-            ctx.scale(dpr, dpr);
-            const W = rect.width;
-            const H = rect.height;
+        if (!c || !canvas) return;
+        const cv = setupCanvas(canvas);
+        if (!cv) return;
+        const { ctx, W, H } = cv;
+        const n = c.n, b = c.bands, idx = c.bandIdx;
 
-            let gMin = Infinity, gMax = -Infinity;
-            for (const c of sampleCurves) {
-                for (const v of c) {
-                    if (v < gMin) gMin = v;
-                    if (v > gMax) gMax = v;
-                }
-            }
-            const range = gMax - gMin || 1;
-            const pad = 4;
+        let lo = Math.min(0, ...b.p5), hi = Math.max(0, ...b.p95);
+        if (c.actualCurve) for (const v of c.actualCurve) { if (v < lo) lo = v; if (v > hi) hi = v; }
+        const padV = (hi - lo) * 0.08 || 1;
+        lo -= padV; hi += padV;
+        const L = 8, R = 64, T = 8, B = 18;
+        const X = i => L + (i / n) * (W - L - R);
+        const Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
+        c.geo = { L, R };
 
-            for (let ci = 0; ci < sampleCurves.length;
-                ci++) {
-                const c = sampleCurves[ci];
-                const steps = c.length;
-                ctx.beginPath();
-                ctx.strokeStyle = ci === 0
-                    ? 'rgba(100,181,246,0.8)'
-                    : 'rgba(100,181,246,0.12)';
-                ctx.lineWidth = ci === 0 ? 1.5 : 0.7;
-                for (let i = 0; i < steps; i++) {
-                    const x = pad + (i / (steps - 1))
-                        * (W - 2 * pad);
-                    const y = H - pad
-                        - ((c[i] - gMin) / range)
-                        * (H - 2 * pad);
-                    if (i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                }
-                ctx.stroke();
-            }
-
-            const zeroY = H - pad
-                - ((0 - gMin) / range)
-                * (H - 2 * pad);
+        const band = (top, bot, style) => {
             ctx.beginPath();
-            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-            ctx.setLineDash([4, 4]);
-            ctx.moveTo(pad, zeroY);
-            ctx.lineTo(W - pad, zeroY);
+            for (let j = 0; j < idx.length; j++) ctx[j ? 'lineTo' : 'moveTo'](X(idx[j]), Y(top[j]));
+            for (let j = idx.length - 1; j >= 0; j--) ctx.lineTo(X(idx[j]), Y(bot[j]));
+            ctx.closePath();
+            ctx.fillStyle = style;
+            ctx.fill();
+        };
+        band(b.p95, b.p5, 'rgba(100,181,246,0.14)');
+        band(b.p75, b.p25, 'rgba(100,181,246,0.26)');
+
+        // A few single histories, for texture
+        ctx.save();
+        ctx.beginPath(); ctx.rect(L, T, W - L - R, H - T - B); ctx.clip();
+        ctx.lineWidth = 0.8;
+        ctx.strokeStyle = 'rgba(170,205,255,0.13)';
+        const stride = Math.max(1, Math.floor(n / 300));
+        for (const s of c.samples) {
+            ctx.beginPath();
+            for (let i = 0; i <= n; i += stride) ctx[i ? 'lineTo' : 'moveTo'](X(i), Y(s[i]));
             ctx.stroke();
-            ctx.setLineDash([]);
-
-            // --- Interactive crosshair ---
-            const wrap = document.getElementById(
-                'mcCanvasWrap');
-            const tip = document.getElementById(
-                'mcTooltip');
-            const cross = document.getElementById(
-                'mcCrosshair');
-            const curves = sampleCurves;
-            const nSteps = curves[0].length;
-
-            function showAt(clientX) {
-                const br = wrap.getBoundingClientRect();
-                const x = clientX - br.left;
-                const pct = Math.max(0, Math.min(1,
-                    (x - pad) / (br.width - 2 * pad)));
-                const idx = Math.round(
-                    pct * (nSteps - 1));
-                if (idx < 0 || idx >= nSteps) {
-                    tip.style.display = 'none';
-                    cross.style.display = 'none';
-                    return;
-                }
-
-                // Get all curve values at this index
-                const vals = curves.map(c => c[idx]);
-                vals.sort((a, b) => a - b);
-                const lo = vals[0];
-                const hi = vals[vals.length - 1];
-                const med = vals[
-                    Math.floor(vals.length / 2)];
-                const p5 = vals[
-                    Math.floor(vals.length * 0.05)];
-                const p95 = vals[
-                    Math.floor(vals.length * 0.95)];
-
-                const fmt = v => (v >= 0 ? '+' : '')
-                    + '$' + v.toFixed(2);
-
-                tip.innerHTML =
-                    '<div style="color:#64b5f6;'
-                    + 'font-weight:700;'
-                    + 'margin-bottom:2px">'
-                    + 'Trade ' + idx
-                    + ' / ' + (nSteps - 1) + '</div>'
-                    + '<div>Best:&nbsp;&nbsp;&nbsp;'
-                    + '<span style="color:#64b5f6">'
-                    + fmt(hi) + '</span></div>'
-                    + '<div>95th:&nbsp;&nbsp;&nbsp;'
-                    + '<span style="color:var(--green-bright)">'
-                    + fmt(p95) + '</span></div>'
-                    + '<div>Median:&nbsp;'
-                    + '<span style="color:var(--text-bright);'
-                    + 'font-weight:700">'
-                    + fmt(med) + '</span></div>'
-                    + '<div>5th:&nbsp;&nbsp;&nbsp;&nbsp;'
-                    + '<span style="color:#ffab40">'
-                    + fmt(p5) + '</span></div>'
-                    + '<div>Worst:&nbsp;&nbsp;'
-                    + '<span style="color:var(--red-bright)">'
-                    + fmt(lo) + '</span></div>';
-
-                cross.style.display = 'block';
-                cross.style.left = x + 'px';
-                tip.style.display = 'block';
-                // Position tooltip
-                const tipW = tip.offsetWidth || 120;
-                if (x + tipW + 10 > br.width) {
-                    tip.style.left = (x - tipW - 8) + 'px';
-                } else {
-                    tip.style.left = (x + 8) + 'px';
-                }
-                tip.style.top = '8px';
-            }
-
-            function hideTooltip() {
-                tip.style.display = 'none';
-                cross.style.display = 'none';
-            }
-
-            canvas.addEventListener('mousemove', e => {
-                showAt(e.clientX);
-            });
-            canvas.addEventListener('mouseleave', () => {
-                hideTooltip();
-            });
-            canvas.addEventListener('touchmove', e => {
-                e.preventDefault();
-                if (e.touches.length > 0) {
-                    showAt(e.touches[0].clientX);
-                }
-            }, { passive: false });
-            canvas.addEventListener('touchstart', e => {
-                if (e.touches.length > 0) {
-                    showAt(e.touches[0].clientX);
-                }
-            });
-            canvas.addEventListener('touchend', () => {
-                hideTooltip();
-            });
         }
+        ctx.restore();
+
+        // Break-even line
+        ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(L, Y(0)); ctx.lineTo(W - R, Y(0)); ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Median
+        ctx.strokeStyle = 'rgba(232,240,248,0.85)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let j = 0; j < idx.length; j++) ctx[j ? 'lineTo' : 'moveTo'](X(idx[j]), Y(b.p50[j]));
+        ctx.stroke();
+
+        // You
+        if (c.actualCurve) {
+            ctx.strokeStyle = '#f9c846';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = 'rgba(249,200,70,0.7)';
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            for (let i = 0; i <= n; i++) ctx[i ? 'lineTo' : 'moveTo'](X(i), Y(c.actualCurve[i]));
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+
+        // Where the histories end, labelled on the right (nudged apart so they don't overlap)
+        const last = idx.length - 1;
+        const ends = [
+            { v: b.p95[last], color: '#64b5f6' },
+            { v: b.p50[last], color: '#e8f0f8' },
+            { v: b.p5[last], color: '#64b5f6' },
+        ];
+        if (c.actualCurve) ends.push({ v: c.actualCurve[n], color: '#f9c846' });
+        ends.forEach(e => { e.y = Y(e.v); });
+        ends.sort((p, q) => p.y - q.y);
+        for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 12) ends[i].y = ends[i - 1].y + 12;
+        const over = ends[ends.length - 1].y - (H - B);
+        if (over > 0) ends.forEach(e => { e.y -= over; });
+        ctx.font = '600 10px "Space Mono", monospace';
+        ctx.textAlign = 'left';
+        for (const e of ends) {
+            ctx.fillStyle = e.color;
+            ctx.fillText(fmtSigned(e.v, Math.abs(e.v) >= 100 ? 0 : 2), W - R + 5, e.y + 3.5);
+        }
+
+        // Trade-count axis
+        ctx.font = '10px "Space Mono", monospace';
+        ctx.fillStyle = 'rgba(106,138,170,0.9)';
+        ctx.textAlign = 'left';
+        ctx.fillText('0', L, H - 5);
+        ctx.textAlign = 'center';
+        ctx.fillText(String(Math.round(n / 2)), X(n / 2), H - 5);
+        ctx.textAlign = 'right';
+        ctx.fillText(n + ' trades', W - R, H - 5);
+    }
+
+    function describeMc(px, width) {
+        const c = mcChart;
+        if (!c || !c.geo) return '';
+        const frac = (px - c.geo.L) / (width - c.geo.L - c.geo.R);
+        if (frac < 0 || frac > 1.02) return '';
+        const j = Math.max(0, Math.min(c.bandIdx.length - 1, Math.round(Math.min(1, frac) * (c.bandIdx.length - 1))));
+        const i = c.bandIdx[j];
+        const b = c.bands;
+        return `<div style="color:#64b5f6;font-weight:700">Trade ${i} of ${c.n}</div>`
+            + (c.actualCurve ? `<div>You: <span style="color:#f9c846;font-weight:700">${fmtSigned(c.actualCurve[i])}</span></div>` : '')
+            + `<div>Median: ${fmtSigned(b.p50[j])}</div>`
+            + `<div class="rk-dim">Middle half: ${fmtSigned(b.p25[j])} to ${fmtSigned(b.p75[j])}</div>`
+            + `<div class="rk-dim">90%: ${fmtSigned(b.p5[j])} to ${fmtSigned(b.p95[j])}</div>`;
     }
 
     // ====== POKEMON SCALING ======
@@ -7218,8 +6551,7 @@ const BACKTEST = {
         const _kellyBudget = Math.floor(activePnl * _halfKellyPct * 100) / 100; // cents, so small P&L moves show
         const _exposureBudget = Math.floor(activePnl * 0.25);
         const _avgBudget = Math.floor((_exposureBudget + _kellyBudget) * 50) / 100;
-        const _scoutSz = getScoutSize(activePnl);
-        const _totalSlots = 5 + (_scoutSz > 0 ? Math.min(85, Math.floor(activePnl * 0.15 / _scoutSz)) : 0);
+        const _totalSlots = kellySlotCount(activePnl);
         const kellySizes = [
             { label: 'Avg', amt: _totalSlots > 0 ? (_avgBudget / _totalSlots) : 0, cls: 'lead' },
             { label: 'K', amt: _totalSlots > 0 ? (_kellyBudget / _totalSlots) : 0, cls: 'lead' },
@@ -7355,10 +6687,10 @@ const BACKTEST = {
             html += `<div class="budget-row" style="font-size:1.15em;border-top:1px solid var(--border);padding-top:4px;margin-top:2px"><span style="font-weight:700;color:#ffb74d">⚡ Blended Avg</span><span style="font-weight:700;color:#ffb74d">$${avgBudget.toFixed(2)}</span></div>`;
             const qKelly = Math.floor(kellyBudget / 4);
             const qKellyPerTrade = totalSlots > 0 ? (qKelly / totalSlots).toFixed(2) : '0';
-            html += `<div class="budget-row" style="font-size:0.9em"><span style="color:#90a4ae">🐔 Quarter Kelly</span><span style="color:#90a4ae">$${qKelly} <span style="color:var(--text-dim)">(~$${qKellyPerTrade}/trade)</span></span></div>`;
+            html += `<div class="budget-row" style="font-size:0.9em"><span style="color:#90a4ae">🐔 ⅛ Kelly</span><span style="color:#90a4ae">$${qKelly} <span style="color:var(--text-dim)">(~$${qKellyPerTrade}/trade)</span></span></div>`;
             const eKelly = Math.floor(kellyBudget / 8);
             const eKellyPerTrade = totalSlots > 0 ? (eKelly / totalSlots).toFixed(2) : '0';
-            html += `<div class="budget-row" style="font-size:0.85em"><span style="color:#78909c">🎰 Eighth Kelly</span><span style="color:#78909c">$${eKelly} <span style="color:var(--text-dim)">(~$${eKellyPerTrade}/trade)</span></span></div>`;
+            html += `<div class="budget-row" style="font-size:0.85em"><span style="color:#78909c">🎰 1/16 Kelly</span><span style="color:#78909c">$${eKelly} <span style="color:var(--text-dim)">(~$${eKellyPerTrade}/trade)</span></span></div>`;
             html += `</div>`;
             html += `</div>`;
         }
