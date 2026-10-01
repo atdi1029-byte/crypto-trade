@@ -59,7 +59,7 @@ function fmtIsoDate_(d) {
 // ---------------------------------------------------------------
 var QUEUE = 'Queue';
 
-var SCRIPT_VERSION = 'v4-2026-09-17-pnl-curve';
+var SCRIPT_VERSION = 'v5-2026-10-01-trade-sizes';
 
 function doPost(e) {
   try {
@@ -1983,7 +1983,8 @@ function serveDashboardJSON_() {
         cumulative.push({
           date: fmtShortDate_(closeTs),          // kept for older dashboards
           iso: fmtIsoDate_(closeTs),             // full date — no year guessing on the client
-          pnl: Math.round(runningPnl * 100) / 100
+          pnl: Math.round(runningPnl * 100) / 100,
+          size: t.entrySize || 0                 // $ put into this trade (Monte Carlo works per $1 staked)
         });
         if (closeTs >= d30) { pnl30 += t.realizedPnl; cnt30++; }
         if (closeTs >= d14) { pnl14 += t.realizedPnl; cnt14++; }
@@ -2539,6 +2540,7 @@ function getAllCompletedTrades_(optPosData, optLogData, optStartDate) {
       closedAt:    closedAt instanceof Date ? closedAt : null,
       holdHours:   holdHours,
       touches:     touches ? Number(touches) : null,
+      entrySize:   Number(posData[j][14]) || 0,   // Column O = entry_size ($ put in), 0 if never filled in
       divergence:  divergence === true || divergence === 'true',
       dmi:         String(dmi || ''),
       cross:       cross !== '' && cross !== 'no' ? Number(cross) : null,

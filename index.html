@@ -1733,6 +1733,53 @@
         .mc-callout.typical { border-color: #64b5f6; background: rgba(100,181,246,0.08); }
         .mc-callout.unlucky { border-color: #ffab40; background: rgba(255,171,64,0.08); }
         .mc-callout b { color: var(--text-bright); font-family: 'Space Mono', monospace; }
+        .rk-canvas.roll { height: 120px; }
+        .mc-sizes {
+            display: flex;
+            gap: 0.4rem;
+            overflow-x: auto;
+            padding: 0.2rem 0.1rem 0.5rem;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        .mc-sizes::-webkit-scrollbar { display: none; }
+        .mc-size {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.28rem 0.65rem 0.28rem 0.35rem;
+            border-radius: 999px;
+            border: 1px solid var(--border-light);
+            background: var(--bg-dark);
+            color: var(--text);
+            font-family: 'Space Mono', monospace;
+            font-size: 0.68rem;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+        }
+        .mc-size .pokeball-svg { width: 20px; height: 20px; }
+        .mc-size b { color: var(--text-bright); }
+        .mc-size:hover { border-color: var(--accent); }
+        .mc-size.on {
+            border-color: #ce93d8;
+            background: rgba(206,147,216,0.16);
+            box-shadow: 0 0 10px rgba(206,147,216,0.35);
+        }
+        .mc-size.you.on {
+            border-color: #f9c846;
+            background: rgba(249,200,70,0.14);
+            box-shadow: 0 0 10px rgba(249,200,70,0.35);
+        }
+        .mc-you-dot {
+            width: 14px;
+            height: 14px;
+            margin: 0 3px;
+            border-radius: 50%;
+            background: #f9c846;
+            box-shadow: 0 0 8px #f9c846;
+        }
+        .mc-size-note { margin-bottom: 0.85rem; }
         @media (max-width: 768px) {
             .rk-hero { grid-template-columns: 1fr auto; }
             .rk-hero > .rk-chip { grid-column: 2; grid-row: 1; justify-self: end; align-self: start; }
@@ -1741,6 +1788,7 @@
             .rk-tiles { grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
             .rk-canvas { height: 175px; }
             .rk-canvas.mc { height: 210px; }
+            .rk-canvas.roll { height: 110px; }
             .rk-table { font-size: 0.68rem; }
             .rk-table th { font-size: 0.55rem; letter-spacing: 0.3px; padding: 0.3rem 0.2rem; }
             .rk-table td { padding: 0.36rem 0.2rem; }
@@ -4610,19 +4658,21 @@ const BACKTEST = {
         return dcaMode ? Math.round((pnl + dcaTotal) * 100) / 100 : pnl;
     }
 
-    // Real per-trade P&L in close order, rebuilt from the equity curve
-    function tradePnls(stats) {
+    // Real per-trade P&L in close order, rebuilt from the equity curve, plus the $ put
+    // into each trade (Positions column O; 0 when it was never filled in)
+    function tradeHistory(stats) {
         const cum = stats.trend && stats.trend.cumulative;
         if (!Array.isArray(cum) || cum.length < 2) return null;
-        const out = [];
+        const pnl = [], size = [];
         let prev = 0;
         for (const pt of cum) {
             const v = Number(pt.pnl);
             if (!isFinite(v)) return null;
-            out.push(Math.round((v - prev) * 100) / 100);
+            pnl.push(Math.round((v - prev) * 100) / 100);
+            size.push(Number(pt.size) || 0);
             prev = v;
         }
-        return out;
+        return { pnl, size };
     }
 
     // Seeded random (mulberry32), so the numbers don't jump around on every refresh
@@ -4667,20 +4717,40 @@ const BACKTEST = {
     // drawn in runs of `block` in a row, not one at a time: wins and losses come in
     // streaks (a market dump stops several trades out together), and drawing them
     // one by one breaks the streaks up and makes drawdowns look far too small.
+    // With entry sizes on the sheet it works per $1 staked (unit 'stake'), so the panel
+    // can show the results at any trade size; without them, in dollars as traded ('usd').
     let riskSimCache = { key: '', sim: null };
     function riskSim(stats) {
         const k = kellyMath(stats);
-        let trades = tradePnls(stats);
+        const hist = tradeHistory(stats);
+        let trades = hist ? hist.pnl : null, unit = 'usd', recentSize = 0, skipped = 0;
+        if (hist) {
+            // A return past ±300% of the stake means the size doesn't match the P&L
+            // (typo, or added to later), so those trades are left out like unsized ones
+            const ret = [], sz = [];
+            hist.pnl.forEach((p, i) => {
+                const sv = hist.size[i];
+                if (sv > 0 && Math.abs(p / sv) <= 3) { ret.push(p / sv); sz.push(sv); }
+            });
+            if (ret.length >= 40 && ret.length >= hist.pnl.length * 0.5) {
+                trades = ret;
+                unit = 'stake';
+                skipped = hist.pnl.length - ret.length;
+                const recent = sz.slice(-50).sort((x, y) => x - y);
+                recentSize = recent[Math.floor(recent.length / 2)];
+            }
+        }
         const real = !!(trades && trades.length >= 20);
         if (!real) {
             // No per-trade history from the API: fall back to average win / average loss
             trades = [];
+            unit = 'usd';
             for (let i = 0; i < k.wins; i++) trades.push(k.avgWin);
             for (let i = 0; i < k.losses; i++) trades.push(-k.avgLoss);
         }
         const n = trades.length;
         if (n < 20) return null;
-        const key = [n, k.wins, k.losses, stats.grossWin, stats.grossLoss, trades[n - 1], real].join('|');
+        const key = [n, unit, hist ? hist.pnl.length : 0, k.wins, k.losses, stats.grossWin, stats.grossLoss, trades[n - 1], real].join('|');
         if (riskSimCache.key === key) return riskSimCache.sim;
 
         const rand = seededRandom(hashStr(key));
@@ -4780,10 +4850,39 @@ const BACKTEST = {
             iidDD95 = pctOf(iid, 0.95);
         }
 
+        // 5) Kelly over time: Kelly of each run of W trades in a row, in dollars like the
+        //    pokeball budget (sizes inside one window are close enough not to matter)
+        let rolling = null;
+        if (hist && hist.pnl.length >= 40) {
+            const p = hist.pnl, N = p.length;
+            const W = N >= 150 ? 100 : Math.max(20, Math.floor(N / 2));
+            let w = 0, l = 0, sw = 0, sl = 0;
+            const add = (x, sgn) => {
+                if (x > 0) { w += sgn; sw += sgn * x; } else if (x < 0) { l += sgn; sl -= sgn * x; }
+            };
+            const end = [], kel = [], wr = [];
+            for (let i = 0; i < N; i++) {
+                add(p[i], 1);
+                if (i >= W) add(p[i - W], -1);
+                if (i < W - 1) continue;
+                const rate = w + l > 0 ? w / (w + l) : null;
+                let f = null;
+                if (w > 0 && l > 0) { const bb = (sw / w) / (sl / l); f = (bb * rate - (1 - rate)) / bb; }
+                else if (w > 0) f = 1;
+                else if (l > 0) f = -1;
+                end.push(i + 1); kel.push(f); wr.push(rate);
+            }
+            rolling = { W, end, kelly: kel, wr };
+        }
+        const wins = trades.filter(x => x > 0), losses = trades.filter(x => x < 0);
+
         // Kelly range: spread of Kelly across the histories, centred on the live Kelly
         const kMed = pctOf(kellys, 0.5);
         const sim = {
-            real, n, block, rho, iidDD95, sims: SIMS,
+            real, unit, recentSize, skipped, rolling, n, block, rho, iidDD95, sims: SIMS,
+            avgTrade: trades.reduce((x, y) => x + y, 0) / n,
+            avgWin: wins.length ? wins.reduce((x, y) => x + y, 0) / wins.length : 0,
+            avgLoss: losses.length ? -losses.reduce((x, y) => x + y, 0) / losses.length : 0,
             edgeConf: finals.filter(v => v > 0).length / SIMS,
             dd: { p50: pctOf(dds, 0.5), p95: pctOf(dds, 0.95) },
             uw: { p50: pctOf(uws, 0.5), p95: pctOf(uws, 0.95) },
@@ -4804,12 +4903,17 @@ const BACKTEST = {
         const open = c.style.display === 'none';
         c.style.display = open ? 'block' : 'none';
         header.querySelector('.toggle-arrow').textContent = open ? '▼' : '▶';
-        if (open) { drawKellyChart(); drawMcChart(); }
+        if (open) drawRiskCharts();
+    }
+    function drawRiskCharts() {
+        drawKellyChart();
+        drawKellyRoll();
+        drawMcChart();
     }
     let riskResizeT = null;
     window.addEventListener('resize', () => {
         clearTimeout(riskResizeT);
-        riskResizeT = setTimeout(() => { drawKellyChart(); drawMcChart(); }, 150);
+        riskResizeT = setTimeout(drawRiskCharts, 150);
     });
 
     function setupCanvas(canvas) {
@@ -4856,7 +4960,7 @@ const BACKTEST = {
     }
 
     // ====== KELLY EDGE OPTIMIZER ======
-    let kellyChart = null;
+    let kellyChart = null, kellyRollChart = null;
     function renderKelly(stats) {
         const box = document.getElementById('kellyBox');
         if (!box) return;
@@ -4929,6 +5033,23 @@ const BACKTEST = {
                 ${youOnBar ? `<div class="rk-range-mark" title="You" style="left:${rPos(youX)}%;background:#f9c846;box-shadow:0 0 8px #f9c846"></div>` : ''}
             </div>
             <div class="rk-range-lbl"><span>0%</span><span>${fmtPct(rMax, 0)}</span></div>` : '';
+
+        // Kelly over time: last window vs the one before, and the weakest stretch
+        const roll = sim && sim.rolling;
+        let rollNote = '';
+        if (roll && roll.kelly.length > 1) {
+            const kv = roll.kelly, last = kv[kv.length - 1];
+            const prev = kv.length - 1 - roll.W >= 0 ? kv[kv.length - 1 - roll.W] : null;
+            let lowI = -1;
+            kv.forEach((v, i) => { if (v != null && (lowI < 0 || v < kv[lowI])) lowI = i; });
+            const kTxt = v => v == null ? '-' : fmtPct(v, 0);
+            const mood = last == null ? 'compared with'
+                : last > k.f + 0.1 ? 'running <b style="color:var(--green-bright)">hotter</b> than'
+                : last < k.f - 0.1 ? 'running <b style="color:#ffab40">colder</b> than'
+                : 'in line with';
+            rollNote = `Last ${roll.W} trades: Kelly <b>${kTxt(last)}</b>${prev != null ? `, vs <b>${kTxt(prev)}</b> the ${roll.W} before` : ''}, ${mood} your all-time ${fmtPct(k.f)}.`
+                + (lowI >= 0 && kv[lowI] < k.f ? ` Weakest stretch: trades ${roll.end[lowI] - roll.W + 1}–${roll.end[lowI]} at <b>${kTxt(kv[lowI])}</b>.` : '');
+        }
 
         // Pokemon curve vs half-Kelly (only the one line that still matters)
         const pokeSizes = getCryptoSizes(Math.max(0, bankroll));
@@ -5007,6 +5128,13 @@ const BACKTEST = {
                 <div class="rk-p">Win rate is the lever: each 1 pt of win rate moves Kelly about <b>${slope.toFixed(1)} pts</b>. Break-even is <b>${fmtPct(k.breakeven)}</b>, and you're <b>${((k.wr - k.breakeven) * 100).toFixed(1)} pts</b> above it.</div>
             </div>` : ''}
 
+            ${rollNote ? `
+            <div class="rk-card">
+                <div class="rk-h">Kelly over time <span class="rk-dim">— each point is the last ${roll.W} trades</span></div>
+                <div class="rk-canvas roll" id="kellyRollWrap"><canvas id="kellyRollCanvas"></canvas><div class="rk-tip" id="kellyRollTip"></div></div>
+                <div class="rk-p">${rollNote}</div>
+            </div>` : ''}
+
             ${pokeLine ? `<div class="rk-card"><div class="rk-h">Pokemon vs Kelly</div><div class="rk-p">${pokeLine}</div></div>` : ''}
 
             <div class="rk-foot">
@@ -5016,8 +5144,11 @@ const BACKTEST = {
         `;
 
         kellyChart = k.f > 0 ? { wr: k.wr, b: k.b, f: k.f, lo, hi, youX, bankroll } : null;
+        kellyRollChart = rollNote ? { roll, f: k.f } : null;
         drawKellyChart();
+        drawKellyRoll();
         if (kellyChart) attachChartHover('kellyWrap', 'kellyTip', describeKelly);
+        if (kellyRollChart) attachChartHover('kellyRollWrap', 'kellyRollTip', describeKellyRoll);
     }
 
     function drawKellyChart() {
@@ -5142,6 +5273,95 @@ const BACKTEST = {
         return `<div style="color:#ce93d8;font-weight:700">Risk ${fmtPct(x)} of bankroll</div>`
             + `<div>${kMult < 0.995 || kMult > 1.005 ? kMult.toFixed(2) + '× Kelly' : 'Full Kelly'} → ${growth}</div>`
             + (c.bankroll > 0 ? `<div class="rk-dim">budget ${fmtUsd(c.bankroll * x, 0)}</div>` : '');
+    }
+
+    function drawKellyRoll() {
+        const c = kellyRollChart;
+        const canvas = document.getElementById('kellyRollCanvas');
+        if (!c || !canvas) return;
+        const cv = setupCanvas(canvas);
+        if (!cv) return;
+        const { ctx, W, H } = cv;
+        const r = c.roll, N = r.end.length;
+        const clampK = v => Math.max(-1, Math.min(1, v));
+        const vals = r.kelly.filter(v => v != null).map(clampK);
+        const lo = Math.min(-0.2, ...vals) - 0.05, hi = Math.max(0.3, c.f, ...vals) + 0.05;
+        const L = 8, R = 46, T = 8, B = 16;
+        const X = j => L + (N > 1 ? j / (N - 1) : 0) * (W - L - R);
+        const Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
+        c.geo = { L, R, N };
+
+        // Area above zero teal, below zero red
+        const pts = [];
+        r.kelly.forEach((v, j) => { if (v != null) pts.push([X(j), Y(clampK(v)), v]); });
+        if (pts.length < 2) return;
+        const area = (clampFn, style) => {
+            ctx.beginPath();
+            ctx.moveTo(pts[0][0], Y(0));
+            for (const p of pts) ctx.lineTo(p[0], clampFn(p[1]));
+            ctx.lineTo(pts[pts.length - 1][0], Y(0));
+            ctx.closePath();
+            ctx.fillStyle = style;
+            ctx.fill();
+        };
+        area(y => Math.min(y, Y(0)), 'rgba(77,208,196,0.18)');
+        area(y => Math.max(y, Y(0)), 'rgba(255,107,107,0.2)');
+
+        const hline = (v, color, dash, label) => {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.setLineDash(dash);
+            ctx.beginPath(); ctx.moveTo(L, Y(v)); ctx.lineTo(W - R, Y(v)); ctx.stroke();
+            ctx.setLineDash([]);
+            if (label) {
+                ctx.fillStyle = color;
+                ctx.textAlign = 'left';
+                ctx.fillText(label, W - R + 4, Y(v) + 3.5);
+            }
+        };
+        ctx.font = '600 10px "Space Mono", monospace';
+        hline(0, 'rgba(255,255,255,0.25)', [4, 4], '0');
+        hline(c.f, 'rgba(100,181,246,0.8)', [2, 3], fmtPct(c.f, 0));
+
+        ctx.lineWidth = 1.8;
+        ctx.lineJoin = 'round';
+        for (let i = 1; i < pts.length; i++) {
+            ctx.beginPath();
+            ctx.strokeStyle = pts[i][2] >= 0 ? '#4dd0c4' : '#ff6b6b';
+            ctx.moveTo(pts[i - 1][0], pts[i - 1][1]);
+            ctx.lineTo(pts[i][0], pts[i][1]);
+            ctx.stroke();
+        }
+
+        // Today's value
+        const last = pts[pts.length - 1];
+        const color = last[2] >= 0 ? '#4dd0c4' : '#ff6b6b';
+        ctx.beginPath();
+        ctx.arc(last[0], last[1], 4, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.font = '10px "Space Mono", monospace';
+        ctx.fillStyle = 'rgba(106,138,170,0.9)';
+        ctx.textAlign = 'left';
+        ctx.fillText('trade ' + r.end[0], L, H - 3);
+        ctx.textAlign = 'right';
+        ctx.fillText('now', W - R, H - 3);
+    }
+
+    function describeKellyRoll(px, width) {
+        const c = kellyRollChart;
+        if (!c || !c.geo) return '';
+        const frac = (px - c.geo.L) / (width - c.geo.L - c.geo.R);
+        if (frac < -0.02 || frac > 1.05) return '';
+        const j = Math.max(0, Math.min(c.geo.N - 1, Math.round(Math.min(1, Math.max(0, frac)) * (c.geo.N - 1))));
+        const r = c.roll, v = r.kelly[j];
+        return `<div style="color:#64b5f6;font-weight:700">Trades ${r.end[j] - r.W + 1}–${r.end[j]}</div>`
+            + `<div>Kelly <span style="color:${v == null || v < 0 ? 'var(--red-bright)' : 'var(--green-bright)'};font-weight:700">${v == null ? '-' : fmtPct(v, 0)}</span></div>`
+            + (r.wr[j] != null ? `<div class="rk-dim">win rate ${fmtPct(r.wr[j])}</div>` : '');
     }
 
     // ====== TICKER GRID ======
@@ -6063,6 +6283,21 @@ const BACKTEST = {
 
     // ====== MONTE CARLO STRESS TEST ======
     let mcChart = null;
+    const MC_SIZE_KEY = 'crypto_mc_size';
+
+    // Trade sizes the panel can be shown at: your recent size plus every pokeball
+    function mcSizeOptions(stats, sim) {
+        const opts = [];
+        if (sim.recentSize > 0) opts.push({ id: 'you', label: 'You', amt: sim.recentSize, svg: '<span class="mc-you-dot"></span>' });
+        pokeballSizes(stats).forEach((b, i) => opts.push({ id: b.id, label: b.label, amt: b.amt, svg: POKEBALL_SVGS[i] }));
+        return opts.filter(o => o.amt > 0).sort((a, b) => a.amt - b.amt);
+    }
+
+    function setMcSize(id) {
+        try { localStorage.setItem(MC_SIZE_KEY, id); } catch (e) {}
+        if (window._lastStats) renderMonteCarlo(window._lastStats);
+    }
+
     function renderMonteCarlo(stats) {
         const box = document.getElementById('mcBox');
         if (!box) return;
@@ -6074,12 +6309,36 @@ const BACKTEST = {
             return;
         }
 
+        // Per-$1 results get multiplied by the picked trade size; dollar results stay as traded
+        const perStake = sim.unit === 'stake';
+        const opts = perStake ? mcSizeOptions(stats, sim) : [];
+        let pick = null;
+        if (opts.length) {
+            let saved = '';
+            try { saved = localStorage.getItem(MC_SIZE_KEY) || ''; } catch (e) {}
+            pick = opts.find(o => o.id === saved) || opts.find(o => o.id === 'you') || opts[0];
+        }
+        const S = pick ? pick.amt : 1;
+        const dp = v => Math.abs(v) >= 100 ? 0 : 2;
+        const usd = v => fmtUsd(v * S, dp(v * S));
+        const sgn = v => fmtSigned(v * S, dp(v * S));
+        const pctAuto = x => fmtPct(x, x < 0.001 ? 3 : x < 0.01 ? 2 : 1);
+        const bankroll = activeBankroll(stats);
+
         const conf = sim.edgeConf;
         const tier = conf >= 0.975 ? ['good', 'EDGE IS REAL']
             : conf >= 0.9 ? ['ok', 'EDGE LIKELY REAL']
             : conf >= 0.75 ? ['warn', 'MAYBE AN EDGE']
             : ['bad', 'EDGE NOT PROVEN'];
         const confTxt = conf > 0.995 ? '>99%' : Math.round(conf * 100) + '%';
+        const heroText = perStake
+            ? `of ${sim.sims.toLocaleString()} alternate histories built from your ${sim.n} sized trades still finish in profit. Each $1 you stake makes about <b>${(sim.avgTrade * 100).toFixed(1)}¢</b> a trade. Win rate <b>${fmtPct(k.wr)}</b> vs <b>${fmtPct(k.breakeven)}</b> needed to break even.`
+            : `of ${sim.sims.toLocaleString()} alternate histories built from your ${sim.n} trades still finish in profit. Win rate <b>${fmtPct(k.wr)}</b> vs <b>${fmtPct(k.breakeven)}</b> needed to break even.`;
+
+        const picker = pick ? `
+            <div class="rk-h">Trade size <span class="rk-dim">— every $ below is at this size</span></div>
+            <div class="mc-sizes">${opts.map(o => `<button type="button" class="mc-size${o.id === pick.id ? ' on' : ''}${o.id === 'you' ? ' you' : ''}" onclick="setMcSize('${o.id}')">${o.svg}<span>${o.label}</span><b>${fmtUsd(o.amt)}</b></button>`).join('')}</div>
+            <div class="rk-p mc-size-note">${pick.id === 'you' ? 'Your recent size' : 'The ' + pick.label + ' pokeball'}: at <b>${fmtUsd(S)}</b> a trade, a bad (1-in-20) drawdown over ${sim.n} trades is <b>${usd(sim.dd.p95)}</b>${bankroll > 0 ? `, <b>${pctAuto(sim.dd.p95 * S / bankroll)}</b> of your ${fmtUsd(bankroll, 0)} bankroll` : ''}.</div>` : '';
 
         // Your real path against the alternate histories
         let callout = '';
@@ -6088,45 +6347,53 @@ const BACKTEST = {
             const r = a.ddRank;
             const odds = r >= 0.999 ? 'rarer than 1-in-1000' : `about a 1-in-${Math.max(2, Math.round(1 / (1 - r)))}`;
             if (r >= 0.9) {
-                callout = `<div class="mc-callout unlucky">Your real worst drawdown (<b>${fmtUsd(a.maxDD)}</b>) was deeper than <b>${Math.round(r * 100)}%</b> of the histories: ${odds} rough patch. It can happen again, so size for it.</div>`;
+                callout = `<div class="mc-callout unlucky">Your real worst drawdown (<b>${usd(a.maxDD)}</b>) was deeper than <b>${Math.round(r * 100)}%</b> of the histories: ${odds} rough patch. It can happen again, so size for it.</div>`;
             } else if (r <= 0.25) {
-                callout = `<div class="mc-callout lucky">Your real worst drawdown (<b>${fmtUsd(a.maxDD)}</b>) was shallower than <b>${Math.round((1 - r) * 100)}%</b> of the histories. You've been lucky so far; expect a deeper one at some point.</div>`;
+                callout = `<div class="mc-callout lucky">Your real worst drawdown (<b>${usd(a.maxDD)}</b>) was shallower than <b>${Math.round((1 - r) * 100)}%</b> of the histories. You've been lucky so far; expect a deeper one at some point.</div>`;
             } else {
-                callout = `<div class="mc-callout typical">Your real worst drawdown (<b>${fmtUsd(a.maxDD)}</b>) is normal for this system: deeper than ${Math.round(r * 100)}% of the histories, shallower than the rest.</div>`;
+                callout = `<div class="mc-callout typical">Your real worst drawdown (<b>${usd(a.maxDD)}</b>) is normal for this system: deeper than ${Math.round(r * 100)}% of the histories, shallower than the rest.</div>`;
             }
         }
 
         const youCell = (v, bad, fmt) => a ? `<td style="color:${v > bad ? 'var(--red-bright)' : '#f9c846'}">${fmt(v)}</td>` : '<td class="rk-dim">-</td>';
         const expectRows = `
             <tr><th></th><th>Typical</th><th>Bad <span style="text-transform:none">(1 in 20)</span></th><th style="color:#f9c846">You (real)</th></tr>
-            <tr><td>Deepest drawdown</td><td>${fmtUsd(sim.dd.p50)}</td><td style="color:#ffab40">${fmtUsd(sim.dd.p95)}</td>${youCell(a && a.maxDD, sim.dd.p95, v => fmtUsd(v))}</tr>
+            <tr><td>Deepest drawdown</td><td>${usd(sim.dd.p50)}</td><td style="color:#ffab40">${usd(sim.dd.p95)}</td>${youCell(a && a.maxDD, sim.dd.p95, v => usd(v))}</tr>
             <tr><td>Longest losing streak</td><td>${sim.streak.p50}</td><td style="color:#ffab40">${sim.streak.p95}</td>${youCell(a && a.maxStreak, sim.streak.p95, v => v)}</tr>
             <tr><td>Trades under water</td><td>${sim.uw.p50}</td><td style="color:#ffab40">${sim.uw.p95}</td>${youCell(a && a.maxUW, sim.uw.p95, v => v)}</tr>`;
 
         const fwdRows = sim.horizons.map(h => `
             <tr>
                 <td>${h.h}</td>
-                <td style="color:${h.p5 >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'}">${fmtSigned(h.p5)}</td>
-                <td style="font-weight:700">${fmtSigned(h.p50)}</td>
-                <td style="color:#64b5f6">${fmtSigned(h.p95)}</td>
+                <td style="color:${h.p5 >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'}">${sgn(h.p5)}</td>
+                <td style="font-weight:700">${sgn(h.p50)}</td>
+                <td style="color:#64b5f6">${sgn(h.p95)}</td>
                 <td style="color:${h.red > 0.2 ? 'var(--red-bright)' : h.red > 0.05 ? '#ffab40' : 'var(--green-bright)'}">${h.red < 0.005 ? '<1%' : Math.round(h.red * 100) + '%'}</td>
             </tr>`).join('');
 
-        const how = sim.real
-            ? `Built by reshuffling your ${sim.n} real trades in runs of ${sim.block} in a row.`
-              + (sim.rho > 0.1 && sim.iidDD95 != null
-                  ? ` Your results are streaky (back-to-back correlation ${sim.rho.toFixed(2)}): when crypto dumps, several trades stop out together. Shuffling one trade at a time would have put the bad-case drawdown at only ${fmtUsd(sim.iidDD95)}.`
-                  : '')
-            : 'No per-trade history came back from the sheet, so this uses your average win and average loss. That hides losing streaks, so real drawdowns can be deeper.';
+        const streaky = sim.rho > 0.1 && sim.iidDD95 != null
+            ? ` Your results are streaky (back-to-back correlation ${sim.rho.toFixed(2)}): when crypto dumps, several trades stop out together. Shuffling one trade at a time would have put the bad-case drawdown at only ${usd(sim.iidDD95)}.`
+            : '';
+        const how = !sim.real
+            ? 'No per-trade history came back from the sheet, so this uses your average win and average loss. That hides losing streaks, so real drawdowns can be deeper.'
+            : perStake
+            ? `Built per $1 staked from the ${sim.n} trades with an entry size on the sheet, reshuffled in runs of ${sim.block} in a row.${streaky}`
+              + (sim.skipped ? ` ${sim.skipped} trades have no entry size (or one that doesn't match their P&L) and are left out; fill those sizes in on the sheet to count them.` : '')
+            : `Built by reshuffling your ${sim.n} real trades in runs of ${sim.block} in a row.${streaky} No entry sizes on the sheet yet, so dollars are at the sizes you traded.`;
+        const sizeFoot = perStake
+            ? `Bad and good are the 1-in-20 ends. Per $1 staked, your average win is <b>+${Math.round(sim.avgWin * 100)}%</b> and average loss <b>−${Math.round(sim.avgLoss * 100)}%</b>.`
+            : `Bad and good are the 1-in-20 ends. Your average win is ${fmtUsd(k.avgWin, 3)} and average loss ${fmtUsd(k.avgLoss, 3)}; bigger sizes scale every number here up.`;
 
         box.innerHTML = `
             <div class="mc-hero ${tier[0]}">
                 <div class="rk-big">${confTxt}</div>
                 <div>
                     <span class="rk-chip ${tier[0]}">${tier[1]}</span>
-                    <div class="rk-p">of ${sim.sims.toLocaleString()} alternate histories built from your ${sim.n} trades still finish in profit. Win rate <b>${fmtPct(k.wr)}</b> vs <b>${fmtPct(k.breakeven)}</b> needed to break even.</div>
+                    <div class="rk-p">${heroText}</div>
                 </div>
             </div>
+
+            ${picker}
 
             <div class="rk-h">You vs ${sim.sims.toLocaleString()} alternate histories <span class="rk-dim">— tap or hover</span></div>
             <div class="rk-canvas mc" id="mcWrap"><canvas id="mcCanvas"></canvas><div class="rk-tip" id="mcTip"></div></div>
@@ -6134,7 +6401,7 @@ const BACKTEST = {
                 <span><i style="background:rgba(100,181,246,0.22)"></i>90% of histories</span>
                 <span><i style="background:rgba(100,181,246,0.5)"></i>middle half</span>
                 <span><i class="line" style="background:#e8f0f8"></i>median</span>
-                ${sim.real ? '<span><i class="line" style="background:#f9c846"></i>you</span>' : ''}
+                ${sim.real ? `<span><i class="line" style="background:#f9c846"></i>you${perStake ? ' (your real trades at this size)' : ''}</span>` : ''}
                 <span><i class="line" style="background:repeating-linear-gradient(90deg,rgba(255,255,255,0.5) 0 3px,transparent 3px 6px)"></i>$0</span>
             </div>
             ${callout}
@@ -6145,18 +6412,22 @@ const BACKTEST = {
             </div>
 
             <div class="rk-card">
-                <div class="rk-h">The next trades <span class="rk-dim">— P&L at the sizes you've traded</span></div>
+                <div class="rk-h">The next trades <span class="rk-dim">— ${perStake ? `at ${fmtUsd(S)} a trade` : "P&L at the sizes you've traded"}</span></div>
                 <table class="rk-table">
                     <tr><th>Next</th><th>Bad</th><th>Typical</th><th>Good</th><th>Chance red</th></tr>
                     ${fwdRows}
                 </table>
-                <div class="rk-foot" style="text-align:left">Bad and good are the 1-in-20 ends. Your average win is ${fmtUsd(k.avgWin, 3)} and average loss ${fmtUsd(k.avgLoss, 3)}; bigger sizes scale every number here up.</div>
+                <div class="rk-foot" style="text-align:left">${sizeFoot}</div>
             </div>
 
             <div class="rk-foot">${how}</div>
         `;
 
-        mcChart = sim;
+        // Keep the picked pokeball in view when the row scrolls sideways (phones)
+        const row = box.querySelector('.mc-sizes'), on = box.querySelector('.mc-size.on');
+        if (row && on) row.scrollLeft = Math.max(0, on.offsetLeft - row.offsetLeft - (row.clientWidth - on.offsetWidth) / 2);
+
+        mcChart = Object.assign({}, sim, { scale: S });
         drawMcChart();
         attachChartHover('mcWrap', 'mcTip', describeMc);
     }
@@ -6168,7 +6439,7 @@ const BACKTEST = {
         const cv = setupCanvas(canvas);
         if (!cv) return;
         const { ctx, W, H } = cv;
-        const n = c.n, b = c.bands, idx = c.bandIdx;
+        const n = c.n, b = c.bands, idx = c.bandIdx, sc = c.scale || 1;
 
         let lo = Math.min(0, ...b.p5), hi = Math.max(0, ...b.p95);
         if (c.actualCurve) for (const v of c.actualCurve) { if (v < lo) lo = v; if (v > hi) hi = v; }
@@ -6176,7 +6447,7 @@ const BACKTEST = {
         lo -= padV; hi += padV;
         const L = 8, R = 64, T = 8, B = 18;
         const X = i => L + (i / n) * (W - L - R);
-        const Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
+        const Y = v => T + (hi - v) / (hi - lo) * (H - T - B);   // v in per-stake (or as-traded) units
         c.geo = { L, R };
 
         const band = (top, bot, style) => {
@@ -6245,8 +6516,9 @@ const BACKTEST = {
         ctx.font = '600 10px "Space Mono", monospace';
         ctx.textAlign = 'left';
         for (const e of ends) {
+            const v = e.v * sc;
             ctx.fillStyle = e.color;
-            ctx.fillText(fmtSigned(e.v, Math.abs(e.v) >= 100 ? 0 : 2), W - R + 5, e.y + 3.5);
+            ctx.fillText(fmtSigned(v, Math.abs(v) >= 100 ? 0 : 2), W - R + 5, e.y + 3.5);
         }
 
         // Trade-count axis
@@ -6267,12 +6539,13 @@ const BACKTEST = {
         if (frac < 0 || frac > 1.02) return '';
         const j = Math.max(0, Math.min(c.bandIdx.length - 1, Math.round(Math.min(1, frac) * (c.bandIdx.length - 1))));
         const i = c.bandIdx[j];
-        const b = c.bands;
+        const b = c.bands, sc = c.scale || 1;
+        const m = v => fmtSigned(v * sc);
         return `<div style="color:#64b5f6;font-weight:700">Trade ${i} of ${c.n}</div>`
-            + (c.actualCurve ? `<div>You: <span style="color:#f9c846;font-weight:700">${fmtSigned(c.actualCurve[i])}</span></div>` : '')
-            + `<div>Median: ${fmtSigned(b.p50[j])}</div>`
-            + `<div class="rk-dim">Middle half: ${fmtSigned(b.p25[j])} to ${fmtSigned(b.p75[j])}</div>`
-            + `<div class="rk-dim">90%: ${fmtSigned(b.p5[j])} to ${fmtSigned(b.p95[j])}</div>`;
+            + (c.actualCurve ? `<div>You: <span style="color:#f9c846;font-weight:700">${m(c.actualCurve[i])}</span></div>` : '')
+            + `<div>Median: ${m(b.p50[j])}</div>`
+            + `<div class="rk-dim">Middle half: ${m(b.p25[j])} to ${m(b.p75[j])}</div>`
+            + `<div class="rk-dim">90%: ${m(b.p5[j])} to ${m(b.p95[j])}</div>`;
     }
 
     // ====== POKEMON SCALING ======
@@ -6491,6 +6764,49 @@ const BACKTEST = {
         return Math.max(1, Math.floor(1 + Math.pow(profit / 1200, 0.85)));
     }
 
+    // Pokeball art, in chip order: Ultra, Master, Great, Timer, Net, Dusk, Quick, Poke
+    const POKEBALL_SVGS = (() => {
+        // Regular Pokeball (red/white)
+        const pokeballSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path class="ball-top" d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle class="ball-center" cx="10" cy="10" r="3"/></svg>`;
+        // Great Ball (blue/white with red stripe)
+        const greatBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#42a5f5"/><path d="M2.5,7.5 A8,8 0 0 1 17.5,7.5" fill="#ef5350" stroke="none"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle class="ball-center" cx="10" cy="10" r="3"/></svg>`;
+        // Ultra Ball (black/yellow)
+        const ultraBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#333"/><path d="M3,8 h14" stroke="#fdd835" stroke-width="2" fill="none"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle cx="10" cy="10" r="3" fill="#fdd835" stroke="#333" stroke-width="1.5"/></svg>`;
+        // Master Ball (purple/pink with M)
+        const masterBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#7e57c2"/><text x="10" y="8" text-anchor="middle" fill="#e1bee7" font-size="6" font-weight="900">M</text><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle cx="10" cy="10" r="3" fill="#e1bee7" stroke="#333" stroke-width="1.5"/></svg>`;
+        // Dusk Ball (dark green/black)
+        const duskBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#2e7d32"/><path d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z" fill="#1a1a1a"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle cx="10" cy="10" r="3" fill="#66bb6a" stroke="#333" stroke-width="1.5"/></svg>`;
+        // Timer Ball (red/white with clock marks)
+        const timerBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#e53935"/><line x1="10" y1="2" x2="10" y2="5" stroke="#fff" stroke-width="1"/><line x1="10" y1="2" x2="10" y2="5" stroke="#fff" stroke-width="1" transform="rotate(90 10 10)"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle class="ball-center" cx="10" cy="10" r="3"/></svg>`;
+        // Net Ball (blue/cyan with net pattern)
+        const netBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#0097a7"/><path d="M3,5 L17,5 M5,3 L5,10 M10,2 L10,10 M15,3 L15,10" stroke="#4dd0e1" stroke-width="0.5" fill="none"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle cx="10" cy="10" r="3" fill="#4dd0e1" stroke="#333" stroke-width="1.5"/></svg>`;
+        // Quick Ball (quick blue/yellow)
+        const quickBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#1565c0"/><path d="M5,5 L15,8 M4,7 L16,4" stroke="#fdd835" stroke-width="1.2" fill="none"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle cx="10" cy="10" r="3" fill="#fdd835" stroke="#333" stroke-width="1.5"/></svg>`;
+        return [ultraBallSvg, masterBallSvg, greatBallSvg, timerBallSvg, netBallSvg, duskBallSvg, quickBallSvg, pokeballSvg];
+    })();
+
+    // The 8 pokeball trade sizes: blended avg, half-Kelly (K), then halving down to 1/128 Kelly.
+    // Each is a budget spread over all slots, from the same stats as the Kelly panel.
+    function pokeballSizes(stats) {
+        const k = kellyMath(stats);
+        const activePnl = activeBankroll(stats);
+        const kellyBudget = Math.floor(activePnl * Math.max(0, k.f / 2) * 100) / 100; // cents, so small P&L moves show
+        const exposureBudget = Math.floor(activePnl * 0.25);
+        const avgBudget = Math.floor((exposureBudget + kellyBudget) * 50) / 100;
+        const slots = kellySlotCount(activePnl);
+        const per = x => slots > 0 ? x / slots : 0;
+        return [
+            { id: 'avg', label: 'Avg', amt: per(avgBudget), cls: 'lead' },
+            { id: 'k', label: 'K', amt: per(kellyBudget), cls: 'lead' },
+            { id: 'fire', label: '\u{1F525}', amt: per(kellyBudget / 2), cls: 'mid' },
+            { id: 'bolt', label: '\u{26A1}', amt: per(kellyBudget / 4), cls: 'mid' },
+            { id: 'sprout', label: '\u{1F331}', amt: per(kellyBudget / 8), cls: 'half' },
+            { id: 'mud', label: '\u{1F4A9}', amt: per(kellyBudget / 16), cls: 'mud' },
+            { id: 'dust', label: '\u{1FAA8}', amt: per(kellyBudget / 32), cls: 'dust' },
+            { id: 'ghost', label: '\u{1F47B}', amt: per(kellyBudget / 64), cls: 'ghost' },
+        ];
+    }
+
     function renderPokemon(stats) {
         window._lastStats = stats;
         const box = document.getElementById('pokemonBox');
@@ -6519,49 +6835,8 @@ const BACKTEST = {
         const xpProgress = xpRange > 0 ? Math.max(0, Math.min(100, ((activePnl - xpFrom) / xpRange) * 100)) : 100;
 
         // Kelly-based size chips
-        // Regular Pokeball (red/white)
-        const pokeballSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path class="ball-top" d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle class="ball-center" cx="10" cy="10" r="3"/></svg>`;
-        // Great Ball (blue/white with red stripe)
-        const greatBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#42a5f5"/><path d="M2.5,7.5 A8,8 0 0 1 17.5,7.5" fill="#ef5350" stroke="none"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle class="ball-center" cx="10" cy="10" r="3"/></svg>`;
-        // Ultra Ball (black/yellow)
-        const ultraBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#333"/><path d="M3,8 h14" stroke="#fdd835" stroke-width="2" fill="none"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle cx="10" cy="10" r="3" fill="#fdd835" stroke="#333" stroke-width="1.5"/></svg>`;
-        // Master Ball (purple/pink with M)
-        const masterBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#7e57c2"/><text x="10" y="8" text-anchor="middle" fill="#e1bee7" font-size="6" font-weight="900">M</text><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle cx="10" cy="10" r="3" fill="#e1bee7" stroke="#333" stroke-width="1.5"/></svg>`;
-        // Dusk Ball (dark green/black)
-        const duskBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#2e7d32"/><path d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z" fill="#1a1a1a"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle cx="10" cy="10" r="3" fill="#66bb6a" stroke="#333" stroke-width="1.5"/></svg>`;
-        // Timer Ball (red/white with clock marks)
-        const timerBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#e53935"/><line x1="10" y1="2" x2="10" y2="5" stroke="#fff" stroke-width="1"/><line x1="10" y1="2" x2="10" y2="5" stroke="#fff" stroke-width="1" transform="rotate(90 10 10)"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle class="ball-center" cx="10" cy="10" r="3"/></svg>`;
-        // Net Ball (blue/cyan with net pattern)
-        const netBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#0097a7"/><path d="M3,5 L17,5 M5,3 L5,10 M10,2 L10,10 M15,3 L15,10" stroke="#4dd0e1" stroke-width="0.5" fill="none"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle cx="10" cy="10" r="3" fill="#4dd0e1" stroke="#333" stroke-width="1.5"/></svg>`;
-        // Quick Ball (quick blue/yellow)
-        const quickBallSvg = `<svg class="pokeball-svg" viewBox="0 0 20 20"><circle class="ball-outline" cx="10" cy="10" r="9"/><path d="M1.3,10 A8.7,8.7 0 0 1 18.7,10 Z" fill="#1565c0"/><path d="M5,5 L15,8 M4,7 L16,4" stroke="#fdd835" stroke-width="1.2" fill="none"/><path class="ball-bottom" d="M1.3,10 A8.7,8.7 0 0 0 18.7,10 Z"/><line class="ball-line" x1="1" y1="10" x2="19" y2="10"/><circle cx="10" cy="10" r="3" fill="#fdd835" stroke="#333" stroke-width="1.5"/></svg>`;
-        const ballSvgs = [ultraBallSvg, masterBallSvg, greatBallSvg, timerBallSvg, netBallSvg, duskBallSvg, quickBallSvg, pokeballSvg];
-        // Compute Kelly fractions for pokeball sizing
-        const _bWins = parseInt(stats.wins) || 0;
-        const _bLosses = parseInt(stats.losses) || 0;
-        const _bTotal = _bWins + _bLosses;
-        const _bWr = _bTotal > 0 ? _bWins / _bTotal : 0;
-        const _bGw = parseFloat(stats.grossWin) || 0;
-        const _bGl = Math.abs(parseFloat(stats.grossLoss) || 0);
-        const _bAvgW = _bWins > 0 ? _bGw / _bWins : 0;
-        const _bAvgL = _bLosses > 0 ? _bGl / _bLosses : 0;
-        const _bRr = _bAvgL > 0 ? _bAvgW / _bAvgL : 0;
-        const _bKellyF = _bRr > 0 ? (_bRr * _bWr - (1 - _bWr)) / _bRr : 0;
-        const _halfKellyPct = Math.max(0, _bKellyF / 2);
-        const _kellyBudget = Math.floor(activePnl * _halfKellyPct * 100) / 100; // cents, so small P&L moves show
-        const _exposureBudget = Math.floor(activePnl * 0.25);
-        const _avgBudget = Math.floor((_exposureBudget + _kellyBudget) * 50) / 100;
-        const _totalSlots = kellySlotCount(activePnl);
-        const kellySizes = [
-            { label: 'Avg', amt: _totalSlots > 0 ? (_avgBudget / _totalSlots) : 0, cls: 'lead' },
-            { label: 'K', amt: _totalSlots > 0 ? (_kellyBudget / _totalSlots) : 0, cls: 'lead' },
-            { label: '\u{1F525}', amt: _totalSlots > 0 ? ((_kellyBudget / 2) / _totalSlots) : 0, cls: 'mid' },
-            { label: '\u{26A1}', amt: _totalSlots > 0 ? ((_kellyBudget / 4) / _totalSlots) : 0, cls: 'mid' },
-            { label: '\u{1F331}', amt: _totalSlots > 0 ? ((_kellyBudget / 8) / _totalSlots) : 0, cls: 'half' },
-            { label: '\u{1F4A9}', amt: _totalSlots > 0 ? ((_kellyBudget / 16) / _totalSlots) : 0, cls: 'mud' },
-            { label: '\u{1FAA8}', amt: _totalSlots > 0 ? ((_kellyBudget / 32) / _totalSlots) : 0, cls: 'dust' },
-            { label: '\u{1F47B}', amt: _totalSlots > 0 ? ((_kellyBudget / 64) / _totalSlots) : 0, cls: 'ghost' },
-        ];
+        const ballSvgs = POKEBALL_SVGS;
+        const kellySizes = pokeballSizes(stats);
         let sizeChips = '';
         const usedSlots = JSON.parse(localStorage.getItem('pokeball_used') || '[false,false,false,false,false,false,false,false]');
         for (let i = 0; i < 8; i++) {
