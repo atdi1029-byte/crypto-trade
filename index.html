@@ -348,6 +348,13 @@
             letter-spacing: 1.5px;
             margin-top: 6px;
         }
+        .stat-sub {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+        .stat-sub b { color: #ce93d8; }
 
         /* ============ P&L CHART ============ */
         /* ============ P&L EQUITY (ink-stroke hero) ============ */
@@ -2471,6 +2478,7 @@
         <div class="stat-card">
             <div class="stat-value" id="statTotal">-</div>
             <div class="stat-label">Total Trades</div>
+            <div class="stat-sub" id="statSized" title="Trades with an entry size logged. At 2,000 your data backs the K pokeball even on the strictest check."></div>
         </div>
         <div class="stat-card">
             <div class="stat-value" id="statToday">-</div>
@@ -3756,6 +3764,9 @@ const BACKTEST = {
         wrEl.className = 'stat-value' + (parseFloat(stats.winRate) >= 50 ? ' green' : parseFloat(stats.winRate) > 0 ? ' red' : '');
 
         document.getElementById('statTotal').textContent = stats.totalTrades || 0;
+        // Progress to the sized-trade count where the data backs the K pokeball
+        const sizedCount = sizedTrades(tradeHistory(stats)).ret.length;
+        document.getElementById('statSized').innerHTML = `<b>${sizedCount.toLocaleString()}</b> / ${SIZED_TRADES_GOAL.toLocaleString()} sized`;
         document.getElementById('statToday').textContent = stats.todaySignals || 0;
 
         // P&L chart
@@ -4767,6 +4778,21 @@ const BACKTEST = {
         return { pnl, size };
     }
 
+    // Trades with a usable entry size, as returns per $1 staked. A return past ±300% of
+    // the stake means the size doesn't match the P&L (typo, or added to later), so those
+    // trades are left out like unsized ones
+    function sizedTrades(hist) {
+        const ret = [], sz = [];
+        if (hist) hist.pnl.forEach((p, i) => {
+            const sv = hist.size[i];
+            if (sv > 0 && Math.abs(p / sv) <= 3) { ret.push(p / sv); sz.push(sv); }
+        });
+        return { ret, sz };
+    }
+    // Sized trades at which the cautious end of Kelly reaches half-Kelly even when losing
+    // runs of 100 trades are kept together (bootstrap of the first 447 sized trades, Oct 2026)
+    const SIZED_TRADES_GOAL = 2000;
+
     // Seeded random (mulberry32), so the numbers don't jump around on every refresh
     function seededRandom(seed) {
         let a = seed >>> 0;
@@ -4818,13 +4844,7 @@ const BACKTEST = {
         const hist = tradeHistory(stats);
         let trades = hist ? hist.pnl : null, unit = 'usd', recentSize = 0, recentSizes = [], skipped = 0;
         if (hist) {
-            // A return past ±300% of the stake means the size doesn't match the P&L
-            // (typo, or added to later), so those trades are left out like unsized ones
-            const ret = [], sz = [];
-            hist.pnl.forEach((p, i) => {
-                const sv = hist.size[i];
-                if (sv > 0 && Math.abs(p / sv) <= 3) { ret.push(p / sv); sz.push(sv); }
-            });
+            const { ret, sz } = sizedTrades(hist);
             if (ret.length >= 40 && ret.length >= hist.pnl.length * 0.5) {
                 trades = ret;
                 unit = 'stake';
