@@ -1020,6 +1020,10 @@ function doGet(e) {
     return getBitunixPositions_();
   }
 
+  if (action === 'equity') {
+    return equityTracker_();
+  }
+
   return ContentService
     .createTextOutput(JSON.stringify({
       status: 'ok',
@@ -3410,4 +3414,236 @@ function serveWeeklyTasks_() {
 // ---------------------------------------------------------------
 function keepAlive() {
   SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config');
+}
+
+
+// ===============================================================
+// EQUITY TRACKER (Oct 16 2026)
+// ?action=equity — live Bitunix equity + a month-by-month table from
+// EQUITY_START to now, built from the closed-position history.
+//
+// Every call also saves today's equity into the 'Equity Snapshots' tab
+// (one row per day: latest value + the day's high). No time trigger is used
+// on purpose: ScriptApp would add a new OAuth scope and the web app would
+// stop until re-authorised. The app is opened most days, so that is enough.
+//
+// Month-end equity comes from a snapshot when one exists in the last 3 days
+// of the month, otherwise it is rebuilt backwards from the current wallet
+// minus every trade closed after that month (and minus deposits after it,
+// if a 'Deposits' tab exists: Date | Amount, negative = withdrawal).
+// Realized P&L per month is exact (realizedPNL is net of fee and funding).
+// ===============================================================
+var EQUITY_START = '2026-07';
+var EQUITY_SHEET = 'Equity Snapshots';
+var EQUITY_TZ = 'America/New_York';
+
+function bxSignedGet_(path, params) {
+  var API_KEY = PropertiesService.getScriptProperties().getProperty('BITUNIX_API_KEY');
+  var API_SECRET = PropertiesService.getScriptProperties().getProperty('BITUNIX_API_SECRET');
+  if (!API_KEY || !API_SECRET) throw new Error('BITUNIX_API_KEY / BITUNIX_API_SECRET not set in Script Properties');
+  function sha256(str) {
+    var raw = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, str);
+    return raw.map(function(b) { return ('0' + ((b + 256) % 256).toString(16)).slice(-2); }).join('');
+  }
+  params = params || {};
+  var sorted = Object.keys(params).sort();
+  var queryStr = sorted.map(function(k) { return k + params[k]; }).join('');
+  var nonce = Utilities.getUuid().replace(/-/g, '');
+  var timestamp = String(new Date().getTime());
+  var sign = sha256(sha256(nonce + timestamp + API_KEY + queryStr + '') + API_SECRET);
+  var qs = sorted.map(function(k) { return k + '=' + encodeURIComponent(params[k]); }).join('&');
+  var resp = UrlFetchApp.fetch('https://fapi.bitunix.com' + path + (qs ? '?' + qs : ''), {
+    method: 'get', muteHttpExceptions: true,
+    headers: { 'api-key': API_KEY, 'sign': sign, 'nonce': nonce, 'timestamp': timestamp, 'language': 'en-US', 'Content-Type': 'application/json' }
+  });
+  var text = resp.getContentText();
+  try { return JSON.parse(text); }
+  catch (e) { return { code: -1, msg: path + ' returned non-JSON (HTTP ' + resp.getResponseCode() + '): ' + text.substring(0, 200) }; }
+}
+
+// Live account: wallet = cash + margin locked in positions; equity = wallet + unrealized
+function bxEquityNow_() {
+  var r = bxSignedGet_('/api/v1/futures/account', { marginCoin: 'USDT' });
+  if (!r || r.code !== 0 || !r.data) throw new Error('account: ' + ((r && r.msg) || '?') + ' (code ' + (r && r.code) + ')');
+  var d = r.data, n = function(x) { return Number(x) || 0; };
+  var wallet = n(d.available) + n(d.frozen) + n(d.margin) + n(d.bonus);
+  var unreal = n(d.crossUnrealizedPNL) + n(d.isolationUnrealizedPNL);
+  return { equity: wallet + unreal, wallet: wallet, unrealized: unreal, available: n(d.available), margin: n(d.margin) };
+}
+
+function monthKey_(ms) { return Utilities.formatDate(new Date(ms), EQUITY_TZ, 'yyyy-MM'); }
+function monthStartMs_(key) {           // 'yyyy-MM' -> first ms of that month in EQUITY_TZ
+  var p = key.split('-');
+  return Utilities.parseDate(p[0] + '-' + p[1] + '-01 00:00:00', EQUITY_TZ, 'yyyy-MM-dd HH:mm:ss').getTime();
+}
+function nextMonthKey_(key) {
+  var p = key.split('-'), y = Number(p[0]), m = Number(p[1]) + 1;
+  if (m > 12) { m = 1; y++; }
+  return y + '-' + ('0' + m).slice(-2);
+}
+
+// Closed positions between two times, paged 100 at a time, summed per month
+function bxMonthStats_(fromMs, toMs) {
+  var months = {}, skip = 0;
+  for (var page = 0; page < 60; page++) {
+    var r = bxSignedGet_('/api/v1/futures/position/get_history_positions', { startTime: fromMs, endTime: toMs, limit: 100, skip: skip });
+    if (!r || r.code !== 0) throw new Error('history: ' + ((r && r.msg) || '?') + ' (code ' + (r && r.code) + ')');
+    var list = (r.data && r.data.positionList) || [];
+    for (var i = 0; i < list.length; i++) {
+      var p = list[i], closeMs = Number(p.mtime || p.ctime);
+      if (!closeMs || closeMs < fromMs || closeMs >= toMs) continue;
+      var k = monthKey_(closeMs);
+      var m = months[k] || (months[k] = { realized: 0, fees: 0, funding: 0, trades: 0, wins: 0 });
+      var pnl = Number(p.realizedPNL) || 0;
+      m.realized += pnl; m.fees += Number(p.fee) || 0; m.funding += Number(p.funding) || 0;
+      m.trades++; if (pnl > 0) m.wins++;
+    }
+    if (list.length < 100) break;
+    skip += 100;
+  }
+  return months;
+}
+
+// Closed months never change, so they are cached for 6 hours; the current month is always live
+function bxMonthsSince_(startKey, nowMs) {
+  var curKey = monthKey_(nowMs), curStart = monthStartMs_(curKey);
+  var cache = CacheService.getScriptCache(), ck = 'eq_closed_' + startKey + '_' + curKey;
+  var closed = null, hit = cache.get(ck);
+  if (hit) { try { closed = JSON.parse(hit); } catch (e) { closed = null; } }
+  if (!closed) {
+    closed = monthStartMs_(startKey) < curStart ? bxMonthStats_(monthStartMs_(startKey), curStart) : {};
+    cache.put(ck, JSON.stringify(closed), 21600);
+  }
+  var live = bxMonthStats_(curStart, nowMs + 60000);
+  var all = {};
+  for (var k in closed) all[k] = closed[k];
+  for (var k2 in live) all[k2] = live[k2];
+  return all;
+}
+
+// One row per day: Date | Equity (latest) | High (max seen that day) | Wallet | Unrealized
+function equitySnapshotSave_(now, nowMs) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(EQUITY_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(EQUITY_SHEET);
+    sh.appendRow(['Date', 'Equity', 'High', 'Wallet', 'Unrealized']);
+    sh.getRange(1, 1, 1, 5).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+  var today = Utilities.formatDate(new Date(nowMs), EQUITY_TZ, 'yyyy-MM-dd');
+  var last = sh.getLastRow();
+  var r2 = function(x) { return Math.round(x * 100) / 100; };
+  if (last > 1) {
+    var lastRow = sh.getRange(last, 1, 1, 5).getValues()[0];
+    var lastDay = lastRow[0] instanceof Date ? Utilities.formatDate(lastRow[0], EQUITY_TZ, 'yyyy-MM-dd') : String(lastRow[0]).substring(0, 10);
+    if (lastDay === today) {
+      var high = Math.max(Number(lastRow[2]) || 0, now.equity);
+      sh.getRange(last, 1, 1, 5).setValues([[new Date(nowMs), r2(now.equity), r2(high), r2(now.wallet), r2(now.unrealized)]]);
+      return;
+    }
+  }
+  sh.appendRow([new Date(nowMs), r2(now.equity), r2(now.equity), r2(now.wallet), r2(now.unrealized)]);
+}
+
+function equitySnapshotsRead_() {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(EQUITY_SHEET);
+  if (!sh || sh.getLastRow() <= 1) return [];
+  var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 5).getValues(), out = [];
+  for (var i = 0; i < rows.length; i++) {
+    var d = rows[i][0] instanceof Date ? rows[i][0] : new Date(rows[i][0]);
+    if (isNaN(d.getTime())) continue;
+    out.push({ ms: d.getTime(), day: Utilities.formatDate(d, EQUITY_TZ, 'yyyy-MM-dd'), equity: Number(rows[i][1]) || 0, high: Number(rows[i][2]) || 0, wallet: Number(rows[i][3]) || 0 });
+  }
+  return out;
+}
+
+// Optional 'Deposits' tab: Date | Amount (negative = withdrawal)
+function equityDepositsRead_() {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Deposits');
+  if (!sh || sh.getLastRow() <= 1) return [];
+  var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 2).getValues(), out = [];
+  for (var i = 0; i < rows.length; i++) {
+    var d = rows[i][0] instanceof Date ? rows[i][0] : new Date(rows[i][0]);
+    var amt = Number(rows[i][1]);
+    if (isNaN(d.getTime()) || !amt) continue;
+    out.push({ ms: d.getTime(), amount: amt });
+  }
+  return out;
+}
+
+function equityTracker_() {
+  var out = function(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); };
+  try {
+    var nowMs = new Date().getTime();
+    var now = bxEquityNow_();
+    try { equitySnapshotSave_(now, nowMs); } catch (e) { /* the table still works without the snapshot */ }
+    var snaps = equitySnapshotsRead_();
+    var deposits = equityDepositsRead_();
+    var stats = bxMonthsSince_(EQUITY_START, nowMs);
+
+    // Month list from EQUITY_START to the current month
+    var keys = [], k = EQUITY_START, curKey = monthKey_(nowMs);
+    while (k <= curKey && keys.length < 120) { keys.push(k); k = nextMonthKey_(k); }
+
+    var r2 = function(x) { return Math.round(x * 100) / 100; };
+    var sumIn = function(a, b) { var t = 0; deposits.forEach(function(d) { if (d.ms >= a && d.ms < b) t += d.amount; }); return t; };
+
+    // End-of-month equity, walking backwards from the current wallet
+    var ends = {}, srcs = {}, walletAfter = now.wallet;    // wallet at the END of the month being filled
+    var months = [];
+    for (var i = keys.length - 1; i >= 0; i--) {
+      var key = keys[i], mStart = monthStartMs_(key), mEnd = monthStartMs_(nextMonthKey_(key));
+      var st = stats[key] || { realized: 0, fees: 0, funding: 0, trades: 0, wins: 0 };
+      var isCurrent = key === curKey;
+      var endVal, src;
+      if (isCurrent) { endVal = now.equity; src = 'live'; }
+      else {
+        var snap = null;
+        for (var s = snaps.length - 1; s >= 0; s--) {
+          if (snaps[s].ms >= mEnd - 3 * 86400000 && snaps[s].ms < mEnd) { snap = snaps[s]; break; }
+        }
+        if (snap) { endVal = snap.equity; src = 'snapshot'; }
+        else { endVal = walletAfter; src = 'est'; }
+      }
+      ends[key] = endVal; srcs[key] = src;
+      // wallet at the end of the previous month = this month's end value - this month's realized - deposits this month
+      var base = isCurrent ? now.wallet : (src === 'snapshot' ? endVal : walletAfter);
+      walletAfter = base - st.realized - sumIn(mStart, mEnd);
+      months.unshift({ month: key, realized: r2(st.realized), fees: r2(st.fees), funding: r2(st.funding), trades: st.trades, wins: st.wins,
+                       end: r2(endVal), endSource: src, deposits: r2(sumIn(mStart, mEnd)), current: isCurrent });
+    }
+    var baseStart = walletAfter;   // wallet at the very start of EQUITY_START (estimate)
+    var pcts = [], prevEnd = baseStart;
+    for (var j = 0; j < months.length; j++) {
+      var m = months[j];
+      m.start = r2(prevEnd);
+      m.startSource = j === 0 ? 'est' : months[j - 1].endSource;
+      m.pct = m.start > 0 ? r2(m.realized / m.start * 100) : null;
+      if (!m.current && m.pct !== null && m.trades > 0) pcts.push(m.pct);
+      prevEnd = m.end;
+    }
+    var avgPct = pcts.length ? r2(pcts.reduce(function(a, b) { return a + b; }, 0) / pcts.length) : null;
+    var totalRealized = r2(months.reduce(function(a, m) { return a + m.realized; }, 0));
+    var peak = now.equity, peakDay = Utilities.formatDate(new Date(nowMs), EQUITY_TZ, 'yyyy-MM-dd');
+    snaps.forEach(function(sn) { if (sn.high > peak) { peak = sn.high; peakDay = sn.day; } });
+    months.forEach(function(m) { if (m.end > peak) { peak = m.end; peakDay = m.month + (m.endSource === 'est' ? ' (est.)' : ''); } });
+
+    return out({
+      status: 'ok',
+      now: { equity: r2(now.equity), wallet: r2(now.wallet), unrealized: r2(now.unrealized), available: r2(now.available), margin: r2(now.margin) },
+      peak: { equity: r2(peak), day: peakDay, drawdownPct: peak > 0 ? r2((now.equity - peak) / peak * 100) : null },
+      since: EQUITY_START,
+      totalRealized: totalRealized,
+      totalPct: baseStart > 0 ? r2(totalRealized / baseStart * 100) : null,
+      avgMonthPct: avgPct,
+      closedMonths: pcts.length,
+      hasDeposits: deposits.length > 0,
+      snapshots: snaps.length,
+      months: months,
+      timestamp: new Date(nowMs).toISOString()
+    });
+  } catch (err) {
+    return out({ status: 'ok', error: err.message });
+  }
 }

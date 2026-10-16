@@ -1621,6 +1621,16 @@
             padding: 0.7rem 0.8rem;
             margin-bottom: 0.6rem;
         }
+        .eq-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; font-family: 'Space Mono', monospace; }
+        .eq-table th { font-size: 0.58rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; font-weight: 400; text-align: right; padding: 0.3rem 0.35rem; border-bottom: 1px solid var(--border); }
+        .eq-table td { text-align: right; padding: 0.35rem; border-bottom: 1px solid rgba(255,255,255,0.05); white-space: nowrap; }
+        .eq-table th:first-child, .eq-table td:first-child { text-align: left; }
+        .eq-pos { color: var(--green-bright); }
+        .eq-neg { color: var(--red-bright); }
+        .eq-bar { display: inline-block; height: 6px; border-radius: 3px; vertical-align: middle; margin-left: 4px; }
+        .eq-est { opacity: 0.6; }
+        .eq-note { font-size: 0.62rem; color: var(--text-dim); margin-top: 0.5rem; line-height: 1.4; }
+        @media (max-width: 768px) { .eq-hide-m { display: none; } .eq-table { font-size: 0.64rem; } }
         .rk-p {
             font-size: 0.72rem;
             line-height: 1.6;
@@ -2615,6 +2625,18 @@
         <div id="mcContent" style="display:none">
             <div class="section-box" id="mcBox" style="background:rgba(20,35,55,0.95)">
                 <div class="rk-empty">Loading stats...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Equity Tracker (Bitunix account equity, month by month) -->
+    <div class="kelly-section" id="equitySection">
+        <div class="section-header" style="cursor:pointer;border-left-color:#4dd0c4" onclick="toggleRiskPanel('equityContent', this)">
+            <span class="toggle-arrow">▼</span> Equity Tracker
+        </div>
+        <div id="equityContent">
+            <div class="section-box" id="equityBox" style="background:rgba(20,35,55,0.95)">
+                <div class="rk-empty">Loading Bitunix equity...</div>
             </div>
         </div>
     </div>
@@ -3826,6 +3848,9 @@ const BACKTEST = {
         // --- Monte Carlo Stress Test ---
         renderMonteCarlo(stats);
 
+        // --- Equity Tracker (own fetch, throttled) ---
+        loadEquityTracker();
+
         // --- Pokemon Trainer Level ---
         renderPokemon(stats);
 
@@ -4551,6 +4576,63 @@ const BACKTEST = {
                 }
             }
         });
+    }
+
+    // ====== EQUITY TRACKER (Bitunix account equity, month by month) ======
+    // ?action=equity returns live equity, the peak, and one row per month since July 2026
+    // built from the closed-position history. Each call also saves a daily snapshot in the sheet.
+    let _lastEquityLoad = 0;
+    async function loadEquityTracker(force) {
+        const box = document.getElementById('equityBox');
+        if (!box) return;
+        if (!force && Date.now() - _lastEquityLoad < 10 * 60000) return;
+        _lastEquityLoad = Date.now();
+        const res = await fireGetNoFallback(POST_URL + '?action=equity');
+        if (!res || res.status !== 'ok' || res.error || !res.months) {
+            box.innerHTML = '<div class="rk-empty">Bitunix equity unavailable: ' + esc((res && (res.error || res.msg)) || 'no response') + '</div>';
+            _lastEquityLoad = 0;
+            return;
+        }
+        renderEquityTracker(res);
+    }
+    function renderEquityTracker(d) {
+        const box = document.getElementById('equityBox');
+        if (!box) return;
+        const money = v => (v < 0 ? '-$' : '$') + Math.abs(v).toFixed(2);
+        const pct = v => (v === null || v === undefined) ? '—' : (v > 0 ? '+' : '') + v.toFixed(1) + '%';
+        const cls = v => v > 0 ? 'eq-pos' : v < 0 ? 'eq-neg' : '';
+        const mName = k => { const p = k.split('-'); return new Date(Number(p[0]), Number(p[1]) - 1, 1).toLocaleString('en-US', { month: 'short' }) + ' ' + p[0].slice(2); };
+        const maxAbs = Math.max(1, ...d.months.map(m => Math.abs(m.pct || 0)));
+        const rows = d.months.map(m => {
+            const est = m.endSource === 'est';
+            const w = Math.round(Math.abs(m.pct || 0) / maxAbs * 40);
+            return `<tr${m.current ? ' style="font-weight:700"' : ''}>
+                <td>${mName(m.month)}${m.current ? ' <span class="rk-dim" style="font-weight:400">so far</span>' : ''}</td>
+                <td class="eq-hide-m${m.startSource === 'est' ? ' eq-est' : ''}">${money(m.start)}</td>
+                <td class="${cls(m.realized)}">${money(m.realized)}</td>
+                <td class="${cls(m.pct)}">${pct(m.pct)}<span class="eq-bar" style="width:${w}px;background:${(m.pct || 0) >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'}"></span></td>
+                <td class="${est ? 'eq-est' : ''}">${money(m.end)}${est ? '*' : ''}</td>
+                <td class="eq-hide-m">${m.trades}</td>
+                <td class="eq-hide-m">${m.trades ? Math.round(m.wins / m.trades * 100) + '%' : '—'}</td>
+            </tr>`;
+        }).join('');
+        const dd = d.peak.drawdownPct;
+        const snapNote = d.snapshots
+            ? d.snapshots + ' daily snapshot' + (d.snapshots === 1 ? '' : 's') + ' saved so far; one is taken each time the app opens.'
+            : 'First snapshot saved today; one is taken each time the app opens.';
+        box.innerHTML = `
+            <div class="rk-tiles">
+                <div class="rk-tile"><div class="v">${money(d.now.equity)}</div><div class="l">Equity now</div><div class="s">${money(d.now.wallet)} wallet, <span class="${cls(d.now.unrealized)}">${(d.now.unrealized >= 0 ? '+' : '') + d.now.unrealized.toFixed(2)}</span> open</div></div>
+                <div class="rk-tile"><div class="v">${money(d.peak.equity)}</div><div class="l">Peak</div><div class="s">${esc(String(d.peak.day))}${(dd !== null && dd < 0) ? ', <span class="eq-neg">' + dd.toFixed(1) + '% below</span>' : ', at the top'}</div></div>
+                <div class="rk-tile"><div class="v ${cls(d.totalRealized)}">${money(d.totalRealized)}</div><div class="l">Since ${mName(d.since)}</div><div class="s">${pct(d.totalPct)} realized</div></div>
+                <div class="rk-tile"><div class="v ${cls(d.avgMonthPct)}">${pct(d.avgMonthPct)}</div><div class="l">Avg month</div><div class="s">${d.closedMonths} closed month${d.closedMonths === 1 ? '' : 's'}</div></div>
+            </div>
+            <table class="eq-table">
+                <thead><tr><th>Month</th><th class="eq-hide-m">Start</th><th>Realized</th><th>Gain</th><th>End</th><th class="eq-hide-m">Trades</th><th class="eq-hide-m">Win</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <div class="eq-note">Realized = net P&amp;L of every position closed that month on Bitunix (fees and funding included). Gain = realized ÷ equity at the start of the month. ${snapNote}
+            * rebuilt backwards from closed trades (no snapshot for that month end)${d.hasDeposits ? '' : '; add a Deposits tab (Date, Amount) to the sheet if money moved in or out since July'}.</div>`;
     }
 
     // ====== BITUNIX POSITION SYNC ======
