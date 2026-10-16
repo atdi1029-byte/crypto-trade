@@ -4595,6 +4595,42 @@ const BACKTEST = {
         }
         renderEquityTracker(res);
     }
+    const eqMoney = v => (v < 0 ? '-$' : '$') + Math.abs(v).toFixed(2);
+    function eqNowSub(now) {
+        return eqMoney(now.wallet) + ' wallet, <span class="' + (now.unrealized > 0 ? 'eq-pos' : now.unrealized < 0 ? 'eq-neg' : '') + '">' + (now.unrealized >= 0 ? '+' : '') + now.unrealized.toFixed(2) + '</span> open';
+    }
+    function eqPeakSub(peak) {
+        const dd = peak.drawdownPct;
+        return esc(String(peak.day)) + ((dd !== null && dd <= -0.1) ? ', <span class="eq-neg">' + dd.toFixed(1) + '% below</span>' : ', at the top');
+    }
+    // Light snapshot every 5 min while the app is open: keeps the daily high honest (open P&L included)
+    const EQ_SNAP_INTERVAL = 5 * 60000;
+    let _lastEquitySnap = 0;
+    async function equityLightSnap() {
+        if (document.hidden || Date.now() - _lastEquitySnap < EQ_SNAP_INTERVAL) return;
+        _lastEquitySnap = Date.now();
+        const res = await fireGetNoFallback(POST_URL + '?action=equity_snap');
+        if (!res || res.status !== 'ok' || res.error || !res.now) return;
+        const nv = document.getElementById('eqNowV'), ns = document.getElementById('eqNowS');
+        const pv = document.getElementById('eqPeakV'), ps = document.getElementById('eqPeakS');
+        if (nv) nv.textContent = eqMoney(res.now.equity);
+        if (ns) ns.innerHTML = eqNowSub(res.now);
+        if (pv) pv.textContent = eqMoney(res.peak.equity);
+        if (ps) ps.innerHTML = eqPeakSub(res.peak);
+    }
+    setInterval(equityLightSnap, 60000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) equityLightSnap(); });
+    // Peak seen on Bitunix before tracking started (or between app visits): "198" or "198 2026-10-13"
+    async function setEquityPeak() {
+        const ans = await showModal({ message: 'Peak equity you saw on Bitunix, with the date if you know it:', input: 'e.g. 198 2026-10-13' });
+        if (!ans) return;
+        const m = String(ans).trim().match(/^\$?\s*([\d.]+)\s*(\d{4}-\d{2}-\d{2})?/);
+        if (!m) { showToast('Could not read that — try "198" or "198 2026-10-13"'); return; }
+        const res = await fireGetNoFallback(POST_URL + '?action=equity_peak&value=' + encodeURIComponent(m[1]) + (m[2] ? '&date=' + m[2] : ''));
+        if (!res || res.status !== 'ok' || res.error) { showToast('Peak not saved: ' + ((res && (res.error || res.msg)) || 'no response')); return; }
+        showToast('Peak saved: $' + Number(m[1]).toFixed(2) + ' on ' + res.day);
+        loadEquityTracker(true);
+    }
     function renderEquityTracker(d) {
         const box = document.getElementById('equityBox');
         if (!box) return;
@@ -4616,14 +4652,13 @@ const BACKTEST = {
                 <td class="eq-hide-m">${m.trades ? Math.round(m.wins / m.trades * 100) + '%' : '—'}</td>
             </tr>`;
         }).join('');
-        const dd = d.peak.drawdownPct;
         const snapNote = d.snapshots
             ? d.snapshots + ' daily snapshot' + (d.snapshots === 1 ? '' : 's') + ' saved so far; one is taken each time the app opens.'
             : 'First snapshot saved today; one is taken each time the app opens.';
         box.innerHTML = `
             <div class="rk-tiles">
-                <div class="rk-tile"><div class="v">${money(d.now.equity)}</div><div class="l">Equity now</div><div class="s">${money(d.now.wallet)} wallet, <span class="${cls(d.now.unrealized)}">${(d.now.unrealized >= 0 ? '+' : '') + d.now.unrealized.toFixed(2)}</span> open</div></div>
-                <div class="rk-tile"><div class="v">${money(d.peak.equity)}</div><div class="l">Peak</div><div class="s">${esc(String(d.peak.day))}${(dd !== null && dd <= -0.1) ? ', <span class="eq-neg">' + dd.toFixed(1) + '% below</span>' : ', at the top'}</div></div>
+                <div class="rk-tile"><div class="v" id="eqNowV">${money(d.now.equity)}</div><div class="l">Equity now</div><div class="s" id="eqNowS">${eqNowSub(d.now)}</div></div>
+                <div class="rk-tile" style="cursor:pointer" onclick="setEquityPeak()" title="Tap to enter a peak you saw on Bitunix before tracking started"><div class="v" id="eqPeakV">${money(d.peak.equity)}</div><div class="l">Peak <span class="rk-dim">(tap to fix)</span></div><div class="s" id="eqPeakS">${eqPeakSub(d.peak)}</div></div>
                 <div class="rk-tile"><div class="v ${cls(d.totalRealized)}">${money(d.totalRealized)}</div><div class="l">Since ${mName(d.since)}</div><div class="s">${pct(d.totalPct)} realized</div></div>
                 <div class="rk-tile"><div class="v ${cls(d.avgMonthPct)}">${pct(d.avgMonthPct)}</div><div class="l">Avg month</div><div class="s">${d.closedMonths} closed month${d.closedMonths === 1 ? '' : 's'}</div></div>
             </div>

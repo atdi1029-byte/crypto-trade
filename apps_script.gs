@@ -1024,6 +1024,14 @@ function doGet(e) {
     return equityTracker_();
   }
 
+  if (action === 'equity_snap') {        // light: account only + today's snapshot row
+    return equitySnapOnly_();
+  }
+
+  if (action === 'equity_peak') {        // manual peak: ?value=198&date=2026-10-13
+    return equitySetPeak_(e.parameter.value, e.parameter.date);
+  }
+
   return ContentService
     .createTextOutput(JSON.stringify({
       status: 'ok',
@@ -3522,7 +3530,8 @@ function bxMonthsSince_(startKey, nowMs) {
 }
 
 // One row per day: Date | Equity (latest) | High (max seen that day) | Wallet | Unrealized
-function equitySnapshotSave_(now, nowMs) {
+// Upserts the row for `day` (yyyy-MM-dd). A manual peak passes only `high`.
+function equityUpsertDay_(day, dateMs, equity, high, wallet, unrealized) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(EQUITY_SHEET);
   if (!sh) {
@@ -3531,19 +3540,63 @@ function equitySnapshotSave_(now, nowMs) {
     sh.getRange(1, 1, 1, 5).setFontWeight('bold');
     sh.setFrozenRows(1);
   }
-  var today = Utilities.formatDate(new Date(nowMs), EQUITY_TZ, 'yyyy-MM-dd');
+  var r2 = function(x) { return (x === null || x === undefined || x === '') ? '' : Math.round(x * 100) / 100; };
   var last = sh.getLastRow();
-  var r2 = function(x) { return Math.round(x * 100) / 100; };
   if (last > 1) {
-    var lastRow = sh.getRange(last, 1, 1, 5).getValues()[0];
-    var lastDay = lastRow[0] instanceof Date ? Utilities.formatDate(lastRow[0], EQUITY_TZ, 'yyyy-MM-dd') : String(lastRow[0]).substring(0, 10);
-    if (lastDay === today) {
-      var high = Math.max(Number(lastRow[2]) || 0, now.equity);
-      sh.getRange(last, 1, 1, 5).setValues([[new Date(nowMs), r2(now.equity), r2(high), r2(now.wallet), r2(now.unrealized)]]);
+    var dates = sh.getRange(2, 1, last - 1, 1).getValues();
+    for (var i = dates.length - 1; i >= 0; i--) {
+      var d = dates[i][0];
+      var rowDay = d instanceof Date ? Utilities.formatDate(d, EQUITY_TZ, 'yyyy-MM-dd') : String(d).substring(0, 10);
+      if (rowDay !== day) continue;
+      var row = sh.getRange(i + 2, 1, 1, 5).getValues()[0];
+      var newHigh = Math.max(Number(row[2]) || 0, high || 0, equity || 0);
+      var vals = [[
+        equity === null ? row[0] : new Date(dateMs),
+        equity === null ? row[1] : r2(equity),
+        r2(newHigh),
+        equity === null ? row[3] : r2(wallet),
+        equity === null ? row[4] : r2(unrealized)
+      ]];
+      sh.getRange(i + 2, 1, 1, 5).setValues(vals);
       return;
     }
   }
-  sh.appendRow([new Date(nowMs), r2(now.equity), r2(now.equity), r2(now.wallet), r2(now.unrealized)]);
+  sh.appendRow([new Date(dateMs), r2(equity === null ? high : equity), r2(Math.max(high || 0, equity || 0)), r2(wallet), r2(unrealized)]);
+}
+
+function equitySnapshotSave_(now, nowMs) {
+  equityUpsertDay_(Utilities.formatDate(new Date(nowMs), EQUITY_TZ, 'yyyy-MM-dd'), nowMs, now.equity, now.equity, now.wallet, now.unrealized);
+}
+
+function equityPeak_(snaps, now, nowMs) {
+  var peak = now.equity, day = Utilities.formatDate(new Date(nowMs), EQUITY_TZ, 'yyyy-MM-dd');
+  snaps.forEach(function(sn) { if (sn.high > peak) { peak = sn.high; day = sn.day; } });
+  return { equity: Math.round(peak * 100) / 100, day: day, drawdownPct: peak > 0 ? Math.round((now.equity - peak) / peak * 10000) / 100 : null };
+}
+
+// ?action=equity_snap — called every few minutes while the app is open, so the
+// daily high catches equity peaks between visits (unrealized P&L included)
+function equitySnapOnly_() {
+  var out = function(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); };
+  try {
+    var nowMs = new Date().getTime(), now = bxEquityNow_();
+    equitySnapshotSave_(now, nowMs);
+    var r2 = function(x) { return Math.round(x * 100) / 100; };
+    return out({ status: 'ok', now: { equity: r2(now.equity), wallet: r2(now.wallet), unrealized: r2(now.unrealized) }, peak: equityPeak_(equitySnapshotsRead_(), now, nowMs) });
+  } catch (err) { return out({ status: 'ok', error: err.message }); }
+}
+
+// ?action=equity_peak&value=198&date=2026-10-13 — a peak seen on Bitunix before tracking started
+function equitySetPeak_(value, date) {
+  var out = function(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); };
+  var v = Number(value);
+  if (!v || v <= 0) return out({ status: 'ok', error: 'peak value missing' });
+  var day = /^\d{4}-\d{2}-\d{2}$/.test(String(date || '')) ? date : Utilities.formatDate(new Date(), EQUITY_TZ, 'yyyy-MM-dd');
+  var ms = Utilities.parseDate(day + ' 12:00:00', EQUITY_TZ, 'yyyy-MM-dd HH:mm:ss').getTime();
+  try {
+    equityUpsertDay_(day, ms, null, v, '', '');
+    return out({ status: 'ok', day: day, high: v });
+  } catch (err) { return out({ status: 'ok', error: err.message }); }
 }
 
 function equitySnapshotsRead_() {
@@ -3625,14 +3678,12 @@ function equityTracker_() {
     }
     var avgPct = pcts.length ? r2(pcts.reduce(function(a, b) { return a + b; }, 0) / pcts.length) : null;
     var totalRealized = r2(months.reduce(function(a, m) { return a + m.realized; }, 0));
-    var peak = now.equity, peakDay = Utilities.formatDate(new Date(nowMs), EQUITY_TZ, 'yyyy-MM-dd');
-    snaps.forEach(function(sn) { if (sn.high > peak) { peak = sn.high; peakDay = sn.day; } });
-    months.forEach(function(m) { if (m.end > peak) { peak = m.end; peakDay = m.month + (m.endSource === 'est' ? ' (est.)' : ''); } });
+    var pk = equityPeak_(snaps, now, nowMs);
 
     return out({
       status: 'ok',
       now: { equity: r2(now.equity), wallet: r2(now.wallet), unrealized: r2(now.unrealized), available: r2(now.available), margin: r2(now.margin) },
-      peak: { equity: r2(peak), day: peakDay, drawdownPct: peak > 0 ? r2((now.equity - peak) / peak * 100) : null },
+      peak: pk,
       since: EQUITY_START,
       totalRealized: totalRealized,
       totalPct: baseStart > 0 ? r2(totalRealized / baseStart * 100) : null,
