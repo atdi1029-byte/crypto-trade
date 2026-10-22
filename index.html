@@ -4683,11 +4683,15 @@ const BACKTEST = {
         try {
             const res = await fireGet(POST_URL + '?action=get_positions');
             if (!res || res.status !== 'ok' || !res.positions) return;
-            // Build set of open position symbols (strip USDT suffix)
+            // Build set of open position symbols (strip USDT suffix).
+            // Bitunix lists some meme coins with a size prefix (1000SHIB, 1000BONK, 1000000MOG)
+            // while the signals use the plain name, so add the unprefixed name too.
             const openSyms = new Set();
             res.positions.forEach(p => {
                 const sym = (p.symbol || '').toUpperCase().replace(/USDT$/, '');
                 if (sym) openSyms.add(sym);
+                const plain = sym.replace(/^10{3,}/, '');
+                if (plain) openSyms.add(plain);
             });
             _bxOpenSyms = openSyms;
             applyBitunixFlags();
