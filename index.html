@@ -3973,7 +3973,7 @@ const BACKTEST = {
                         <div class="meta">@ $${prc}</div>
                         ${btHtml}
                         <div class="action-buttons">
-                            <input type="text" class="entry-input" placeholder="Size $" id="${pickId}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
+                            <input type="text" class="entry-input" placeholder="Size $" data-bx="${esc(tkr)}" id="${pickId}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
                             ${bt ? `<input type="text" class="entry-input" placeholder="Entry $" id="${pickId}-entry" value="${p}" style="width:80px" oninput="recalcLevels('${pickId}')">` : ''}
                             <button class="action-btn entered" onclick="markPickAction('${esc(tkr)}','${esc(s.signal || s.direction)}',${prc},'Entered','${pickId}')">Entered</button>
                             <button class="action-btn skipped" onclick="markPickAction('${esc(tkr)}','${esc(s.signal || s.direction)}',${prc},'Skipped','${pickId}')">Skipped</button>
@@ -4152,7 +4152,7 @@ const BACKTEST = {
                             ${!lvl && levelsStr ? `<div class="meta" style="margin-top:0.15rem;font-size:0.7rem">${levelsStr}</div>` : ''}
                             ${btHtml}
                             <div class="action-buttons" data-signal-sl="${lvl ? (isBuy ? p * (1 - lvl.sl / 100) : p * (1 + lvl.sl / 100)) : (sl || '')}" data-signal-tp="${lvl ? (isBuy ? p * (1 + lvl.halfTp / 100) : p * (1 - lvl.halfTp / 100)) : (tp1 || '')}" data-signal-tp2="${lvl ? (isBuy ? p * (1 + lvl.tp / 100) : p * (1 - lvl.tp / 100)) : ''}" data-signal-side="${isBuy ? 'buy' : 'sell'}" data-signal-ts="${esc(a.timestamp || '')}">
-                                <input type="text" class="entry-input" placeholder="Size $" id="${id}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
+                                <input type="text" class="entry-input" placeholder="Size $" data-bx="${esc(tkr)}" id="${id}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
                                 ${lvl ? `<input type="text" class="entry-input" placeholder="Entry $" id="${id}-entry" value="${p}" style="width:80px" oninput="recalcLevels('${id}')">` : ''}
                                 <button class="action-btn entered" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Entered','${id}')">Open</button>
                                 <button class="action-btn skipped" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Skipped','${id}')">Skip</button>
@@ -4670,6 +4670,46 @@ const BACKTEST = {
             <div class="eq-note">Realized = net P&amp;L of every position closed that month on Bitunix (fees and funding included). Gain = realized ÷ equity at the start of the month. ${snapNote}
             * rebuilt backwards from closed trades (no snapshot for that month end)${d.hasDeposits ? '' : '; add a Deposits tab (Date, Amount) to the sheet if money moved in or out since July'}.</div>`;
     }
+
+    // ====== MIN SIZE IN THE SIZE BOXES ======
+    // Bitunix's smallest order for each coin, as margin at the Open button's 3x, shown in the empty
+    // Size box ("min $0.58"; "manual" when Bitunix blocks API trading). Data: ?action=bx_mins (5 min cache).
+    const OPEN_LEVERAGE = 3;
+    let _bxMins = null, _bxMinsAt = 0, _bxMinsLoading = false;
+    async function loadBxMins() {
+        if (_bxMinsLoading || (_bxMins && Date.now() - _bxMinsAt < 5 * 60000)) return;
+        _bxMinsLoading = true;
+        try {
+            const r = await fetch(POST_URL + '?action=bx_mins', { cache: 'no-store' });
+            const d = await r.json();
+            if (d && d.pairs) { _bxMins = d.pairs; _bxMinsAt = Date.now(); }
+        } catch (e) { console.warn('bx_mins failed', e); }
+        _bxMinsLoading = false;
+        annotateBxMins();
+    }
+    function bxMinFor(ticker) {
+        if (!_bxMins) return null;
+        const s = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
+        const base = BX_REMAP[s] || s;
+        const m = _bxMins[base] || _bxMins['1000' + base];
+        if (!m) return null;
+        return { usd: m[0] * m[1] / OPEN_LEVERAGE, api: m[2] === 1 };
+    }
+    function annotateBxMins() {
+        if (!_bxMins || Date.now() - _bxMinsAt > 5 * 60000) loadBxMins();
+        document.querySelectorAll('input[data-bx]').forEach(el => {
+            const m = bxMinFor(el.dataset.bx);
+            if (!m) return;
+            const label = m.api ? 'min $' + Math.max(0.01, m.usd).toFixed(2) : 'manual';
+            if (el.placeholder !== label) {
+                el.placeholder = label;
+                el.title = m.api ? 'Smallest Bitunix order: $' + m.usd.toFixed(2) + ' at ' + OPEN_LEVERAGE + 'x' : 'Bitunix blocks API trading on this one: open it by hand';
+            }
+        });
+    }
+    let _bxMinsTimer = null;
+    new MutationObserver(() => { clearTimeout(_bxMinsTimer); _bxMinsTimer = setTimeout(annotateBxMins, 300); })
+        .observe(document.documentElement, { childList: true, subtree: true });
 
     // ====== BITUNIX POSITION SYNC ======
     // Flags open trade cards that have no matching Bitunix position

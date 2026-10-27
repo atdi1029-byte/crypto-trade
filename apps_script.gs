@@ -1016,6 +1016,15 @@ function doGet(e) {
     return executeBitunixTrade_(e.parameter);
   }
 
+  if (action === 'bx_mins') {
+    return bxMins_();
+  }
+
+  if (action === 'trade_log') {
+    return ContentService.createTextOutput(PropertiesService.getScriptProperties().getProperty('TRADE_LOG') || '[]')
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   if (action === 'get_positions') {
     return getBitunixPositions_();
   }
@@ -1089,6 +1098,7 @@ function executeBitunixTrade_(params) {
   var signalTs = String(params.signal_ts || '').replace(/[^a-zA-Z0-9_:\-]/g, '');
 
   function jsonOut_(obj) {
+    logTrade_(params, obj);
     return ContentService.createTextOutput(JSON.stringify(obj))
       .setMimeType(ContentService.MimeType.JSON);
   }
@@ -1406,6 +1416,9 @@ function executeBitunixTrade_(params) {
 
     if (!orderResp || orderResp.code !== 0) {
       return fail_(
+        // 300108: Bitunix refuses opening from the script's (Google server) IP for some pairs - US stocks
+        // mostly (INTC 3x, Oct 27; ASTS went through). Nothing to do here but open it by hand.
+        (orderResp && Number(orderResp.code) === 300108 ? 'Bitunix blocks opening ' + symbol + ' from the trade script\'s server location - open it by hand. ' : '') +
         (orderResp && orderResp.msg) + ' (code ' + (orderResp && orderResp.code) + ')' +
         (firstAttempt ? ' [' + firstAttempt + ']' : '') +
         ' | sent=' + JSON.stringify(orderData) +
@@ -1525,6 +1538,47 @@ function executeBitunixTrade_(params) {
   } catch (err) {
     return fail_('Script error: ' + err.message + (err.stack ? ' @ ' + String(err.stack).split('\n')[1] : ''), { symbol: symbol });
   }
+}
+
+// Bitunix minimum order per pair, for the "min $" in the apps' Size boxes: ?action=bx_mins
+// { at, pairs: { BASE: [minQty, lastPrice, apiAllowed 1/0] } } (USDT pairs, cached 5 min)
+function bxMins_() {
+  var cache = CacheService.getScriptCache();
+  var json = cache.get('BX_MINS');
+  if (!json) {
+    var get = function(path) {
+      var r = UrlFetchApp.fetch('https://fapi.bitunix.com' + path, { muteHttpExceptions: true });
+      try { return JSON.parse(r.getContentText()).data || []; } catch (e) { return []; }
+    };
+    var px = {};
+    get('/api/v1/futures/market/tickers').forEach(function(t) { px[t.symbol] = Number(t.lastPrice || t.markPrice || 0); });
+    var pairs = {};
+    get('/api/v1/futures/market/trading_pairs').forEach(function(p) {
+      if (p.quote !== 'USDT') return;
+      pairs[p.base] = [Number(p.minTradeVolume) || 0, px[p.symbol] || 0, p.isApiSupported === false ? 0 : 1];
+    });
+    json = JSON.stringify({ at: Date.now(), pairs: pairs });
+    try { cache.put('BX_MINS', json, 300); } catch (e) {}
+  }
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+// Last 20 execute_trade calls (crypto + SPX Open buttons), newest first: ?action=trade_log
+// Apps Script's own logs need a GCP project, so this is how a failed Open gets diagnosed.
+function logTrade_(params, out) {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var log = JSON.parse(props.getProperty('TRADE_LOG') || '[]');
+    log.unshift({
+      at: Utilities.formatDate(new Date(), 'America/New_York', 'yyyy-MM-dd HH:mm:ss'),
+      from: /^SPX/.test(String(params.signal_ts || '')) ? 'spx' : 'crypto',
+      symbol: params.symbol, side: params.side, size: params.size_usd, lev: params.leverage,
+      dry: params.dry_run ? 1 : 0, status: out.status, qty: out.qty, via: out.via, split: out.split ? 1 : 0,
+      msg: String(out.msg || '').substring(0, 200),
+      warn: String((out.tpSlWarning || '') + (out.warnings ? ' ' + out.warnings : '') + (out.splitNote ? ' ' + out.splitNote : '')).substring(0, 200)
+    });
+    props.setProperty('TRADE_LOG', JSON.stringify(log.slice(0, 20)));
+  } catch (e) { console.log('logTrade_ failed: ' + e.message); }
 }
 
 // ---------------------------------------------------------------
