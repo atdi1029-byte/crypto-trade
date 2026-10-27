@@ -1048,8 +1048,9 @@ function doGet(e) {
 // v4 (2026-10): runner split. When tp2_price is sent and half the qty
 //   still clears minTradeVolume, the order goes in with the SL only, then
 //   two TP orders go on the position: half the qty at tp_price (TP1) and
-//   the rest at tp2_price (TP2). Too small to split = one TP for the whole
-//   qty at tp_price, as before (splitNote in the reply says why).
+//   the rest at tp2_price (TP2). The halves may be under minTradeVolume
+//   (Bitunix takes partial TPs below it, e.g. 15.2 SAND with a 30 min); if
+//   Bitunix refuses both halves, one TP for the whole qty goes on instead.
 //   leverage_fallback (SPX: 4x, fallback 5x): used when the pair doesn't
 //   allow the first leverage, when the minimum order only fits the size at
 //   the fallback, or when Bitunix refuses the first one. Both fail = no order.
@@ -1310,8 +1311,8 @@ function executeBitunixTrade_(params) {
     var halfQty = floorTo_(Number(qtyStr) / 2, qtyDecimals);
     var halfStr = fmtNum_(halfQty, qtyDecimals);
     var restStr = fmtNum_(Number(qtyStr) - halfQty, qtyDecimals);
-    var split = !!(tpStr && tp2Str && Number(halfStr) > 0 && Number(restStr) > 0 &&
-                   (!(minQty > 0) || (Number(halfStr) >= minQty && Number(restStr) >= minQty)));
+    var split = !!(tpStr && tp2Str && Number(halfStr) > 0 && Number(restStr) > 0);
+    var splitNote = '';
     if (split) tpStr = '';   // TP1/TP2 go on as separate orders after the fill
     var tp1Str = split ? fmtNum_(Number(tpPrice), priceDecimals) : tpStr;
     var hasTpSl = !!(tpStr || slStr);
@@ -1462,14 +1463,28 @@ function executeBitunixTrade_(params) {
       if (!findPos_()) {
         tpSlWarnings.push('TP1/TP2 not set: position not found after fill (' + (posResp && posResp.msg) + ')');
       } else {
+        var legErrs = [];
         [['TP1', tp1Str, halfStr], ['TP2', tp2Str, restStr]].forEach(function(leg) {
           var legData = { symbol: symbol, positionId: String(pos.positionId),
                           tpPrice: leg[1], tpStopType: 'LAST_PRICE', tpQty: leg[2] };
           var legResp = apiPost('/api/v1/futures/tpsl/place_order', legData);
           if (!legResp || legResp.code !== 0) {
-            tpSlWarnings.push(leg[0] + ' failed: ' + (legResp && legResp.msg) + ' (code ' + (legResp && legResp.code) + ') sent=' + JSON.stringify(legData));
+            legErrs.push(leg[0] + ' failed: ' + (legResp && legResp.msg) + ' (code ' + (legResp && legResp.code) + ') sent=' + JSON.stringify(legData));
           }
         });
+        if (legErrs.length === 2) {
+          // Both halves refused (too small?) -> one TP for the whole position at TP1
+          var oneResp = apiPost('/api/v1/futures/tpsl/place_order', { symbol: symbol, positionId: String(pos.positionId),
+                                tpPrice: tp1Str, tpStopType: 'LAST_PRICE', tpQty: qtyStr });
+          if (oneResp && oneResp.code === 0) {
+            split = false;
+            splitNote = 'Bitunix refused the half TPs, so one TP for all ' + qtyStr + ' (' + legErrs[0] + ')';
+          } else {
+            tpSlWarnings = tpSlWarnings.concat(legErrs);
+          }
+        } else if (legErrs.length) {
+          tpSlWarnings = tpSlWarnings.concat(legErrs);
+        }
       }
     }
 
@@ -1487,10 +1502,9 @@ function executeBitunixTrade_(params) {
       via: via
     };
     if (tp2Str && !split) {
-      result.splitNote = 'one TP for all ' + qtyStr + ': too small to split (Bitunix min ' + minQty + ' per order, needs ' +
-                         fmtNum_(minQty * 2, qtyDecimals) + '+ ≈ $' + (minQty * 2 * price / leverage).toFixed(2) + ' size)';
+      result.splitNote = splitNote || ('one TP for all ' + qtyStr + ': ' + qtyStr + ' can\'t be cut in half');
     }
-    if (split) {
+    if (split && !splitNote) {
       result.split = true;
       result.tp2 = tp2Str;
       result.tp1Qty = halfStr;
