@@ -1386,7 +1386,8 @@ function executeBitunixTrade_(params) {
     var tpSlWarnings = [];
     var pos = null, posResp = null;
     function findPos_() {
-      var wantSide = orderSide === 'BUY' ? 'LONG' : 'SHORT';
+      // Bitunix reports position side as BUY/SELL (LONG/SHORT kept just in case)
+      var wantSides = orderSide === 'BUY' ? ['BUY', 'LONG'] : ['SELL', 'SHORT'];
       for (var attempt = 0; attempt < 4 && !pos; attempt++) {
         if (attempt > 0) Utilities.sleep(700);
         posResp = apiGet('/api/v1/futures/position/get_pending_positions', { symbol: symbol });
@@ -1396,7 +1397,7 @@ function executeBitunixTrade_(params) {
           var pp = list[i];
           if (String(pp.symbol).toUpperCase() !== symbol) continue;
           if (!(Number(pp.qty) > 0)) continue;
-          if (isHedge && String(pp.side).toUpperCase() !== wantSide) continue;
+          if (isHedge && wantSides.indexOf(String(pp.side).toUpperCase()) < 0) continue;
           var id = String(pp.positionId);
           if (!(id in prevQty)) { pos = pp; break; }               // brand-new position
           if (!grown && Number(pp.qty) > prevQty[id]) grown = pp;  // order merged into an old one
