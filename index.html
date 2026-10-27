@@ -6026,7 +6026,8 @@ const BACKTEST = {
                     showToast('⚠️ ' + ticker + ' opened but TP/SL failed — set them on Bitunix! ' + (tradeRes.tpSlWarning || ''), 8000);
                 } else {
                     showToast('Trade opened: ' + ticker + ' ' + tradeRes.qty + ' @ $' + (tradeRes.price ? Number(tradeRes.price).toFixed(4) : '?') +
-                        (tradeRes.split ? ' · TP1 ' + tradeRes.tp1Qty + ' @ ' + tradeRes.tp + ' · TP2 ' + tradeRes.tp2Qty + ' @ ' + tradeRes.tp2 : ''));
+                        (tradeRes.split ? ' · TP1 ' + tradeRes.tp1Qty + ' @ ' + tradeRes.tp + ' · TP2 ' + tradeRes.tp2Qty + ' @ ' + tradeRes.tp2 : '') +
+                        (tradeRes.splitNote ? ' · ' + tradeRes.splitNote : ''), undefined, tradeRes.splitNote ? 8000 : undefined);
                 }
                 if (tradeRes.warnings) {
                     showToast('⚠️ ' + ticker + ': ' + tradeRes.warnings + ' — check leverage/margin mode on Bitunix', 8000);

@@ -1049,7 +1049,10 @@ function doGet(e) {
 //   still clears minTradeVolume, the order goes in with the SL only, then
 //   two TP orders go on the position: half the qty at tp_price (TP1) and
 //   the rest at tp2_price (TP2). Too small to split = one TP for the whole
-//   qty at tp_price, as before.
+//   qty at tp_price, as before (splitNote in the reply says why).
+//   leverage_fallback (SPX: 4x, fallback 5x): used when the pair doesn't
+//   allow the first leverage, when the minimum order only fits the size at
+//   the fallback, or when Bitunix refuses the first one. Both fail = no order.
 //
 // v3 (2026-09): hardened after "Parameter error (10002)" on MELANIAUSDT
 //   - Looks up trading_pairs / tickers by exact symbol match instead of
@@ -1080,6 +1083,7 @@ function executeBitunixTrade_(params) {
   var tp2Price = params.tp2_price || '';
   var leverage = Number(params.leverage || 3);
   if (!(leverage > 0)) leverage = 3;
+  var levFallback = Number(params.leverage_fallback || 0);
   var dryRun = String(params.dry_run || '') === '1' || String(params.dry_run || '').toLowerCase() === 'true';
   var signalTs = String(params.signal_ts || '').replace(/[^a-zA-Z0-9_:\-]/g, '');
 
@@ -1235,10 +1239,33 @@ function executeBitunixTrade_(params) {
       return fail_('Could not get price for ' + symbol + ': ' + (tickerResp && tickerResp.msg) + ' (code ' + (tickerResp && tickerResp.code) + ')', { symbol: symbol });
     }
 
+    // 3. Leverage range (only enforced when a fallback was sent, i.e. SPX)
+    if (levFallback) {
+      var minLev = Number(pairData.minLeverage) || 1, maxLev = Number(pairData.maxLeverage) || 125;
+      var levOk_ = function(l) { return l >= minLev && l <= maxLev; };
+      if (!levOk_(leverage)) {
+        if (!levOk_(levFallback)) {
+          return fail_(symbol + ' allows ' + minLev + '-' + maxLev + 'x, not ' + leverage + 'x or ' + levFallback + 'x — not opened', { symbol: symbol });
+        }
+        warnings.push(leverage + 'x not allowed on ' + symbol + ', used ' + levFallback + 'x');
+        leverage = levFallback; levFallback = 0;
+      }
+    }
+
     // 4. Qty from USD size (size_usd is margin; x leverage = notional)
+    function qtyFor_(lev) {
+      var q = floorTo_((sizeUsd * lev) / price, qtyDecimals);
+      if (minQty > 0 && q < minQty) q = minQty;
+      return q;
+    }
+    var qty = qtyFor_(leverage);
+    // Minimum order too big for the size at this leverage? The fallback leverage may fit it.
+    if (levFallback > leverage && qty * price / leverage > sizeUsd * 2 && qtyFor_(levFallback) * price / levFallback <= sizeUsd * 2) {
+      warnings.push('minimum order only fits $' + sizeUsd + ' at ' + levFallback + 'x, used ' + levFallback + 'x');
+      leverage = levFallback; levFallback = 0;
+      qty = qtyFor_(leverage);
+    }
     var rawQty = (sizeUsd * leverage) / price;
-    var qty = floorTo_(rawQty, qtyDecimals);
-    if (minQty > 0 && qty < minQty) qty = minQty;
     if (maxMarketQty > 0 && qty > maxMarketQty) {
       return fail_('Blocked: qty ' + fmtNum_(qty, qtyDecimals) + ' exceeds Bitunix max market order qty ' + maxMarketQty + ' for ' + symbol,
                    { symbol: symbol, price: price });
@@ -1326,7 +1353,17 @@ function executeBitunixTrade_(params) {
     var levResp = apiPost('/api/v1/futures/account/change_leverage', {
       symbol: symbol, leverage: leverage, marginCoin: 'USDT'
     });
-    if (!levResp || levResp.code !== 0) {
+    if ((!levResp || levResp.code !== 0) && levFallback && levFallback !== leverage) {
+      var levResp2 = apiPost('/api/v1/futures/account/change_leverage', {
+        symbol: symbol, leverage: levFallback, marginCoin: 'USDT'
+      });
+      if (!levResp2 || levResp2.code !== 0) {
+        return fail_('Bitunix refused ' + leverage + 'x (' + (levResp && levResp.msg) + ') and ' + levFallback + 'x (' +
+                     (levResp2 && levResp2.msg) + ') on ' + symbol + ' — not opened', { symbol: symbol });
+      }
+      warnings.push(leverage + 'x refused (' + (levResp && levResp.msg) + '), used ' + levFallback + 'x');
+      leverage = levFallback;
+    } else if (!levResp || levResp.code !== 0) {
       warnings.push('change_leverage: ' + (levResp && levResp.msg) + ' (code ' + (levResp && levResp.code) + ')');
     }
     var mmResp = apiPost('/api/v1/futures/account/change_margin_mode', {
@@ -1446,8 +1483,13 @@ function executeBitunixTrade_(params) {
       price: price,
       sl: slStr,
       tp: tp1Str,
+      leverage: leverage,
       via: via
     };
+    if (tp2Str && !split) {
+      result.splitNote = 'one TP for all ' + qtyStr + ': too small to split (Bitunix min ' + minQty + ' per order, needs ' +
+                         fmtNum_(minQty * 2, qtyDecimals) + '+ ≈ $' + (minQty * 2 * price / leverage).toFixed(2) + ' size)';
+    }
     if (split) {
       result.split = true;
       result.tp2 = tp2Str;
