@@ -2889,7 +2889,8 @@
     }
 
     // ====== BACKTEST DATA (Feb 17, 2026 — 529 crypto tickers) ======
-    const BT_DEFAULTS = { buy: { sl:14.5, tp:15, halfTp:7 }, sell: { sl:20, tp:13, halfTp:7 } };
+    // tp = runner TP2: Open puts half the coins at halfTp (TP1) and parks the rest far out at tp (TP2)
+    const BT_DEFAULTS = { buy: { sl:14.5, tp:400, halfTp:7 }, sell: { sl:20, tp:90, halfTp:7 } };
 const BACKTEST = {
   '0GUSDT': { buyWr:null, sellWr:0, reduceWr:null, note:'Bad buy' },
   '1000CATUSDT': { buyWr:null, sellWr:40, reduceWr:0, note:'Bad buy' },
@@ -4150,7 +4151,7 @@ const BACKTEST = {
                             ${noteHtml ? `<div class="meta" style="margin-top:0.15rem">${noteHtml}</div>` : ''}
                             ${!lvl && levelsStr ? `<div class="meta" style="margin-top:0.15rem;font-size:0.7rem">${levelsStr}</div>` : ''}
                             ${btHtml}
-                            <div class="action-buttons" data-signal-sl="${lvl ? (isBuy ? p * (1 - lvl.sl / 100) : p * (1 + lvl.sl / 100)) : (sl || '')}" data-signal-tp="${lvl ? (isBuy ? p * (1 + lvl.halfTp / 100) : p * (1 - lvl.halfTp / 100)) : (tp1 || '')}" data-signal-side="${isBuy ? 'buy' : 'sell'}" data-signal-ts="${esc(a.timestamp || '')}">
+                            <div class="action-buttons" data-signal-sl="${lvl ? (isBuy ? p * (1 - lvl.sl / 100) : p * (1 + lvl.sl / 100)) : (sl || '')}" data-signal-tp="${lvl ? (isBuy ? p * (1 + lvl.halfTp / 100) : p * (1 - lvl.halfTp / 100)) : (tp1 || '')}" data-signal-tp2="${lvl ? (isBuy ? p * (1 + lvl.tp / 100) : p * (1 - lvl.tp / 100)) : ''}" data-signal-side="${isBuy ? 'buy' : 'sell'}" data-signal-ts="${esc(a.timestamp || '')}">
                                 <input type="text" class="entry-input" placeholder="Size $" id="${id}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
                                 ${lvl ? `<input type="text" class="entry-input" placeholder="Entry $" id="${id}-entry" value="${p}" style="width:80px" oninput="recalcLevels('${id}')">` : ''}
                                 <button class="action-btn entered" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Entered','${id}')">Open</button>
@@ -5998,6 +5999,7 @@ const BACKTEST = {
             const btnDiv = el.querySelector('.action-buttons');
             const slPrice = btnDiv ? btnDiv.dataset.signalSl : '';
             const tpPrice = btnDiv ? btnDiv.dataset.signalTp : '';
+            const tp2Price = btnDiv ? (btnDiv.dataset.signalTp2 || '') : '';
             const tradeSide = btnDiv ? btnDiv.dataset.signalSide : 'buy';
             const signalTs = btnDiv ? btnDiv.dataset.signalTs : '';
             const cleanSym = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
@@ -6014,6 +6016,7 @@ const BACKTEST = {
                 size_usd: entrySize,
                 sl_price: slPrice,
                 tp_price: tpPrice,
+                tp2_price: tp2Price,
                 leverage: '3',
                 signal_ts: signalTs
             });
@@ -6022,7 +6025,8 @@ const BACKTEST = {
                 if (tradeRes.via === 'order_ok_tpsl_failed') {
                     showToast('⚠️ ' + ticker + ' opened but TP/SL failed — set them on Bitunix! ' + (tradeRes.tpSlWarning || ''), 8000);
                 } else {
-                    showToast('Trade opened: ' + ticker + ' ' + tradeRes.qty + ' @ $' + (tradeRes.price ? Number(tradeRes.price).toFixed(4) : '?'));
+                    showToast('Trade opened: ' + ticker + ' ' + tradeRes.qty + ' @ $' + (tradeRes.price ? Number(tradeRes.price).toFixed(4) : '?') +
+                        (tradeRes.split ? ' · TP1 ' + tradeRes.tp1Qty + ' @ ' + tradeRes.tp + ' · TP2 ' + tradeRes.tp2Qty + ' @ ' + tradeRes.tp2 : ''));
                 }
                 if (tradeRes.warnings) {
                     showToast('⚠️ ' + ticker + ': ' + tradeRes.warnings + ' — check leverage/margin mode on Bitunix', 8000);

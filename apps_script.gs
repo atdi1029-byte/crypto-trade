@@ -1043,7 +1043,13 @@ function doGet(e) {
 
 // ---------------------------------------------------------------
 // executeBitunixTrade_ — Open a trade on Bitunix via API
-// Params: symbol, side (buy/sell), size_usd, sl_price, tp_price, leverage
+// Params: symbol, side (buy/sell), size_usd, sl_price, tp_price, tp2_price, leverage
+//
+// v4 (2026-10): runner split. When tp2_price is sent and half the qty
+//   still clears minTradeVolume, the order goes in with the SL only, then
+//   two TP orders go on the position: half the qty at tp_price (TP1) and
+//   the rest at tp2_price (TP2). Too small to split = one TP for the whole
+//   qty at tp_price, as before.
 //
 // v3 (2026-09): hardened after "Parameter error (10002)" on MELANIAUSDT
 //   - Looks up trading_pairs / tickers by exact symbol match instead of
@@ -1071,6 +1077,7 @@ function executeBitunixTrade_(params) {
   var sizeUsd  = Number(params.size_usd || 0);
   var slPrice  = params.sl_price || '';
   var tpPrice  = params.tp_price || '';
+  var tp2Price = params.tp2_price || '';
   var leverage = Number(params.leverage || 3);
   if (!(leverage > 0)) leverage = 3;
   var dryRun = String(params.dry_run || '') === '1' || String(params.dry_run || '').toLowerCase() === 'true';
@@ -1124,6 +1131,7 @@ function executeBitunixTrade_(params) {
     // Scale SL/TP from raw price to 1000x price
     if (slPrice) slPrice = String(Number(slPrice) * 1000);
     if (tpPrice) tpPrice = String(Number(tpPrice) * 1000);
+    if (tp2Price) tp2Price = String(Number(tp2Price) * 1000);
   }
   symbol = base + 'USDT';
 
@@ -1270,6 +1278,15 @@ function executeBitunixTrade_(params) {
     // stop is live the instant the fill happens. Formatted to quotePrecision.
     var tpStr = tpPrice ? fmtNum_(Number(tpPrice), priceDecimals) : '';
     var slStr = slPrice ? fmtNum_(Number(slPrice), priceDecimals) : '';
+    var tp2Str = tp2Price ? fmtNum_(Number(tp2Price), priceDecimals) : '';
+    // Runner split: half at TP1, the rest at TP2 — only if both halves clear the minimum
+    var halfQty = floorTo_(Number(qtyStr) / 2, qtyDecimals);
+    var halfStr = fmtNum_(halfQty, qtyDecimals);
+    var restStr = fmtNum_(Number(qtyStr) - halfQty, qtyDecimals);
+    var split = !!(tpStr && tp2Str && Number(halfStr) > 0 && Number(restStr) > 0 &&
+                   (!(minQty > 0) || (Number(halfStr) >= minQty && Number(restStr) >= minQty)));
+    if (split) tpStr = '';   // TP1/TP2 go on as separate orders after the fill
+    var tp1Str = split ? fmtNum_(Number(tpPrice), priceDecimals) : tpStr;
     var hasTpSl = !!(tpStr || slStr);
     if (tpStr) {
       orderData.tpPrice = tpStr;
@@ -1297,6 +1314,7 @@ function executeBitunixTrade_(params) {
         note: 'Nothing was sent to Bitunix. This is exactly what a live call would send.',
         wouldSend_place_order: orderData,
         fallback_position_tp_sl: tpSlData,
+        split_tp_orders: split ? [{ tpPrice: tp1Str, tpQty: halfStr }, { tpPrice: tp2Str, tpQty: restStr }] : null,
         price: price, rawQty: rawQty, qtyDecimals: qtyDecimals, priceDecimals: priceDecimals,
         minQty: minQty, maxMarketQty: maxMarketQty, actualCostUsd: Number(actualCost.toFixed(4)),
         positionMode: (acctResp && acctResp.data && acctResp.data.positionMode) || '(unknown: ' + (acctResp && acctResp.msg) + ')',
@@ -1357,12 +1375,12 @@ function executeBitunixTrade_(params) {
     //    Endpoint per docs: POST /api/v1/futures/tpsl/position/place_order,
     //    and it REQUIRES positionId -> look it up from pending positions.
     var tpSlWarnings = [];
-    if (via === 'bare_then_position_tpsl' && tpSlData) {
+    var pos = null, posResp = null;
+    function findPos_() {
       var wantSide = orderSide === 'BUY' ? 'LONG' : 'SHORT';
-      var pos = null;
       for (var attempt = 0; attempt < 4 && !pos; attempt++) {
         if (attempt > 0) Utilities.sleep(700);
-        var posResp = apiGet('/api/v1/futures/position/get_pending_positions', { symbol: symbol });
+        posResp = apiGet('/api/v1/futures/position/get_pending_positions', { symbol: symbol });
         var list = (posResp && posResp.code === 0 && posResp.data) ? posResp.data : [];
         for (var i = 0; i < list.length; i++) {
           var pp = list[i];
@@ -1372,6 +1390,10 @@ function executeBitunixTrade_(params) {
           pos = pp; break;
         }
       }
+      return pos;
+    }
+    if (via === 'bare_then_position_tpsl' && tpSlData) {
+      findPos_();
       if (!pos) {
         tpSlWarnings.push('TP/SL not set: position not found after fill (' + (posResp && posResp.msg) + ')');
       } else {
@@ -1384,6 +1406,22 @@ function executeBitunixTrade_(params) {
       if (firstAttempt) warnings.push(firstAttempt);
     }
 
+    // 8. Runner split: TP1 on half the qty, TP2 on the rest (individual TP orders)
+    if (split) {
+      if (!findPos_()) {
+        tpSlWarnings.push('TP1/TP2 not set: position not found after fill (' + (posResp && posResp.msg) + ')');
+      } else {
+        [['TP1', tp1Str, halfStr], ['TP2', tp2Str, restStr]].forEach(function(leg) {
+          var legData = { symbol: symbol, positionId: String(pos.positionId),
+                          tpPrice: leg[1], tpStopType: 'LAST_PRICE', tpQty: leg[2] };
+          var legResp = apiPost('/api/v1/futures/tpsl/place_order', legData);
+          if (!legResp || legResp.code !== 0) {
+            tpSlWarnings.push(leg[0] + ' failed: ' + (legResp && legResp.msg) + ' (code ' + (legResp && legResp.code) + ') sent=' + JSON.stringify(legData));
+          }
+        });
+      }
+    }
+
     var result = {
       status: 'ok',
       msg: orderResp.msg,
@@ -1393,9 +1431,15 @@ function executeBitunixTrade_(params) {
       qty: qtyStr,
       price: price,
       sl: slStr,
-      tp: tpStr,
+      tp: tp1Str,
       via: via
     };
+    if (split) {
+      result.split = true;
+      result.tp2 = tp2Str;
+      result.tp1Qty = halfStr;
+      result.tp2Qty = restStr;
+    }
     if (tpSlWarnings.length) {
       result.via = 'order_ok_tpsl_failed';
       result.tpSlWarning = tpSlWarnings.join('; ');
