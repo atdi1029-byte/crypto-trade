@@ -1336,6 +1336,15 @@ function executeBitunixTrade_(params) {
       warnings.push('change_margin_mode: ' + (mmResp && mmResp.msg) + ' (code ' + (mmResp && mmResp.code) + ')');
     }
 
+    // Positions this symbol already has, so the TP orders go on the NEW one.
+    // Bitunix can hold several positions per symbol (FARTCOIN 10/27: the
+    // split TPs went to the older position and the new one got none).
+    var prevQty = {};
+    var preResp = apiGet('/api/v1/futures/position/get_pending_positions', { symbol: symbol });
+    ((preResp && preResp.code === 0 && preResp.data) || []).forEach(function(pp) {
+      prevQty[String(pp.positionId)] = Number(pp.qty) || 0;
+    });
+
     var orderResp = apiPost('/api/v1/futures/trade/place_order', orderData);
     var via = hasTpSl ? 'inline_tpsl' : 'no_tpsl';
     var firstAttempt = null;
@@ -1382,13 +1391,17 @@ function executeBitunixTrade_(params) {
         if (attempt > 0) Utilities.sleep(700);
         posResp = apiGet('/api/v1/futures/position/get_pending_positions', { symbol: symbol });
         var list = (posResp && posResp.code === 0 && posResp.data) ? posResp.data : [];
+        var grown = null;
         for (var i = 0; i < list.length; i++) {
           var pp = list[i];
           if (String(pp.symbol).toUpperCase() !== symbol) continue;
           if (!(Number(pp.qty) > 0)) continue;
           if (isHedge && String(pp.side).toUpperCase() !== wantSide) continue;
-          pos = pp; break;
+          var id = String(pp.positionId);
+          if (!(id in prevQty)) { pos = pp; break; }               // brand-new position
+          if (!grown && Number(pp.qty) > prevQty[id]) grown = pp;  // order merged into an old one
         }
+        if (!pos && grown) pos = grown;
       }
       return pos;
     }
