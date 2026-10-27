@@ -1541,10 +1541,10 @@ function executeBitunixTrade_(params) {
 }
 
 // Bitunix minimum order per pair, for the "min $" in the apps' Size boxes: ?action=bx_mins
-// { at, pairs: { BASE: [minQty, lastPrice, apiAllowed 1/0] } } (USDT pairs, cached 5 min)
+// { at, pairs: { BASE: [minQty, lastPrice, apiAllowed 1/0, priceDecimals] } } (USDT pairs, cached 5 min)
 function bxMins_() {
   var cache = CacheService.getScriptCache();
-  var json = cache.get('BX_MINS');
+  var json = cache.get('BX_MINS2');
   if (!json) {
     var get = function(path) {
       var r = UrlFetchApp.fetch('https://fapi.bitunix.com' + path, { muteHttpExceptions: true });
@@ -1555,10 +1555,10 @@ function bxMins_() {
     var pairs = {};
     get('/api/v1/futures/market/trading_pairs').forEach(function(p) {
       if (p.quote !== 'USDT') return;
-      pairs[p.base] = [Number(p.minTradeVolume) || 0, px[p.symbol] || 0, p.isApiSupported === false ? 0 : 1];
+      pairs[p.base] = [Number(p.minTradeVolume) || 0, px[p.symbol] || 0, p.isApiSupported === false ? 0 : 1, Number(p.quotePrecision)];
     });
     json = JSON.stringify({ at: Date.now(), pairs: pairs });
-    try { cache.put('BX_MINS', json, 300); } catch (e) {}
+    try { cache.put('BX_MINS2', json, 300); } catch (e) {}
   }
   return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
 }
