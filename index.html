@@ -4703,6 +4703,7 @@ const BACKTEST = {
             const label = m.api ? 'min $' + Math.max(0.01, m.usd).toFixed(2) : 'manual';
             if (el.placeholder !== label) {
                 el.placeholder = label;
+                el.style.width = 'max(60px, calc(' + (label.length + 1) + 'ch + 18px))'; // 60px cut "min $0.58" to "min $0"
                 el.title = m.api ? 'Smallest Bitunix order: $' + m.usd.toFixed(2) + ' at ' + OPEN_LEVERAGE + 'x' : 'Bitunix blocks API trading on this one: open it by hand';
             }
         });
