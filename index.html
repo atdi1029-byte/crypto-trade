@@ -4246,8 +4246,11 @@ const BACKTEST = {
         }, 50);
     }
 
+    // Card id -> API trade (rows/entries/entryTimes/entryPnls), so a 3x card can close one entry
+    const _openTradeData = {};
     function renderOpenTradeCard(a, i) {
             const id = 'open-' + i;
+            _openTradeData[id] = a;
             const tkr = a.ticker || a.symbol || '';
             const prc = a.price || a.entry || 0;
             const apiPnl = a.realizedPnl || 0;
@@ -6160,11 +6163,81 @@ const BACKTEST = {
     }
 
     async function confirmOutcome(ticker, signal, price, value, elemId, label) {
+        const a = _openTradeData[elemId];
+        if (a && (a.rows || []).length > 1) {
+            // 2x/3x card: pick which entry was closed (or all of them)
+            const pick = await pickTradeEntry(a, ticker, label, value === 'Lost' ? 'modal-btn-danger' : 'modal-btn-ok');
+            if (pick === null) return;
+            markOutcome(ticker, signal, price, value, elemId, pick === 'all' ? null : pick);
+            return;
+        }
         const ok = await showModal({ message: label + ' ' + ticker + '?', okLabel: label, okClass: value === 'Lost' ? 'modal-btn-danger' : 'modal-btn-ok' });
         if (ok) markOutcome(ticker, signal, price, value, elemId);
     }
 
-    async function markOutcome(ticker, signal, price, value, elemId) {
+    // Modal listing each entry of a multi-entry trade. Resolves to a row number, 'all', or null (cancel).
+    function pickTradeEntry(a, ticker, label, btnClass) {
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            const box = document.createElement('div');
+            box.className = 'modal-box';
+            box.innerHTML = `<div class="modal-msg">${esc(label)} which ${esc(ticker)} entry?</div>`;
+            const list = document.createElement('div');
+            list.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1rem';
+            const done = v => { overlay.remove(); resolve(v); };
+            const addBtn = (text, cls, v) => {
+                const b = document.createElement('button');
+                b.className = cls;
+                b.style.cssText = 'padding:0.55rem 0.8rem;border-radius:6px;border:none;font-family:Space Mono,monospace;font-size:0.8rem;font-weight:700;cursor:pointer;text-align:left';
+                b.textContent = text;
+                b.onclick = () => done(v);
+                list.appendChild(b);
+            };
+            a.rows.forEach((row, j) => {
+                const t = a.entryTimes && a.entryTimes[j] ? new Date(a.entryTimes[j]) : null;
+                const when = t && !isNaN(t) ? ' · ' + t.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+                const pnl = a.entryPnls && a.entryPnls[j] ? ' · locked ' + (a.entryPnls[j] >= 0 ? '+$' : '-$') + Math.abs(a.entryPnls[j]).toFixed(2) : '';
+                addBtn('@ $' + (a.entries ? a.entries[j] : '?') + when + pnl, btnClass, row);
+            });
+            addBtn('All ' + a.rows.length, 'modal-btn-cancel', 'all');
+            box.appendChild(list);
+            const btns = document.createElement('div');
+            btns.className = 'modal-buttons';
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'modal-btn-cancel';
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.onclick = () => done(null);
+            btns.appendChild(cancelBtn);
+            box.appendChild(btns);
+            overlay.appendChild(box);
+            overlay.onclick = (e) => { if (e.target === overlay) done(null); };
+            document.body.appendChild(overlay);
+        });
+    }
+
+    // After one entry of a 2x/3x card closes: drop it from the card and update the count + average
+    function removeCardEntry(el, elemId, row) {
+        const a = _openTradeData[elemId];
+        const j = a ? a.rows.indexOf(row) : -1;
+        if (j < 0) return;
+        const pnl = (a.entryPnls && a.entryPnls[j]) || 0;
+        ['rows', 'entries', 'entryTimes', 'entryPnls'].forEach(k => { if (a[k]) a[k].splice(j, 1); });
+        a.entryCount = a.rows.length;
+        a.avgEntry = a.entries.reduce((x, y) => x + Number(y), 0) / a.entries.length;
+        a.realizedPnl = (a.realizedPnl || 0) - pnl;
+        el.dataset.entryCount = a.entryCount;
+        el.dataset.pnl = (parseFloat(el.dataset.pnl || '0') - pnl);
+        const badge = el.querySelector('.entry-count-badge');
+        if (badge) { if (a.entryCount > 1) badge.textContent = a.entryCount + 'x'; else badge.remove(); }
+        const meta = el.querySelector('.meta');
+        if (meta) meta.innerHTML = meta.innerHTML.replace(/^(avg \$[^ &]+|@ \$[^ &]+)/,
+            a.entryCount > 1 ? 'avg $' + Number(a.avgEntry).toPrecision(4) : '@ $' + a.entries[0]);
+        const st = getTradeState(el.dataset.ticker, a.signal || '');
+        if (st && pnl) saveTradeState(el.dataset.ticker, a.signal || '', { ...st, pnl: (st.pnl || 0) - pnl });
+    }
+
+    async function markOutcome(ticker, signal, price, value, elemId, row = null) {
         const profitInput = document.getElementById(elemId + '-profit');
         const inputVal = parseFloat(profitInput ? profitInput.value : '') || 0;
         const el = document.getElementById(elemId);
@@ -6214,6 +6287,40 @@ const BACKTEST = {
             if (profitInput) profitInput.value = '';
             return;
 
+        }
+
+        // One entry of a 2x/3x card: close just that row, the card stays with one fewer
+        if (row) {
+            const a = _openTradeData[elemId] || {};
+            const j = (a.rows || []).indexOf(row);
+            const rowPnl = (j >= 0 && a.entryPnls && a.entryPnls[j]) || 0;
+            let total = rowPnl + ((value === 'Lost' && inputVal > 0) ? -inputVal : inputVal);
+            if (total === 0 && value !== 'Cancelled') {
+                const entered = await showModal({ message: 'P&L for this ' + ticker + ' entry?', input: 'Amount (negative for loss)', okLabel: 'Submit' });
+                if (entered === null) return;
+                let manualVal = parseFloat(entered) || 0;
+                if (value === 'Lost' && manualVal > 0) manualVal = -manualVal;
+                total = rowPnl + manualVal;
+            }
+            const finalValue = value === 'Cancelled' ? 'Cancelled' : value === 'Lost' ? 'Lost' : 'Closed';
+            el.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
+            const params = new URLSearchParams({ action: 'update', ticker, signal, price, field: 'outcome', value: finalValue, row: String(row) });
+            if (finalValue !== 'Cancelled') params.set('profitLocked', total.toFixed(2));
+            const res = await sendOutcomeUpdate(POST_URL + '?' + params, ticker, signal, row);
+            el.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
+            if (!res.saved) {
+                showToast(finalValue + ' NOT saved for ' + ticker + ' — ' + res.msg + '. Tap again.', 'error', 6000);
+                return;
+            }
+            removeCardEntry(el, elemId, row);
+            if (finalValue === 'Cancelled') {
+                // Cancel deletes the sheet row, so every row below it moves up one
+                Object.values(_openTradeData).forEach(t => { if (t.rows) t.rows = t.rows.map(r => r > row ? r - 1 : r); });
+            }
+            if (profitInput) profitInput.value = '';
+            const left = (_openTradeData[elemId] || {}).entryCount || 1;
+            showToast(ticker + ' ' + finalValue.toLowerCase() + (finalValue === 'Cancelled' ? '' : ' ' + (total >= 0 ? '+$' : '-$') + Math.abs(total).toFixed(2)) + ' — ' + left + ' still open');
+            return;
         }
 
         // Mark acted locally so auto-refresh doesn't restore the card (not for 0x0 — that card stays open)
@@ -6314,7 +6421,7 @@ const BACKTEST = {
     // Send an outcome update to the sheet and confirm it stuck. Retries up to 3x.
     // A real JSON reply from Apps Script is trusted; the img fallback (mobile CORS path)
     // can't read the reply, so we re-read the dashboard and check the trade is gone.
-    async function sendOutcomeUpdate(url, ticker, signal) {
+    async function sendOutcomeUpdate(url, ticker, signal, row = null) {
         let msg = 'no response';
         for (let attempt = 0; attempt < 3; attempt++) {
             if (attempt > 0) await new Promise(r => setTimeout(r, 1500));
@@ -6322,20 +6429,21 @@ const BACKTEST = {
             try { res = await fireGet(url); } catch (e) { msg = e.message; continue; }
             if (!res || res.status !== 'ok') { msg = (res && (res.message || res.msg)) || 'no response'; continue; }
             if (!res.via) return { saved: true, msg: '' };
-            if (await verifyTradeClosed(ticker, signal)) return { saved: true, msg: '' };
+            if (await verifyTradeClosed(ticker, signal, row)) return { saved: true, msg: '' };
             msg = 'sheet still shows it open';
         }
         return { saved: false, msg };
     }
     // Re-read the dashboard and confirm ticker+signal is no longer an open trade on the sheet
-    async function verifyTradeClosed(ticker, signal) {
+    async function verifyTradeClosed(ticker, signal, row = null) {
         try {
             const resp = await fetch(API_URL);
             const data = await resp.json();
             const t = ticker.toUpperCase(), sg = (signal || '').toLowerCase();
             return !(data.actionNeeded || []).some(a => a.type === 'mark_outcome'
                 && (a.symbol || a.ticker || '').toUpperCase() === t
-                && (a.signal || '').toLowerCase() === sg);
+                && (a.signal || '').toLowerCase() === sg
+                && (!row || (a.rows || []).includes(row)));
         } catch (e) { return false; }
     }
 

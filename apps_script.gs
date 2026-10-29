@@ -515,13 +515,29 @@ function updatePosition_(ss, data) {
   var field  = (data.field || '').toLowerCase();   // 'action' or 'outcome'
   var value  = data.value || '';                    // 'Entered','Skipped','Won','Lost','Open'
   var realizedPnl = data.realized_pnl || data.realizedPnl || data.profitLocked || data.profit || '';
+  var oneRow = Number(data.row) || 0;               // close just this entry of a multi-entry (2x/3x) trade
 
   var posSheet = ss.getSheetByName(POSITIONS);
   var posData  = posSheet.getDataRange().getValues();
 
+  if (oneRow && (field === 'outcome' || field === 'pnl')) {
+    // One entry only — the row must still be this open trade (rows shift when a Cancel deletes one)
+    var orow = posData[oneRow - 1];
+    var ok = orow && oneRow > 1
+      && String(orow[1]).toUpperCase().trim() === symbol
+      && String(orow[2]).toLowerCase() === signal
+      && String(orow[8] || '').trim().toLowerCase() === 'entered'
+      && ['', 'open'].indexOf(String(orow[9] || '').toLowerCase().trim()) !== -1;
+    if (!ok) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: 'error', message: 'That entry moved or is already closed — refresh and try again' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
   // Find ALL matching rows and update them all (handles duplicates)
-  var matchRows = [];
-  for (var i = posData.length - 1; i >= 1; i--) {
+  var matchRows = oneRow && (field === 'outcome' || field === 'pnl') ? [oneRow] : [];
+  for (var i = posData.length - 1; i >= 1 && !(oneRow && matchRows.length); i--) {
     var rowSymbol = String(posData[i][1]).toUpperCase();
     var rowSignal = String(posData[i][2]).toLowerCase();
     var rowAction = String(posData[i][8] || '').trim();
@@ -2003,6 +2019,8 @@ function serveDashboardJSON_() {
         existing.entryCount = (existing.entryCount || 1) + 1;
         existing.entries.push(pr[3] || 0);
         existing.rows.push(k + 1);
+        existing.entryTimes.push(pr[0] instanceof Date ? pr[0].toISOString() : String(pr[0]));
+        existing.entryPnls.push(savedPnl ? Number(savedPnl) : 0);
         // Recalculate average entry
         var sum = 0;
         for (var ei = 0; ei < existing.entries.length; ei++) sum += Number(existing.entries[ei]);
@@ -2027,6 +2045,8 @@ function serveDashboardJSON_() {
           avgEntry:  pr[3] || 0,
           entries:   [pr[3] || 0],
           rows:      [k + 1],
+          entryTimes: [pr[0] instanceof Date ? pr[0].toISOString() : String(pr[0])],
+          entryPnls:  [savedPnl ? Number(savedPnl) : 0],
           entryCount: 1,
           score:     pr[7] || 0,
           timestamp: pr[0] instanceof Date ? pr[0].toISOString() : String(pr[0]),
