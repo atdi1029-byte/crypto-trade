@@ -1112,6 +1112,10 @@ function executeBitunixTrade_(params) {
   var levFallback = Number(params.leverage_fallback || 0);
   var dryRun = String(params.dry_run || '') === '1' || String(params.dry_run || '').toLowerCase() === 'true';
   var signalTs = String(params.signal_ts || '').replace(/[^a-zA-Z0-9_:\-]/g, '');
+  // Typed-in Open (no alert): levels come as % from the live price, and log=1 adds the Positions row
+  var slPct = Number(params.sl_pct || 0), tpPct = Number(params.tp_pct || 0), tp2Pct = Number(params.tp2_pct || 0);
+  var logSymbol = String(params.log_symbol || '').toUpperCase().trim();
+  var logIt = String(params.log || '') === '1';
 
   function jsonOut_(obj) {
     logTrade_(params, obj);
@@ -1265,6 +1269,10 @@ function executeBitunixTrade_(params) {
     if (!(price > 0)) {
       return fail_('Could not get price for ' + symbol + ': ' + (tickerResp && tickerResp.msg) + ' (code ' + (tickerResp && tickerResp.code) + ')', { symbol: symbol });
     }
+    var isBuy_ = side !== 'sell' && side !== 'short';
+    if (!slPrice && slPct > 0)   slPrice  = String(isBuy_ ? price * (1 - slPct / 100)  : price * (1 + slPct / 100));
+    if (!tpPrice && tpPct > 0)   tpPrice  = String(isBuy_ ? price * (1 + tpPct / 100)  : price * (1 - tpPct / 100));
+    if (!tp2Price && tp2Pct > 0) tp2Price = String(isBuy_ ? price * (1 + tp2Pct / 100) : price * (1 - tp2Pct / 100));
 
     // 3. Leverage range (only enforced when a fallback was sent, i.e. SPX)
     if (levFallback) {
@@ -1548,6 +1556,22 @@ function executeBitunixTrade_(params) {
       result.warnings = warnings.join('; ');
     }
     console.log('[execute_trade] OK ' + JSON.stringify(result));
+
+    if (logIt && !dryRun) {
+      // Same row an alert + Open makes, so it shows in Open Trades (joins the coin's 2x/3x card)
+      try {
+        var div = (/^1000/.test(base) && !/^1000/.test(logSymbol)) ? 1000 : 1;
+        SpreadsheetApp.getActiveSpreadsheet().getSheetByName(POSITIONS).appendRow([
+          new Date(), logSymbol || symbol, isBuy_ ? 'buy' : 'short', price / div,
+          slStr ? Number(slStr) / div : '', tp1Str ? Number(tp1Str) / div : '', tp2Str ? Number(tp2Str) / div : '',
+          '', 'Entered', 'Open', '', '', '', '', sizeUsd
+        ]);
+        result.logged = true;
+      } catch (logErr) {
+        result.logged = false;
+        result.logError = String(logErr.message || logErr);
+      }
+    }
 
     return jsonOut_(result);
 

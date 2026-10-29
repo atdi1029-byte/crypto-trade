@@ -2554,6 +2554,7 @@
             <button class="ot-filter-btn active" data-filter="all" onclick="setOTFilter(this,'all')">All</button>
             <button class="ot-filter-btn need-4day-btn" data-filter="need-4day" onclick="setOTFilter(this,'need-4day')" id="need4dayFilter">Need 4 Day</button>
             <button class="ot-filter-btn not-on-bx-btn" data-filter="not-on-bx" onclick="setOTFilter(this,'not-on-bx')" id="notOnBxFilter" title="Open trades with no matching Bitunix position — stopped out or closed">Not on BX</button>
+            <button class="ot-filter-btn" onclick="showQuickOpenModal()" style="border-color:var(--green-candle);color:var(--green-bright);background:var(--green-dim)" title="Open a coin with the usual SL / TP1 / TP2 when the alert didn't come through">+ Open</button>
         </div>
         <div class="open-trades-list" id="openTradesList" style="max-height: 480px; overflow-y: auto;"></div>
     </div>
@@ -2815,6 +2816,112 @@
         overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
         document.body.appendChild(overlay);
         box.querySelector('#at-symbol').focus();
+    }
+
+    // ====== QUICK OPEN (alert didn't come through) ======
+    // Type a coin, pick Buy/Short, type the size: opens on Bitunix at the live price with the same
+    // SL / TP1 / TP2 an alert card would use, and adds the trade to Open Trades.
+    function quickOpenLevels(ticker, side) {
+        // Same lookup as the signal cards: backtest entry for this ticker, else the defaults
+        const base = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
+        for (const k of [ticker.toUpperCase(), base + 'USDT', base + 'USDT.P', base + 'USD', base + 'USDC']) {
+            const bt = getBacktest(k, side === 'buy' ? 'buy' : 'short');
+            if (bt) return bt;
+        }
+        return BT_DEFAULTS[side === 'buy' ? 'buy' : 'sell'];
+    }
+    function quickOpenLogSymbol(base) {
+        // Join the coin's existing card if it's already open, else BASEUSDT
+        const open = Object.values(_openTradeData).find(t =>
+            (t.symbol || t.ticker || '').toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'') === base);
+        return open ? (open.symbol || open.ticker).toUpperCase() : base + 'USDT';
+    }
+    async function showQuickOpenModal() {
+        loadBxMins();
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        const box = document.createElement('div');
+        box.className = 'modal-box';
+        box.innerHTML = `
+            <div class="modal-msg">Open a coin</div>
+            <input id="qo-symbol" type="text" placeholder="Coin (e.g. MORPHO)" style="text-transform:uppercase" autocomplete="off">
+            <div style="display:flex;gap:0.75rem;margin-bottom:0.5rem">
+                <label style="color:var(--text-dim);font-size:0.75rem;cursor:pointer"><input type="radio" name="qo-side" value="buy" checked> Buy</label>
+                <label style="color:var(--text-dim);font-size:0.75rem;cursor:pointer"><input type="radio" name="qo-side" value="sell"> Short</label>
+            </div>
+            <input id="qo-size" type="text" inputmode="decimal" placeholder="Size $" autocomplete="off">
+            <div id="qo-info" class="meta" style="margin:-0.5rem 0 1rem;font-size:0.7rem;min-height:1em"></div>
+        `;
+        const symEl = box.querySelector('#qo-symbol'), sizeEl = box.querySelector('#qo-size'), info = box.querySelector('#qo-info');
+        const sideOf = () => box.querySelector('input[name="qo-side"]:checked').value;
+        const baseOf = () => symEl.value.trim().toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
+        const updateInfo = () => {
+            const base = baseOf();
+            if (!base) { info.textContent = ''; return; }
+            const lvl = quickOpenLevels(base, sideOf());
+            const buy = sideOf() === 'buy';
+            const m = bxMinFor(base);
+            const minTxt = !_bxMins ? '' : !m ? ' · not on Bitunix?' : m.api ? ' · min $' + Math.max(0.01, m.usd).toFixed(2) : ' · Bitunix blocks API trading on this one';
+            const open = Object.values(_openTradeData).some(t =>
+                (t.symbol || t.ticker || '').toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'') === base);
+            info.innerHTML = `<span style="color:var(--red-bright)">SL ${buy ? '-' : '+'}${lvl.sl}%</span> · <span style="color:var(--green-bright)">TP1 ${buy ? '+' : '-'}${lvl.halfTp}%</span> · <span style="color:var(--green-bright)">TP2 ${buy ? '+' : '-'}${lvl.tp}%</span>${esc(minTxt)}${open ? ' · <b>already open, adds an entry</b>' : ''}`;
+        };
+        symEl.oninput = updateInfo;
+        box.querySelectorAll('input[name="qo-side"]').forEach(r => r.onchange = updateInfo);
+        const btns = document.createElement('div');
+        btns.className = 'modal-buttons';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'modal-btn-cancel';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.onclick = () => overlay.remove();
+        const okBtn = document.createElement('button');
+        okBtn.className = 'modal-btn-ok';
+        okBtn.textContent = 'Open';
+        okBtn.onclick = async () => {
+            const base = baseOf(), side = sideOf(), size = parseFloat(sizeEl.value);
+            if (!base) { showToast('Type a coin'); symEl.focus(); return; }
+            if (!(size > 0)) { showToast('Type a size'); sizeEl.focus(); return; }
+            const bxSym = BX_REMAP[base] || base;
+            const lvl = quickOpenLevels(base, side);
+            const logSymbol = quickOpenLogSymbol(base);
+            const signal = side === 'buy' ? 'buy' : 'short';
+            overlay.remove();
+            // Open Bitunix inside the click so it isn't popup-blocked, like the signal cards' Open
+            navigator.clipboard.writeText(bxSym + 'USDT').catch(() => {});
+            window.open(DEFAULT_BX(base), '_blank');
+            showToast('Opening ' + base + ' ' + signal + ' $' + size + '…', 'success');
+            const res = await fireGetNoFallback(POST_URL + '?' + new URLSearchParams({
+                action: 'execute_trade', symbol: bxSym, side, size_usd: String(size), leverage: String(OPEN_LEVERAGE),
+                sl_pct: String(lvl.sl), tp_pct: String(lvl.halfTp), tp2_pct: String(lvl.tp),
+                log: '1', log_symbol: logSymbol
+            }));
+            if (!res || res.status !== 'ok') {
+                await showModal({
+                    message: '<b>' + esc(base) + ' did not open</b><br><span style="font-size:0.8em;opacity:0.85;word-break:break-all">' + esc((res && res.msg) || 'no response') + '</span>',
+                    okLabel: 'OK', cancelLabel: 'Close'
+                });
+                return;
+            }
+            if (res.via === 'order_ok_tpsl_failed') {
+                showToast('⚠️ ' + base + ' opened but TP/SL failed — set them on Bitunix! ' + (res.tpSlWarning || ''), 'error', 8000);
+            } else {
+                showToast('Opened ' + base + ' ' + res.qty + ' @ $' + Number(res.price).toPrecision(4) + ' · SL ' + res.sl +
+                    (res.split ? ' · TP1 ' + res.tp + ' · TP2 ' + res.tp2 : ' · TP ' + res.tp) + (res.splitNote ? ' · ' + res.splitNote : ''), 'success', 8000);
+            }
+            if (res.warnings) showToast('⚠️ ' + base + ': ' + res.warnings + ' — check leverage/margin mode on Bitunix', 'error', 8000);
+            if (res.logged === false) showToast('⚠️ ' + base + ' is open on Bitunix but not in Open Trades (' + (res.logError || 'sheet write failed') + ') — add it with + Trade', 'error', 10000);
+            localStorage.setItem('clock_' + logSymbol + '_' + signal, String(Date.now()));
+            window._forceOpenTradesRefresh = true;
+            scheduleFetch(1500);
+        };
+        btns.appendChild(cancelBtn);
+        btns.appendChild(okBtn);
+        box.appendChild(btns);
+        overlay.appendChild(box);
+        overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+        sizeEl.addEventListener('keydown', e => { if (e.key === 'Enter') okBtn.click(); });
+        document.body.appendChild(overlay);
+        symEl.focus();
     }
 
     // ====== DEBOUNCED FETCH ======
@@ -4229,6 +4336,7 @@ const BACKTEST = {
             return;
         }
 
+        for (const k in _openTradeData) delete _openTradeData[k];
         list.innerHTML = deduped.map((a, i) => renderOpenTradeCard(a, i)).join('');
         setTimeout(() => {
             restoreOpenTradeStates();
@@ -6319,7 +6427,7 @@ const BACKTEST = {
             }
             if (profitInput) profitInput.value = '';
             const left = (_openTradeData[elemId] || {}).entryCount || 1;
-            showToast(ticker + ' ' + finalValue.toLowerCase() + (finalValue === 'Cancelled' ? '' : ' ' + (total >= 0 ? '+$' : '-$') + Math.abs(total).toFixed(2)) + ' — ' + left + ' still open');
+            showToast(ticker + ' ' + finalValue.toLowerCase() + (finalValue === 'Cancelled' ? '' : ' ' + (total >= 0 ? '+$' : '-$') + Math.abs(total).toFixed(2)) + ' — ' + left + ' still open', 'success');
             return;
         }
 
