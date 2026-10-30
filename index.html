@@ -4258,7 +4258,7 @@ const BACKTEST = {
                             ${noteHtml ? `<div class="meta" style="margin-top:0.15rem">${noteHtml}</div>` : ''}
                             ${!lvl && levelsStr ? `<div class="meta" style="margin-top:0.15rem;font-size:0.7rem">${levelsStr}</div>` : ''}
                             ${btHtml}
-                            <div class="action-buttons" data-signal-sl="${lvl ? (isBuy ? p * (1 - lvl.sl / 100) : p * (1 + lvl.sl / 100)) : (sl || '')}" data-signal-tp="${lvl ? (isBuy ? p * (1 + lvl.halfTp / 100) : p * (1 - lvl.halfTp / 100)) : (tp1 || '')}" data-signal-tp2="${lvl ? (isBuy ? p * (1 + lvl.tp / 100) : p * (1 - lvl.tp / 100)) : ''}" data-signal-side="${isBuy ? 'buy' : 'sell'}" data-signal-ts="${esc(a.timestamp || '')}">
+                            <div class="action-buttons" data-signal-sl="${lvl ? (isBuy ? p * (1 - lvl.sl / 100) : p * (1 + lvl.sl / 100)) : (sl || '')}" data-signal-tp="${lvl ? (isBuy ? p * (1 + lvl.halfTp / 100) : p * (1 - lvl.halfTp / 100)) : (tp1 || '')}" data-signal-tp2="${lvl ? (isBuy ? p * (1 + lvl.tp / 100) : p * (1 - lvl.tp / 100)) : ''}" data-signal-pcts="${lvl ? lvl.sl + ',' + lvl.halfTp + ',' + lvl.tp : ''}" data-signal-side="${isBuy ? 'buy' : 'sell'}" data-signal-ts="${esc(a.timestamp || '')}">
                                 <input type="text" class="entry-input" placeholder="Size $" data-bx="${esc(tkr)}" id="${id}-size" onkeydown="if(event.key==='Enter'){navigator.clipboard.writeText(this.value);openBitunix('${esc(tkr)}')}">
                                 ${lvl ? `<input type="text" class="entry-input" placeholder="Entry $" id="${id}-entry" value="${p}" style="width:80px" oninput="recalcLevels('${id}')">` : ''}
                                 <button class="action-btn entered" onclick="markAction('${esc(tkr)}','${esc(a.signal)}',${prc},'Entered','${id}')">Open</button>
@@ -6152,6 +6152,8 @@ const BACKTEST = {
             const slPrice = btnDiv ? btnDiv.dataset.signalSl : '';
             const tpPrice = btnDiv ? btnDiv.dataset.signalTp : '';
             const tp2Price = btnDiv ? (btnDiv.dataset.signalTp2 || '') : '';
+            // SL/TP %s: the script puts them on the price it fills at, not the signal's (Oct 30 crash)
+            const pcts = (btnDiv && btnDiv.dataset.signalPcts ? btnDiv.dataset.signalPcts : '').split(',');
             const tradeSide = btnDiv ? btnDiv.dataset.signalSide : 'buy';
             const signalTs = btnDiv ? btnDiv.dataset.signalTs : '';
             const cleanSym = ticker.toUpperCase().replace(/\.P$/,'').replace(/USDT$|USD$|USDC$/,'');
@@ -6169,6 +6171,7 @@ const BACKTEST = {
                 sl_price: slPrice,
                 tp_price: tpPrice,
                 tp2_price: tp2Price,
+                sl_pct: pcts[0] || '', tp_pct: pcts[1] || '', tp2_pct: pcts[2] || '',
                 leverage: '3',
                 signal_ts: signalTs
             });

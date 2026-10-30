@@ -1274,6 +1274,17 @@ function executeBitunixTrade_(params) {
     if (!tpPrice && tpPct > 0)   tpPrice  = String(isBuy_ ? price * (1 + tpPct / 100)  : price * (1 - tpPct / 100));
     if (!tp2Price && tp2Pct > 0) tp2Price = String(isBuy_ ? price * (1 + tp2Pct / 100) : price * (1 - tp2Pct / 100));
 
+    // 2b. SL/TP from the price we're filling at, when the app sends percentages. The signal's price can
+    //     be far off after a big move (Oct 30 crash: stops landed ~2% from the fill instead of 14.5%).
+    var slPct = Number(params.sl_pct), tpPct = Number(params.tp_pct), tp2Pct = Number(params.tp2_pct);
+    if (slPct > 0 && tpPct > 0) {
+      var longP = !(side === 'sell' || side === 'short');
+      var atPct = function(pct) { return longP ? price * (1 + pct / 100) : price * (1 - pct / 100); };
+      slPrice = String(atPct(-slPct));
+      tpPrice = String(atPct(tpPct));
+      if (tp2Pct > 0) tp2Price = String(atPct(tp2Pct));
+    }
+
     // 3. Leverage range (only enforced when a fallback was sent, i.e. SPX)
     if (levFallback) {
       var minLev = Number(pairData.minLeverage) || 1, maxLev = Number(pairData.maxLeverage) || 125;
