@@ -3013,9 +3013,11 @@
     }
     // 2. Market switch: longs only while 25%+ of ~300 alert coins trade above their 50-day average (price now vs
     //    the last 50 daily closes, Binance spot). Long alerts with the switch off lost ~5.4% each, on made +2.1%.
-    //    OFF for now (Alex, Nov 8: it would cut off powerful reversals; try it only after 6-7 months of data from
-    //    Aug 14 2026, i.e. Feb-Mar 2027). MKT_SWITCH = true turns the pill and the second tap back on.
-    const MKT_SWITCH = false;
+    //    Suggestion only for now (Alex, Nov 8: "just keep it as a suggestion"; a block would cut off powerful
+    //    reversals, so judge it after 6-7 months of data from Aug 14 2026, i.e. Feb-Mar 2027). The pill shows;
+    //    MKT_GATE = true would bring back the second tap on longs.
+    const MKT_SWITCH = true;
+    const MKT_GATE = false;
     const MKT_MIN_PCT = 25;
     const MKT_COINS = '0G 1INCH 1MBABYDOGE AAVE ACE ACH ACT ADA AEVO AGLD AI AIXBT ALGO ALICE ALLO ALPINE ALT ANIME APE API3 ARB ARKM ARK ARPA AR ASR ASTER ASTR ATOM AT AUCTION A AVA AVAX AVNT AWE AXL AXS BABY BANANAS31 BANANA BAND BANK BARD BB BCH BEAMX BERA BICO BIGTIME BIO BLUR BMT BNB BNT BOME BONK BREV BROCCOLI714 BTC C98 CAKE CATI CELO CETUS CFX CHIP CHR CHZ COTI CRV CTK C CVX CYBER DASH DCR DENT DEXE DGB DOGE DOGS DOLO DOT DUSK DYDX DYM EDEN EDU EGLD EIGEN ENA ENJ ENSO ENS ERA ESP ETC ETHFI ETH FET FF FIDA FIL FLOKI FLOW FOGO FORM FRAX F GALA GAS GIGGLE GLM GMT GMX GNO GPS GRAM GRT GTC GUN G HBAR HEI HEMI HIVE HMSTR HOLO HOT HUMA ICP ICX ID ILV IMX INIT INJ IOST IOTA IOTX IO JASMY JOE JST JTO JUP KAIA KAITO KAT KAVA KERNEL KITE KMNO KSM LINEA LINK LISTA LPT LQTY LSK LTC LUMIA LUNA LUNC MAGIC MANA MANTA MANTRA MARSCOIN MASK MAV MEME ME MIRA MITO MMT MORPHO MOVE MOVR MTL MUBARAK NEAR NEIRO NEO NEXO NIL NOM NOT OG ONDO ONE ONG ONT OPG OP ORCA ORDI PENDLE PENGU PEOPLE PEPE PIXEL PLUME PNUT POL POLYX PORTAL PROM PROVE PUMP PUNDIX PYTH QNT QTUM RAD RAY RED RENDER RESOLV RIF ROBO ROSE RPL RSR RUNE RVN SAGA SAHARA SAND SCR SC SEI SFP SHELL SIGN SKY SLP SNX SOMI SOPH SPK SSV STEEM STO STRK STX SUI SUN S SUSHI SXT SYN SYRUP TAO TFUEL THETA THE TLM TNSR TRB TRUMP TRX TST TURBO TURTLE T TWT UNI USTC USUAL VET VIRTUAL VTHO WAL WAXP WIF WLD WLFI WOO W XAI XEC XLM XNO XPL XRP XTZ XVG XVS YB YFI YGG ZAMA ZBT ZEC ZEN ZIL ZKC ZKP ZRO'.split(' ');
     let _mkt = null;   // { pct, n, t }
@@ -3046,21 +3048,21 @@
         renderMarketSwitch();
         return _mkt;
     }
-    function marketOn() { return !MKT_SWITCH || !_mkt || _mkt.pct >= MKT_MIN_PCT; }
+    function marketOn() { return !_mkt || _mkt.pct >= MKT_MIN_PCT; }
     function renderMarketSwitch() {
         const el = document.getElementById('mktSwitch');
         if (!el || !_mkt) return;
         const on = marketOn();
         el.style.display = '';
-        el.textContent = (on ? 'Longs ON ' : 'Longs OFF ') + _mkt.pct + '%';
+        el.textContent = (on ? 'Market OK ' : 'Market weak ') + _mkt.pct + '%';
         el.style.background = on ? 'rgba(77,208,196,0.22)' : 'rgba(255,107,107,0.25)';
         el.style.color = on ? 'var(--green-bright)' : 'var(--red-bright)';
-        el.title = _mkt.pct + '% of ' + _mkt.n + ' coins are above their 50-day average (longs need ' + MKT_MIN_PCT +
-            '%). Updated ' + new Date(_mkt.t).toLocaleTimeString() + '. Tap to refresh.';
+        el.title = 'Suggestion: ' + _mkt.pct + '% of ' + _mkt.n + ' coins are above their 50-day average (under ' + MKT_MIN_PCT +
+            '% = a weak market for longs). Updated ' + new Date(_mkt.t).toLocaleTimeString() + '. Tap to refresh.';
     }
     async function longGate(ticker) {
         // true = go ahead. While the market switch is off, a long needs a second tap.
-        if (marketOn()) return true;
+        if (!MKT_GATE || marketOn()) return true;
         const ok = await showModal({
             message: '<b>Market switch is OFF</b><br>Only ' + _mkt.pct + '% of coins are above their 50-day average (longs need ' +
                 MKT_MIN_PCT + '%).<br><span style="font-size:0.8em;opacity:0.85">In the trade review, long alerts taken like this ' +
